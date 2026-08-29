@@ -1,0 +1,29 @@
+{# =========================================
+   À placer dans : templates/admin/base_site.html
+   (le dossier "templates" à la racine du projet,
+   celui référencé dans TEMPLATES[0]['DIRS'] de settings.py
+   — voir la note d'installation ci-dessous)
+========================================= #}
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} · KMS Nord Administration{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'foncier/css/admin_custom.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div id="branding-kmsn">
+  <img src="{% static 'foncier/images/logo.jpeg' %}" alt="Logo KMS Nord">
+  <h1 id="site-name">
+    <a href="{% url 'admin:index' %}">KMS Nord — Foncier &amp; Fiscal</a>
+  </h1>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

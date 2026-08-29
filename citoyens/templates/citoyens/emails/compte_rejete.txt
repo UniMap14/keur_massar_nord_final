@@ -1,0 +1,10 @@
+Bonjour {{ prenom }},
+
+Après vérification, votre demande de création d'espace citoyen n'a pas pu être validée.
+
+Motif : {{ motif }}
+
+Vous pouvez corriger les informations concernées et soumettre une nouvelle demande d'inscription, ou contacter l'administration pour plus de précisions.
+
+Cordialement,
+L'administration — Commune de Keur Massar Nord

@@ -1,0 +1,65 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Signalement citoyen - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .signal-layout{ display:grid; grid-template-columns:1fr 1.3fr; gap:32px; margin-top:36px; align-items:start; }
+  .signal-form-card{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    padding:28px; box-shadow:var(--shadow-sm);
+  }
+  .signal-form-card .form-label{ font-weight:600; font-size:13.5px; margin-top:14px; }
+  .signal-list-card{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:26px;
+  }
+  .signal-row{ display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+  .signal-row:last-child{ border-bottom:none; }
+  .signal-row img{ width:76px; height:76px; border-radius:10px; object-fit:cover; flex-shrink:0; }
+  .signal-row .no-photo{ width:76px; height:76px; border-radius:10px; background:var(--off-white); flex-shrink:0; }
+  .signal-row .top{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .signal-row h4{ font-size:14.5px; margin:0; }
+  .badge-statut{ font-size:11px; font-weight:700; padding:3px 10px; border-radius:100px; white-space:nowrap; }
+  .badge-resolu{ background:rgba(40,167,69,.12); color:#28a745; }
+  .badge-encours{ background:rgba(201,152,46,.15); color:var(--gold); }
+  .signal-row .meta{ font-size:12.5px; color:var(--text-muted); margin-top:6px; }
+  .signal-row p{ font-size:13px; color:var(--text-muted); margin-top:6px; }
+
+  @media (max-width: 900px){ .signal-layout{ grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="main-section">
+  <span class="section-label">Signalement</span>
+  <h2 class="section-title">Signaler un problème dans votre quartier</h2>
+  <p class="section-sub">Dépôt d'ordures, éclairage défectueux, route dégradée, occupation illégale... signalez-le à la mairie, avec photo si possible.</p>
+
+  <div class="signal-layout">
+    <div class="signal-form-card">
+      <h3 style="font-size:16px; margin-bottom:16px;">Nouveau signalement</h3>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn-primary" style="margin-top:10px;">
+          <i class="fa-solid fa-paper-plane"></i> Envoyer le signalement
+        </button>
+      </form>
+    </div>
+
+    <div class="signal-list-card">
+      <h3 style="font-size:16px; margin-bottom:6px;">Que devient votre signalement ?</h3>
+      <p class="section-sub" style="margin-bottom:0;">
+        Votre signalement est transmis directement aux services municipaux
+        pour traitement. Par souci de confidentialité, les signalements ne
+        sont pas publiés ni consultables par les autres visiteurs du site :
+        seule l'administration de la commune peut les consulter et les traiter.
+      </p>
+      <p class="section-sub" style="margin-top:14px; margin-bottom:0;">
+        Vous avez déjà déposé un signalement ?
+        <a href="{% url 'signalement_suivi' %}"><strong>Suivre son évolution avec votre code</strong></a>
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}

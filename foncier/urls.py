@@ -1,0 +1,36 @@
+from django.urls import path
+from . import views
+from .forms import ContactForm
+from django.contrib.auth import views as auth_views
+urlpatterns = [
+    path('', views.home_page, name='home'),
+    path('geoportail/', views.carte_geoportail, name='geoportail'),
+    path('cadastre/recherche/', views.recherche_cadastrale, name='recherche_cadastrale'),
+    path('fiscalite/verifier-recu/', views.verifier_recu, name='verifier_recu'),
+    path('paiements/<int:pk>/recu.pdf', views.recu_pdf_view, name='paiement_recu_pdf'),
+    path('paiements/webhook/orange/', views.paiement_webhook_orange, name='paiement_webhook_orange'),
+    path('paiements/webhook/wave/', views.paiement_webhook_wave, name='paiement_webhook_wave'),
+    path('actualites/', views.actualites_liste, name='actualites'),
+    path('actualites/<int:pk>/', views.actualite_detail, name='actualite_detail'),
+    path('geoportail/admin/', views.carte_geoportail_admin, name='geoportail_admin'),
+    path('fiscalite/', views.fiscalite, name='fiscalite'),
+    path('api/parcelles/', views.api_parcelles_geojson, name='api_parcelles'),
+    path('api/parcelles/toutes/', views.api_parcelles_toutes_geojson, name='api_parcelles_toutes'),
+    path('api/parcelles/admin/', views.api_parcelles_geojson_admin, name='api_parcelles_admin'),
+    path('api/parcelles/admin/toutes/', views.api_parcelles_toutes_geojson_admin, name='api_parcelles_toutes_admin'),
+    path('geoportail/parcelle/<int:parcelle_id>/modifier/', views.parcelle_update_fiscal, name='parcelle_update_fiscal'),
+    path('api/zones/', views.api_zones_geojson, name='api_zones'),
+    path('contact/', views.contact, name='contact'),
+    path('mentions-legales/', views.mentions_legales, name='mentions_legales'),
+    path('politique-confidentialite/', views.politique_confidentialite, name='politique_confidentialite'),
+    path('contribuables/nouveau/', views.contribuable_create, name='contribuable_create'),
+    path('paiements/nouveau/', views.paiement_create, name='paiement_create'),
+    path('fiscalite/simuler/', views.simuler_fiscalite, name='simuler_fiscalite'),
+    path('fiscalite/guide/<slug:code>/', views.guide_fiscal_detail, name='guide_fiscal_detail'),
+    path('infrastructures/', views.infrastructures, name='infrastructures'),
+    path('signalement/', views.signalement, name='signalement'),
+    path('signalement/confirmation/<uuid:reference>/', views.signalement_confirmation, name='signalement_confirmation'),
+    path('signalement/suivi/', views.signalement_suivi, name='signalement_suivi'),
+    path('statistiques/', views.statistiques, name='statistiques'),
+    
+]

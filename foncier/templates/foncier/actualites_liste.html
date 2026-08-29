@@ -1,0 +1,148 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Actualités - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .actu-toolbar {
+    max-width: 900px;
+    margin: -32px auto 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    padding: 20px;
+    position: relative;
+    z-index: 2;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .actu-toolbar input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+  .actu-toolbar input[type="text"]:focus { outline: none; border-color: var(--green-dark); }
+  .actu-toolbar select {
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 12px 18px;
+    font-size: 14px;
+    background: #fff;
+  }
+  .actu-toolbar button { border-radius: 999px; padding: 12px 24px; white-space: nowrap; }
+
+  .actu-count { text-align: center; color: var(--ink-quiet, #6f6a5e); font-size: 13px; margin: 28px 0 10px; }
+
+  .news-card { cursor: pointer; text-decoration: none; color: inherit; display: block; }
+  .news-card:hover .news-img i { transform: scale(1.1); }
+
+  .pagination {
+    display: flex; justify-content: center; align-items: center; gap: 8px;
+    margin: 40px 0 10px; flex-wrap: wrap;
+  }
+  .pagination a, .pagination span {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 38px; height: 38px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+    text-decoration: none; color: var(--text); border: 1px solid var(--border); padding: 0 10px;
+  }
+  .pagination a:hover { border-color: var(--green-dark); color: var(--green-dark); }
+  .pagination .current { background: var(--green-dark); color: #fff; border-color: var(--green-dark); }
+  .pagination .disabled { opacity: 0.35; pointer-events: none; }
+
+  .actu-empty { text-align: center; padding: 60px 20px; color: var(--ink-quiet, #6f6a5e); grid-column: 1 / -1; }
+  .actu-empty i { font-size: 30px; color: var(--gold); margin-bottom: 14px; display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Actualités</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Actualités</div>
+    <h1>L'actualité de Keur Massar Nord.</h1>
+    <p>Avis, communiqués, projets et appels d'offres de la commune.</p>
+  </div>
+</section>
+
+<section class="container page-section">
+
+  <form method="get" class="actu-toolbar">
+    <input type="text" name="q" value="{{ q }}" placeholder="Rechercher une actualité…">
+    <select name="categorie">
+      <option value="">Toutes les catégories</option>
+      {% for code, libelle in categories %}
+        <option value="{{ code }}" {% if categorie == code %}selected{% endif %}>{{ libelle }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Filtrer</button>
+    {% if q or categorie %}
+      <a href="{% url 'actualites' %}" class="btn btn-outline">Réinitialiser</a>
+    {% endif %}
+  </form>
+
+  <p class="actu-count">{{ page_obj.paginator.count }} actualité{{ page_obj.paginator.count|pluralize }} trouvée{{ page_obj.paginator.count|pluralize }}</p>
+
+  <div class="news-grid">
+    {% for actu in page_obj %}
+    <a href="{% url 'actualite_detail' actu.pk %}" class="news-card">
+      <div class="news-img {% cycle 'news-img-1' 'news-img-2' 'news-img-3' %}">
+        {% if actu.photo %}
+          <img src="{{ actu.photo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+        {% else %}
+          <i class="fa-solid fa-newspaper news-img-icon"></i>
+        {% endif %}
+        <span class="news-tag">{{ actu.get_categorie_display }}</span>
+      </div>
+      <div class="news-body">
+        <div class="news-date"><i class="fa-solid fa-calendar"></i> {{ actu.date_publication|date:"d F Y" }}</div>
+        <h3>{{ actu.titre }}</h3>
+        <p>{{ actu.chapo }}</p>
+      </div>
+    </a>
+    {% empty %}
+    <div class="actu-empty">
+      <i class="fa-solid fa-newspaper"></i>
+      {% if q or categorie %}
+        Aucune actualité ne correspond à votre recherche.
+      {% else %}
+        Aucune actualité publiée pour le moment.
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="pagination">
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if categorie %}&categorie={{ categorie }}{% endif %}"><i class="fa-solid fa-chevron-left"></i></a>
+    {% else %}
+      <span class="disabled"><i class="fa-solid fa-chevron-left"></i></span>
+    {% endif %}
+
+    {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+        <span class="current">{{ num }}</span>
+      {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if categorie %}&categorie={{ categorie }}{% endif %}">{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if categorie %}&categorie={{ categorie }}{% endif %}"><i class="fa-solid fa-chevron-right"></i></a>
+    {% else %}
+      <span class="disabled"><i class="fa-solid fa-chevron-right"></i></span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</section>
+{% endblock %}

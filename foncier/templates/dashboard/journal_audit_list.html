@@ -1,0 +1,151 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Journal d'audit{% endblock %}
+{% block header_title %}Journal d'audit{% endblock %}
+{% block header_subtitle %}
+<div class="topbar-subtitle">Historique des créations, modifications et suppressions sur les données sensibles.</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .4s ease forwards; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .audit-filters {
+        display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 20px;
+        border-bottom: 1px solid var(--line-strong, #e6e0d4);
+    }
+    .audit-filters select {
+        border: 1.5px solid var(--line-strong, #e6e0d4); border-radius: 8px;
+        padding: 8px 12px; font-family: inherit; font-size: 13px; background: #fdfcfa;
+    }
+
+    .audit-entry {
+        display: flex; gap: 14px; padding: 16px 20px; border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .audit-icon {
+        width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center;
+        justify-content: center; flex-shrink: 0; font-size: 13px; margin-top: 2px;
+    }
+    .audit-icon.creation { background: rgba(47,122,79,0.12); color: #2f7a4f; }
+    .audit-icon.modification { background: rgba(201,152,46,0.15); color: #a67c1f; }
+    .audit-icon.suppression { background: rgba(178,59,46,0.1); color: #b23b2e; }
+
+    .audit-body { flex: 1; }
+    .audit-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .audit-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+    .audit-title strong { font-weight: 700; }
+    .audit-meta { font-size: 12px; color: var(--ink-quiet, #7a7266); white-space: nowrap; }
+
+    .audit-diff {
+        margin-top: 8px; font-size: 12.5px; background: var(--off-white, #f4f0e8);
+        border-radius: 8px; padding: 10px 12px;
+    }
+    .audit-diff-row { display: flex; gap: 8px; padding: 2px 0; }
+    .audit-diff-field { font-weight: 700; color: var(--text); min-width: 140px; }
+    .audit-diff-old { color: #b23b2e; text-decoration: line-through; }
+    .audit-diff-new { color: #2f7a4f; font-weight: 600; }
+
+    .empty-state { text-align: center; padding: 50px 20px; }
+    .empty-state .icon {
+        width: 48px; height: 48px; border-radius: 50%; background: rgba(58,125,68,0.1);
+        color: #3a7d44; display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 14px; font-size: 18px;
+    }
+
+    .audit-pagination {
+        display: flex; justify-content: center; gap: 8px; padding: 18px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <form method="get" class="audit-filters">
+    <select name="modele" onchange="this.form.submit()">
+      <option value="">Tous les modèles</option>
+      {% for m in modeles_disponibles %}
+      <option value="{{ m }}" {% if modele_filtre == m %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="action" onchange="this.form.submit()">
+      <option value="">Toutes les actions</option>
+      <option value="CREATION" {% if action_filtre == "CREATION" %}selected{% endif %}>Création</option>
+      <option value="MODIFICATION" {% if action_filtre == "MODIFICATION" %}selected{% endif %}>Modification</option>
+      <option value="SUPPRESSION" {% if action_filtre == "SUPPRESSION" %}selected{% endif %}>Suppression</option>
+    </select>
+
+    <select name="utilisateur" onchange="this.form.submit()">
+      <option value="">Tous les agents</option>
+      {% for u in utilisateurs_disponibles %}
+      <option value="{{ u.pk }}" {% if utilisateur_filtre == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+      {% endfor %}
+    </select>
+
+    {% if modele_filtre or action_filtre or utilisateur_filtre %}
+    <a href="{% url 'dashboard_journal_audit_list' %}" class="btn btn-outline btn-sm">
+      <i class="fa-solid fa-xmark"></i> Réinitialiser
+    </a>
+    {% endif %}
+  </form>
+
+  <div class="panel-body flush">
+    {% if page.object_list %}
+      {% for e in page.object_list %}
+      <div class="audit-entry">
+        <div class="audit-icon {{ e.action|lower }}">
+          {% if e.action == "CREATION" %}<i class="fa-solid fa-plus"></i>
+          {% elif e.action == "MODIFICATION" %}<i class="fa-solid fa-pen"></i>
+          {% else %}<i class="fa-solid fa-trash"></i>{% endif %}
+        </div>
+        <div class="audit-body">
+          <div class="audit-top">
+            <div class="audit-title">
+              {{ e.get_action_display }} — <strong>{{ e.modele }}</strong> « {{ e.objet_repr }} »
+            </div>
+            <div class="audit-meta">
+              {{ e.utilisateur.get_full_name|default:e.utilisateur.username|default:"Système" }}
+              · {{ e.horodatage|date:"d/m/Y H:i" }}
+              {% if e.adresse_ip %} · {{ e.adresse_ip }}{% endif %}
+            </div>
+          </div>
+
+          {% if e.champs_modifies %}
+          <div class="audit-diff">
+            {% for champ, valeurs in e.champs_modifies.items %}
+            <div class="audit-diff-row">
+              <span class="audit-diff-field">{{ champ }}</span>
+              <span class="audit-diff-old">{{ valeurs.0|default:"(vide)" }}</span>
+              <i class="fa-solid fa-arrow-right" style="font-size:10px; margin-top:3px; color:var(--ink-quiet,#7a7266);"></i>
+              <span class="audit-diff-new">{{ valeurs.1|default:"(vide)" }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+
+      {% if page.has_other_pages %}
+      <div class="audit-pagination">
+        {% if page.has_previous %}
+        <a href="?page={{ page.previous_page_number }}{% if modele_filtre %}&modele={{ modele_filtre }}{% endif %}{% if action_filtre %}&action={{ action_filtre }}{% endif %}{% if utilisateur_filtre %}&utilisateur={{ utilisateur_filtre }}{% endif %}" class="btn btn-outline btn-sm">Précédent</a>
+        {% endif %}
+        <span style="align-self:center; font-size:13px; color:var(--ink-quiet,#7a7266);">Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}
+        <a href="?page={{ page.next_page_number }}{% if modele_filtre %}&modele={{ modele_filtre }}{% endif %}{% if action_filtre %}&action={{ action_filtre }}{% endif %}{% if utilisateur_filtre %}&utilisateur={{ utilisateur_filtre }}{% endif %}" class="btn btn-outline btn-sm">Suivant</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    {% else %}
+    <div class="empty-state">
+      <div class="icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      Aucune entrée dans le journal pour ces filtres.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,189 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Espace Citoyen{% endblock %} · KMS Nord</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+    :root {
+        --gold-primary : #eab308;
+        --gold-hover   : #ca8a04;
+        --card-bg      : #141414;
+        --input-bg     : #1e1e20;
+        --border-soft  : #333336;
+        --text-white   : #ffffff;
+        --text-muted   : #a1a1aa;
+        --error        : #ef4444;
+        --success      : #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; color: var(--text-white); background-color: #0d0d0d; }
+
+    .login-shell {
+        position: relative; min-height: 100dvh; width: 100%; display: flex;
+        align-items: center; justify-content: center; padding: 24px 16px;
+        background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.3)),
+                    url("{% static 'foncier/images/bg-dgid-keur-massar.png' %}") no-repeat center center/cover;
+    }
+
+    .login-card {
+        position: relative; width: 100%; max-width: 560px; background: var(--card-bg);
+        border-radius: 35px; padding: 44px 40px 38px;
+        box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+    }
+
+    .wave-header {
+        position: absolute; top: 0; left: 0; width: 100%; height: 125px;
+        overflow: hidden; z-index: 1; pointer-events: none;
+    }
+    .wave-header svg { width: 100%; height: 100%; }
+
+    .card-top-nav {
+        position: relative; z-index: 2; display: flex; justify-content: space-between;
+        align-items: center; margin-bottom: 24px;
+    }
+    .card-top-nav .flame-icon { color: #141414; font-size: 22px; }
+    .card-top-nav .menu-icon { color: var(--text-white); font-size: 20px; }
+
+    h1.title-login {
+        position: relative; z-index: 2; font-size: 32px; font-weight: 500;
+        letter-spacing: 3px; text-align: center; margin: 15px 0 8px; color: var(--text-white);
+    }
+    .title-sub {
+        position: relative; z-index: 2; text-align: center; color: var(--text-muted);
+        font-size: 14px; margin-bottom: 28px; line-height: 1.5;
+    }
+
+    .form-content { position: relative; z-index: 2; }
+
+    .form-section-label {
+        font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--gold-primary); margin: 22px 0 12px;
+    }
+    .form-section-label:first-child { margin-top: 0; }
+
+    .form-row { display: flex; gap: 14px; }
+    .form-row .form-field { flex: 1; }
+
+    .form-field { margin-bottom: 18px; }
+    .form-field label.field-label {
+        display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 7px;
+    }
+
+    .field-input-wrap { position: relative; display: flex; align-items: center; }
+    .field-input-wrap input {
+        width: 100%; background-color: var(--input-bg) !important; border: 1px solid var(--border-soft);
+        border-radius: 12px; padding: 14px 46px 14px 46px !important; font-size: 14px;
+        font-family: 'Inter', sans-serif; color: var(--text-white) !important;
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+    .field-input-wrap input:-webkit-autofill,
+    .field-input-wrap input:-webkit-autofill:hover,
+    .field-input-wrap input:-webkit-autofill:focus {
+        -webkit-box-shadow: 0 0 0 30px #1e1e20 inset !important;
+        -webkit-text-fill-color: #ffffff !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+    .field-input-wrap input::placeholder { color: #71717a; }
+    .field-input-wrap input:focus {
+        outline: none; border-color: var(--gold-primary);
+        box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.18);
+    }
+    .field-input-wrap .field-icon {
+        position: absolute; left: 16px; font-size: 15px; color: var(--gold-primary);
+        pointer-events: none; z-index: 3;
+    }
+    .field-toggle-pass {
+        position: absolute; right: 14px; background: none; border: none; cursor: pointer;
+        color: #71717a; font-size: 15px; padding: 4px; z-index: 3;
+    }
+    .field-toggle-pass:hover { color: var(--gold-primary); }
+
+    .field-error { display: block; color: #fca5a5; font-size: 12px; margin-top: 6px; }
+    .field-help  { display: block; color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+
+    .btn-login {
+        width: 100%; border: none; border-radius: 12px; background: var(--gold-primary);
+        color: #000000; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 15px;
+        letter-spacing: .5px; padding: 15px; display: flex; align-items: center;
+        justify-content: center; gap: 10px; cursor: pointer; text-decoration: none;
+        transition: transform .15s ease, background .15s ease; margin-top: 6px;
+    }
+    .btn-login:hover { background: var(--gold-hover); transform: translateY(-1px); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login.is-loading { opacity: .85; pointer-events: none; }
+    .btn-login .fa-spinner { display: none; }
+    .btn-login.is-loading .fa-spinner { display: inline-block; animation: spin .7s linear infinite; }
+    .btn-login.is-loading .btn-label-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .register-footer { text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-muted); }
+    .register-footer a { color: var(--gold-primary); text-decoration: none; font-weight: 600; margin-left: 4px; }
+    .register-footer a:hover { text-decoration: underline; }
+
+    .btn-home {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        margin-top: 20px; color: var(--text-muted); text-decoration: none; font-size: 13px;
+        font-weight: 500; transition: color 0.2s ease;
+    }
+    .btn-home:hover { color: var(--gold-primary); }
+
+    .flash-error, .flash-success {
+        display: flex; align-items: flex-start; gap: 10px; font-size: 14px;
+        border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; position: relative; z-index: 2;
+    }
+    .flash-error { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--error); color: #fca5a5; }
+    .flash-success { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: #86efac; }
+
+    .status-icon-big {
+        width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center;
+        justify-content: center; font-size: 28px; margin: 0 auto 20px; position: relative; z-index: 2;
+    }
+    .status-icon-big.pending { background: rgba(234, 179, 8, 0.15); color: var(--gold-primary); }
+
+    @media (max-width: 480px) {
+        .form-row { flex-direction: column; gap: 0; }
+        .login-card { padding: 34px 22px 30px; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="login-shell">
+  <div class="login-card">
+
+    <div class="wave-header">
+      <svg viewBox="0 0 500 150" preserveAspectRatio="none">
+        <path d="M0,0 L500,0 L500,20 C350,90 280,10 120,70 C50,95 20,50 0,30 Z" fill="url(#goldGrad)"/>
+        <defs>
+          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fef08a"/>
+            <stop offset="50%" stop-color="#eab308"/>
+            <stop offset="100%" stop-color="#ca8a04"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+    <div class="card-top-nav">
+      <i class="fa-solid fa-fire flame-icon"></i>
+      <i class="fa-solid fa-bars menu-icon"></i>
+    </div>
+
+    {% block content %}{% endblock %}
+
+  </div>
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

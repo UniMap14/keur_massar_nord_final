@@ -1,0 +1,347 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}{% if mode == "create" %}Nouvelle parcelle{% else %}Modifier la parcelle{% endif %}{% endblock %}
+{% block header_title %}{% if mode == "create" %}Nouvelle parcelle{% else %}Modifier « {{ parcelle.nicad }} »{% endif %}{% endblock %}
+{% block header_subtitle %}{% endblock %}
+
+{% block extra_head %}
+  {# Charge Leaflet + Leaflet.draw (widget carte custom, voir foncier/widgets.py) #}
+  {{ form.media }}
+
+  <style>
+    /* ===== FIL D'ARIANE ===== */
+    .crumbs {
+        display     : flex;
+        align-items : center;
+        gap         : 8px;
+        font-size   : 13px;
+        opacity     : 0;
+        animation   : fadeIn .4s ease forwards;
+    }
+    .crumbs a {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 6px;
+        transition : color .15s ease;
+    }
+    .crumbs a i { font-size: 11px; opacity: 0.7; }
+
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    /* ===== PANEL ===== */
+    .panel {
+        opacity  : 0;
+        transform: translateY(10px);
+        animation: panelIn .45s ease .05s forwards;
+    }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== SECTIONS DE FORMULAIRE ===== */
+    .form-section {
+        margin-bottom: 30px;
+    }
+    .form-section:last-of-type {
+        margin-bottom: 8px;
+    }
+
+    .form-section-head {
+        display      : flex;
+        align-items  : center;
+        gap          : 10px;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line-strong, #e6e0d4);
+    }
+
+    .form-section-icon {
+        width           : 32px;
+        height          : 32px;
+        border-radius   : 9px;
+        background      : rgba(47,122,79,0.1);
+        color           : var(--green, #2f7a4f);
+        display         : flex;
+        align-items     : center;
+        justify-content : center;
+        font-size       : 13px;
+        flex-shrink     : 0;
+    }
+
+    .form-section-head h3 {
+        font-size  : 14.5px;
+        font-weight: 700;
+        color      : var(--ink, #2a2620);
+    }
+
+    .form-section-head span {
+        font-size: 12px;
+        color    : var(--ink-quiet, #8a8276);
+        display  : block;
+        margin-top: 1px;
+    }
+
+    /* ===== CHAMPS ===== */
+    .form-field {
+        opacity  : 0;
+        animation: fieldIn .4s ease forwards;
+    }
+    @keyframes fieldIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-field label {
+        display      : flex;
+        align-items  : center;
+        gap          : 6px;
+        font-weight  : 600;
+        font-size    : 12.5px;
+        color        : var(--ink-quiet, #6f6a5e);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 7px;
+    }
+
+    .form-field label i {
+        font-size: 11px;
+        color    : var(--green, #2f7a4f);
+        opacity  : 0.75;
+        width    : 13px;
+    }
+
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        width         : 100%;
+        border        : 1.5px solid var(--line-strong, #e6e0d4);
+        border-radius : 8px;
+        padding       : 10px 13px;
+        font-family   : inherit;
+        font-size     : 13.5px;
+        background    : #fdfcfa;
+        transition    : border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+        outline      : none;
+        border-color : var(--green, #2f7a4f);
+        box-shadow   : 0 0 0 3px rgba(47,122,79,0.12);
+        background   : #fff;
+    }
+
+    .form-field .errorlist {
+        list-style : none;
+        margin     : 6px 0 0;
+        padding    : 0;
+        color      : #b3261e;
+        font-size  : 12px;
+        display    : flex;
+        align-items: center;
+        gap        : 6px;
+    }
+    .form-field .errorlist li {
+        display    : flex;
+        align-items: center;
+        gap        : 6px;
+    }
+    .form-field .errorlist li::before {
+        content     : "\f06a";
+        font-family : "Font Awesome 6 Free";
+        font-weight : 900;
+        font-size   : 11px;
+        flex-shrink : 0;
+    }
+
+    /* ===== ZONE CARTE (widget Leaflet) ===== */
+    .map-field-wrap {
+        border       : 1.5px solid var(--line-strong, #e6e0d4);
+        border-radius: 10px;
+        overflow     : hidden;
+        transition   : border-color .2s ease;
+    }
+    .map-field-wrap:focus-within {
+        border-color: var(--green, #2f7a4f);
+    }
+
+    .map-hint {
+        display      : flex;
+        align-items  : center;
+        gap          : 8px;
+        font-size    : 12px;
+        color        : var(--ink-quiet, #8a8276);
+        margin-top   : 8px;
+    }
+    .map-hint i { color: var(--green, #2f7a4f); }
+
+    /* ===== ACTIONS ===== */
+    .form-actions {
+        display        : flex;
+        justify-content: flex-end;
+        gap            : 12px;
+        margin-top     : 30px;
+        padding-top    : 22px;
+        border-top     : 1px solid var(--line-strong, #e6e0d4);
+    }
+
+    .form-actions .btn {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 8px;
+        transition : transform .18s ease, box-shadow .18s ease;
+    }
+    .form-actions .btn:hover {
+        transform: translateY(-2px);
+    }
+    .form-actions .btn-primary:hover {
+        box-shadow: 0 10px 22px -8px rgba(47,122,79,0.45);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .crumbs, .panel, .form-field {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
+    }
+  </style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <a href="{% url 'dashboard_parcelle_list' %}"><i class="fa-solid fa-map"></i> Parcelles</a>
+  <span class="sep">/</span>
+  {% if mode == "create" %}Nouvelle{% else %}{{ parcelle.nicad }}{% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <!-- ===== SECTION IDENTIFICATION ===== -->
+      <div class="form-section">
+        <div class="form-section-head">
+          <div class="form-section-icon"><i class="fa-solid fa-id-card"></i></div>
+          <div>
+            <h3>Identification</h3>
+            <span>Références cadastrales et propriétaire</span>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-field" style="animation-delay:.02s;">
+            <label for="{{ form.nicad.id_for_label }}"><i class="fa-solid fa-hashtag"></i> Numéro NICAD</label>
+            {{ form.nicad }}
+            {{ form.nicad.errors }}
+          </div>
+
+          <div class="form-field" style="animation-delay:.05s;">
+            <label for="{{ form.proprietaire.id_for_label }}"><i class="fa-solid fa-user"></i> Propriétaire</label>
+            {{ form.proprietaire }}
+            {{ form.proprietaire.errors }}
+          </div>
+
+          <div class="form-field" style="animation-delay:.08s;">
+            <label for="{{ form.type_document.id_for_label }}"><i class="fa-solid fa-file-lines"></i> Type de document</label>
+            {{ form.type_document }}
+            {{ form.type_document.errors }}
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SECTION LOCALISATION ===== -->
+      <div class="form-section">
+        <div class="form-section-head">
+          <div class="form-section-icon"><i class="fa-solid fa-location-dot"></i></div>
+          <div>
+            <h3>Localisation</h3>
+            <span>Zone, adresse et superficie du terrain</span>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-field" style="animation-delay:.11s;">
+            <label for="{{ form.zone.id_for_label }}"><i class="fa-solid fa-layer-group"></i> Zone / Quartier</label>
+            {{ form.zone }}
+            {{ form.zone.errors }}
+          </div>
+
+          <div class="form-field" style="animation-delay:.14s;">
+            <label for="{{ form.superficie.id_for_label }}"><i class="fa-solid fa-ruler-combined"></i> Superficie (m²)</label>
+            {{ form.superficie }}
+            {{ form.superficie.errors }}
+          </div>
+
+          <div class="form-field full" style="animation-delay:.17s;">
+            <label for="{{ form.adresse_parcelle.id_for_label }}"><i class="fa-solid fa-signs-post"></i> Adresse</label>
+            {{ form.adresse_parcelle }}
+            {{ form.adresse_parcelle.errors }}
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SECTION FISCALITÉ ===== -->
+      <div class="form-section">
+        <div class="form-section-head">
+          <div class="form-section-icon"><i class="fa-solid fa-coins"></i></div>
+          <div>
+            <h3>Fiscalité</h3>
+            <span>Statut fiscal et montants applicables</span>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-field" style="animation-delay:.20s;">
+            <label for="{{ form.statut_fiscal.id_for_label }}"><i class="fa-solid fa-circle-check"></i> Statut fiscal</label>
+            {{ form.statut_fiscal }}
+            {{ form.statut_fiscal.errors }}
+          </div>
+
+          <div class="form-field" style="animation-delay:.23s;">
+            <label for="{{ form.valeur_locative.id_for_label }}"><i class="fa-solid fa-money-bill-wave"></i> Valeur locative (FCFA)</label>
+            {{ form.valeur_locative }}
+            {{ form.valeur_locative.errors }}
+          </div>
+
+          <div class="form-field" style="animation-delay:.26s;">
+            <label for="{{ form.montant_taxe_annuelle.id_for_label }}"><i class="fa-solid fa-file-invoice-dollar"></i> Taxe annuelle (FCFA)</label>
+            {{ form.montant_taxe_annuelle }}
+            {{ form.montant_taxe_annuelle.errors }}
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SECTION CARTE ===== -->
+      <div class="form-section">
+        <div class="form-section-head">
+          <div class="form-section-icon"><i class="fa-solid fa-draw-polygon"></i></div>
+          <div>
+            <h3>Limites du terrain</h3>
+            <span>Tracé du polygone cadastral sur la carte</span>
+          </div>
+        </div>
+        <div class="form-field full" style="animation-delay:.29s;">
+          <label for="{{ form.geom.id_for_label }}"><i class="fa-solid fa-vector-square"></i> Polygone de la parcelle</label>
+          <div class="map-field-wrap">
+            {{ form.geom }}
+          </div>
+          {{ form.geom.errors }}
+          <div class="map-hint">
+            <i class="fa-solid fa-circle-info"></i> Utilisez l'outil de dessin sur la carte pour tracer ou modifier les limites de la parcelle.
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="{% url 'dashboard_parcelle_list' %}" class="btn btn-outline"><i class="fa-solid fa-xmark"></i> Annuler</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid {% if mode == 'create' %}fa-plus{% else %}fa-floppy-disk{% endif %}"></i>
+          {% if mode == "create" %}Créer la parcelle{% else %}Enregistrer les modifications{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

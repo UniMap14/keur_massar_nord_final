@@ -1,0 +1,181 @@
+﻿{% load static %}
+{# ------------------------------------------------------------------
+   Adapte {% extends %} pour hériter du template de base de ton
+   dashboard de gestion, par ex : {% extends "dashboard/base.html" %}
+------------------------------------------------------------------ #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion — Projets Jeunes · KMS Nord Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+        --ink: #24201a; --ink-quiet: #766c5d; --border: #e7e0d3;
+        --bg: #f8f5ef; --card: #ffffff; --green: #2f7a4f; --amber: #b9740b; --red: #b23b2e;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--ink); padding: 32px 24px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .page-sub { color: var(--ink-quiet); font-size: 13px; margin-bottom: 24px; }
+    .alert { border-radius: 10px; padding: 11px 15px; margin-bottom: 18px; font-size: 13px;
+      background: #eaf4ee; border: 1px solid #c9e5d4; color: var(--green); }
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 26px; }
+    .panel h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-quiet); margin: 0 0 16px; }
+
+    .projet-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+    .projet-card .top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+    .projet-card h3 { font-size: 15px; margin: 0 0 4px; }
+    .projet-card .meta { font-size: 12.5px; color: var(--ink-quiet); }
+    .projet-card .desc { font-size: 13.5px; margin: 10px 0; line-height:1.5; }
+
+    .badge { display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; }
+    .badge.en_attente { background:#fdf1de; color:var(--amber); }
+    .badge.valide { background:#eaf4ee; color:var(--green); }
+    .badge.rejete { background:#fbe9e6; color:var(--red); }
+    .badge.contacte { background:#e6effb; color:#2563eb; }
+
+    .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .btn { border:none; border-radius:8px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+    .btn-valider { background: var(--green); color:#fff; }
+    .btn-rejeter { background:#fff; color:var(--red); border:1px solid #f2c9c2; }
+    .btn-contacte { background:#fff; color:#2563eb; border:1px solid #c7d7f5; }
+    .btn-message { background:#fff; color:var(--ink); border:1px solid var(--border); }
+
+    dialog { border:none; border-radius:12px; padding:20px; max-width:380px; width:90%; box-shadow: 0 20px 45px -15px rgba(0,0,0,0.3); }
+    dialog::backdrop { background: rgba(0,0,0,0.4); }
+    dialog textarea { width:100%; border:1px solid var(--border); border-radius:8px; padding:10px; font-size:13px; margin:10px 0; min-height:80px; }
+    dialog .dialog-actions { display:flex; justify-content:flex-end; gap:8px; }
+    .btn-secondary { background:#f1ede4; color:var(--ink); }
+
+    .messages-list { margin-top:10px; border-top:1px dashed var(--border); padding-top:8px; }
+    .messages-list .msg { font-size:12.5px; margin-bottom:6px; color:var(--ink-quiet); }
+    .empty { color: var(--ink-quiet); font-size:13px; padding:16px 4px; }
+  </style>
+</head>
+<body>
+
+  <h1>Gestion — Projets Jeunes</h1>
+  <div class="page-sub">Étudie les projets soumis, valide, contacte ou échange avec les porteurs de projet.</div>
+
+  {% if messages %}
+    {% for message in messages %}<div class="alert">{{ message }}</div>{% endfor %}
+  {% endif %}
+
+  <div class="panel">
+    <h2>En attente ({{ projets_en_attente|length }})</h2>
+    {% if projets_en_attente %}
+      {% for projet in projets_en_attente %}
+        <div class="projet-card">
+          <div class="top">
+            <div>
+              <h3>{{ projet.titre_projet }}</h3>
+              <div class="meta">
+                {{ projet.nom_porteur }}{% if projet.age %} — {{ projet.age }} ans{% endif %}
+                · {{ projet.get_secteur_display }} · {{ projet.quartier|default:"quartier non précisé" }}
+                <br>{{ projet.telephone }}{% if projet.email %} · {{ projet.email }}{% endif %}
+              </div>
+            </div>
+            <div>
+              <span class="badge {{ projet.statut }}">{{ projet.get_statut_display }}</span>
+              {% if projet.contacte %}<span class="badge contacte">Contacté</span>{% endif %}
+            </div>
+          </div>
+          <div class="desc">{{ projet.description }}</div>
+          <div class="meta"><strong>Besoin :</strong> {{ projet.get_besoin_principal_display }}
+            {% if projet.details_besoin %} — {{ projet.details_besoin }}{% endif %}</div>
+          {% if projet.cv %}
+            <div class="meta" style="margin-top:6px;">
+              <a href="{{ projet.cv.url }}" target="_blank" rel="noopener">
+                <i class="fa-solid fa-file-pdf"></i> Télécharger le CV
+              </a>
+            </div>
+          {% endif %}
+
+          <div class="actions">
+            <form method="post" style="display:inline;">
+              {% csrf_token %}
+              <input type="hidden" name="projet_id" value="{{ projet.id }}">
+              <input type="hidden" name="action" value="valider">
+              <button type="submit" class="btn btn-valider"><i class="fa-solid fa-check"></i> Valider</button>
+            </form>
+            <button type="button" class="btn btn-rejeter" onclick="document.getElementById('reject-{{ projet.id }}').showModal()">
+              <i class="fa-solid fa-xmark"></i> Non retenu
+            </button>
+            {% if not projet.contacte %}
+              <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="projet_id" value="{{ projet.id }}">
+                <input type="hidden" name="action" value="contacte">
+                <button type="submit" class="btn btn-contacte"><i class="fa-solid fa-phone"></i> Marquer contacté</button>
+              </form>
+            {% endif %}
+            <button type="button" class="btn btn-message" onclick="document.getElementById('msg-{{ projet.id }}').showModal()">
+              <i class="fa-solid fa-message"></i> Envoyer un message
+            </button>
+          </div>
+
+          {% if projet.messages.all %}
+            <div class="messages-list">
+              {% for m in projet.messages.all %}
+                <div class="msg"><strong>{{ m.date_envoi|date:"d/m/Y H:i" }}</strong> — {{ m.contenu }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <dialog id="reject-{{ projet.id }}">
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="projet_id" value="{{ projet.id }}">
+              <input type="hidden" name="action" value="rejeter">
+              <strong>Motif (non retenu)</strong>
+              <textarea name="motif" placeholder="Ex : projet hors périmètre communal..."></textarea>
+              <div class="dialog-actions">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('reject-{{ projet.id }}').close()">Annuler</button>
+                <button type="submit" class="btn btn-rejeter">Confirmer</button>
+              </div>
+            </form>
+          </dialog>
+
+          <dialog id="msg-{{ projet.id }}">
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="projet_id" value="{{ projet.id }}">
+              <input type="hidden" name="action" value="message">
+              <strong>Message au porteur de projet</strong>
+              {{ message_form.contenu }}
+              <div class="dialog-actions">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('msg-{{ projet.id }}').close()">Annuler</button>
+                <button type="submit" class="btn btn-valider">Envoyer</button>
+              </div>
+            </form>
+          </dialog>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">Aucun projet en attente.</div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Historique</h2>
+    {% if projets_traites %}
+      {% for projet in projets_traites %}
+        <div class="projet-card">
+          <div class="top">
+            <div>
+              <h3>{{ projet.titre_projet }}</h3>
+              <div class="meta">{{ projet.nom_porteur }} · {{ projet.get_secteur_display }}</div>
+            </div>
+            <span class="badge {{ projet.statut }}">{{ projet.get_statut_display }}</span>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">Aucun projet traité pour le moment.</div>
+    {% endif %}
+  </div>
+
+</body>
+</html>

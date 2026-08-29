@@ -1,0 +1,131 @@
+{% extends 'foncier/base.html' %}
+{% block title %}Recherche cadastrale - KMS Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .cad-search-box {
+    max-width: 620px; margin: -32px auto 0; background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 12px 30px rgba(0,0,0,0.08); padding: 20px;
+    display: flex; gap: 10px; position: relative; z-index: 2;
+  }
+  .cad-search-box input[type="text"] {
+    flex: 1; border: 1.5px solid var(--border); border-radius: 999px; padding: 12px 20px; font-size: 14px;
+  }
+  .cad-search-box input[type="text"]:focus { outline: none; border-color: var(--green-dark); }
+  .cad-search-box button { border-radius: 999px; padding: 12px 26px; white-space: nowrap; }
+
+  .cad-results { margin-top: 40px; max-width: 820px; margin-left: auto; margin-right: auto; }
+  .cad-count { font-size: 13px; color: var(--ink-quiet, #6f6a5e); margin-bottom: 18px; }
+
+  .cad-card {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 24px; margin-bottom: 14px; box-shadow: var(--shadow-sm);
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 20px; align-items: start;
+  }
+  .cad-card .nicad-col { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .cad-card .nicad-col h3 { font-size: 16px; font-weight: 700; color: var(--text); margin: 0; }
+  .cad-badge {
+    font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px;
+    background: rgba(47,122,79,0.1); color: var(--green-dark);
+  }
+  .cad-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-quiet, #6f6a5e); margin-bottom: 3px; font-weight: 600; }
+  .cad-item .value { font-size: 14px; font-weight: 600; color: var(--text); }
+
+  .cad-empty {
+    text-align: center; padding: 50px 20px; color: var(--ink-quiet, #6f6a5e);
+  }
+  .cad-empty i { font-size: 32px; color: var(--gold); display: block; margin-bottom: 14px; }
+
+  .cad-privacy-note {
+    background: rgba(47,122,79,0.06); border: 1px dashed rgba(47,122,79,0.3);
+    border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--ink-quiet, #55524a);
+    margin-top: 36px; display: flex; gap: 12px; align-items: flex-start;
+    max-width: 820px; margin-left: auto; margin-right: auto;
+  }
+  .cad-privacy-note i { color: var(--green-dark); margin-top: 2px; }
+
+  @media (max-width: 700px) {
+    .cad-card { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Recherche cadastrale</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Cadastre public</div>
+    <h1>Rechercher une parcelle</h1>
+    <p>Par numéro NICAD, secteur/adresse, ou nom de zone.</p>
+  </div>
+</section>
+
+<section class="container page-section">
+
+  <form method="get" class="cad-search-box">
+    <input
+      type="text"
+      name="q"
+      value="{{ q }}"
+      placeholder="Ex : 01012, Darou Salam, Unité 2..."
+      autofocus
+    >
+    <button type="submit" class="btn btn-primary">
+      <i class="fa-solid fa-magnifying-glass"></i> Rechercher
+    </button>
+  </form>
+
+  <div class="cad-results">
+    {% if recherche_effectuee %}
+      {% if resultats %}
+        <div class="cad-count">{{ resultats|length }} résultat{{ resultats|length|pluralize }} pour « {{ q }} »</div>
+
+        {% for p in resultats %}
+        <div class="cad-card">
+          <div class="nicad-col">
+            <h3>Parcelle {{ p.nicad }}</h3>
+            {% if p.zone %}<span class="cad-badge">{{ p.zone.nom }}</span>{% endif %}
+          </div>
+          <div class="cad-item">
+            <div class="label">Superficie</div>
+            <div class="value">{{ p.superficie|floatformat:0 }} m²</div>
+          </div>
+          <div class="cad-item">
+            <div class="label">Occupation du sol</div>
+            <div class="value">{{ p.occupation_sol|default:"—" }}</div>
+          </div>
+          <div class="cad-item">
+            <div class="label">Secteur / adresse</div>
+            <div class="value">{{ p.adresse_parcelle|default:"—" }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="cad-empty">
+          <i class="fa-solid fa-magnifying-glass-minus"></i>
+          Aucune parcelle ne correspond à « {{ q }} ». Essayez un autre numéro NICAD, secteur ou zone.
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="cad-empty">
+        <i class="fa-solid fa-map-location-dot"></i>
+        Entrez un critère de recherche ci-dessus pour consulter les informations publiques d'une parcelle.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="cad-privacy-note">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>
+      Par confidentialité, seules les informations non nominatives sont affichées ici (superficie,
+      secteur, occupation du sol). Le statut fiscal et l'identité du propriétaire ne sont jamais
+      publiés — ils restent réservés à l'administration de la commune.
+    </div>
+  </div>
+
+</section>
+{% endblock %}

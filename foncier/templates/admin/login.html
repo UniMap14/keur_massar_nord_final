@@ -1,0 +1,18 @@
+{# =========================================
+   À placer dans : templates/admin/login.html
+========================================= #}
+{% extends "admin/login.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'foncier/css/admin_custom.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div id="branding-kmsn" style="justify-content:center;">
+  <img src="{% static 'foncier/images/logo.jpeg' %}" alt="Logo KMS Nord">
+  <h1 id="site-name">KMS Nord — Espace Agents</h1>
+</div>
+{% endblock %}

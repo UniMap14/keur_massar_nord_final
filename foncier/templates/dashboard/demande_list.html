@@ -1,0 +1,128 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Démarches en ligne{% endblock %}
+{% block header_title %}Démarches en ligne{% endblock %}
+{% block header_subtitle %}
+<div class="topbar-subtitle">
+  {{ demandes|length }} dossier(s)
+  {% if nb_a_traiter %} · <strong style="color:var(--danger);">{{ nb_a_traiter }} à traiter</strong>{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .4s ease forwards; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-tabs .btn { display: inline-flex; align-items: center; gap: 7px; }
+    .filter-tabs .btn .tab-count {
+        background: rgba(255,255,255,0.25); padding: 1px 7px; border-radius: 100px;
+        font-size: 11px; font-weight: 700;
+    }
+    .filter-tabs .btn-outline .tab-count {
+        background: rgba(47,122,79,0.1); color: var(--green, #2f7a4f);
+    }
+
+    .data-table tbody tr {
+        opacity: 0; animation: rowIn .3s ease forwards; transition: background .15s ease;
+    }
+    @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .data-table tbody tr:hover { background: rgba(47,122,79,0.04); }
+
+    .badge { display: inline-flex; align-items: center; gap: 6px; }
+    .badge i { font-size: 10px; }
+
+    .empty-state { text-align: center; padding: 50px 20px; }
+    .empty-state .icon {
+        width: 48px; height: 48px; border-radius: 50%; background: rgba(58,125,68,0.1);
+        color: #3a7d44; display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 14px; font-size: 18px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="filter-tabs">
+      <a href="{% url 'dashboard_demande_list' %}" class="btn btn-sm {% if not filtre %}btn-primary{% else %}btn-outline{% endif %}">
+        <i class="fa-solid fa-list"></i> Tous
+      </a>
+      {% for code, libelle in statut_choices %}
+      <a href="?statut={{ code }}" class="btn btn-sm {% if filtre == code %}btn-primary{% else %}btn-outline{% endif %}">
+        {{ libelle }}
+      </a>
+      {% endfor %}
+      <a href="?mes_dossiers=1{% if filtre %}&statut={{ filtre }}{% endif %}" class="btn btn-sm {% if mes_dossiers %}btn-primary{% else %}btn-outline{% endif %}">
+        <i class="fa-solid fa-user"></i> Mes dossiers
+        {% if nb_mes_dossiers %}<span class="tab-count">{{ nb_mes_dossiers }}</span>{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <div class="panel-body flush">
+    {% if demandes %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Statut</th>
+          <th>N° dossier</th>
+          <th>Démarche</th>
+          <th>Demandeur</th>
+          <th>Parcelle</th>
+          <th>Assigné à</th>
+          <th>Déposée le</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in demandes %}
+        <tr style="animation-delay: {{ forloop.counter0|add:1 }}0ms;">
+          <td>
+            {% if d.statut == 'RECUE' %}
+              <span class="badge badge-info"><i class="fa-solid fa-inbox"></i> Reçue</span>
+            {% elif d.statut == 'EN_COURS' %}
+              <span class="badge badge-warn"><i class="fa-solid fa-clock"></i> En cours</span>
+            {% elif d.statut == 'PRETE' %}
+              <span class="badge badge-ok"><i class="fa-solid fa-check"></i> Prête</span>
+            {% elif d.statut == 'REJETEE' %}
+              <span class="badge badge-danger"><i class="fa-solid fa-xmark"></i> Rejetée</span>
+            {% else %}
+              <span class="badge"><i class="fa-solid fa-box-archive"></i> Clôturée</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ d.numero_dossier }}</strong></td>
+          <td>{{ d.type_demande.libelle }}</td>
+          <td>{{ d.demandeur.get_full_name|default:d.demandeur.username }}</td>
+          <td>{{ d.parcelle.nicad|default:"—" }}</td>
+          <td>
+            {% if d.agent_traitant %}
+              {{ d.agent_traitant.get_full_name|default:d.agent_traitant.username }}
+            {% else %}
+              <span style="color:var(--ink-quiet, #7a7266);">— Non assigné —</span>
+            {% endif %}
+          </td>
+          <td>{{ d.date_demande|date:"d/m/Y H:i" }}</td>
+          <td>
+            <div class="row-actions">
+              <a href="{% url 'dashboard_demande_detail' d.pk %}" class="btn btn-outline btn-sm">
+                <i class="fa-solid fa-eye"></i> Traiter
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon"><i class="fa-solid fa-folder-open"></i></div>
+      Aucune démarche pour le moment.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,59 @@
+RESYNCHRONISATION COMPLETE DU PROJET
+========================================
+
+Ce zip contient l'état complet et à jour de tout le code applicatif,
+tel que suivi tout au long de nos échanges. Il corrige la dérive
+accumulée entre votre dossier de travail et un dossier dupliqué par
+erreur (projet_kms\projet_kms\...) au fil des sessions.
+
+CE QUI EST INCLUS (à extraire PAR-DESSUS votre projet actuel) :
+  - citoyens/       (code complet)
+  - comptes/        (code complet)
+  - foncier/        (code complet, y compris migrations 0001 à 0024)
+  - jeunesse/       (code complet)
+  - kmsn/           (settings.py, urls.py...)
+  - templates/      (registration/, mot de passe oublié...)
+  - requirements.txt, .gitignore, manage.py
+  - Les scripts d'import/rattachement/sauvegarde déjà utilisés
+
+CE QUI N'EST PAS INCLUS (volontairement, pour ne rien écraser
+d'important chez vous) :
+  - .env                (vos vrais identifiants de connexion à la base)
+  - media/, media_prive/ (vos fichiers uploadés réels)
+  - db.sqlite3, staticfiles/, venv/
+
+MARCHE A SUIVRE
+-----------------
+1. Fermez le serveur (Ctrl+C dans le terminal python manage.py runserver)
+
+2. Extrayez ce zip en écrasant les dossiers existants, à la racine
+   du projet (là où se trouve manage.py) :
+   C:\Users\DELL\Desktop\projet_kmsn\projet_kms\kmsn\
+
+   Windows demandera de confirmer le remplacement de nombreux
+   fichiers — acceptez ("Remplacer tout"/"Remplacer les fichiers
+   dans la destination").
+
+3. Nettoyez les caches Python qui pourraient garder en mémoire
+   d'anciennes versions :
+
+   Get-ChildItem -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
+
+4. Appliquez les migrations (plusieurs manquaient) :
+
+   python manage.py migrate
+
+5. Lancez les tests :
+
+   python manage.py test
+
+6. Si tout est vert, relancez le serveur normalement :
+
+   python manage.py runserver
+
+FACULTATIF MAIS RECOMMANDE : une fois que tout fonctionne à nouveau,
+supprimez le dossier dupliqué qui a causé toute cette confusion :
+
+   Remove-Item -Recurse -Force "C:\Users\DELL\Desktop\projet_kmsn\projet_kms\projet_kms"
+
+(gardez uniquement C:\Users\DELL\Desktop\projet_kmsn\projet_kms\kmsn\)

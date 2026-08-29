@@ -1,0 +1,42 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Supprimer la catégorie{% endblock %}
+{% block header_title %}Supprimer la catégorie{% endblock %}
+{% block header_subtitle %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <a href="{% url 'dashboard_categorie_list' %}">Catégories d'infrastructure</a>
+  <span class="sep">/</span>
+  Suppression
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+    <div class="confirm-box">
+      <div class="icon">!</div>
+      <h2 style="margin-bottom:8px;">Confirmer la suppression</h2>
+      <p style="color:var(--ink-quiet); margin-bottom:22px;">
+        Tu es sur le point de supprimer définitivement la catégorie
+        <strong>{{ categorie.label }}</strong>.
+        {% with n=categorie.infrastructures.count %}
+          {% if n %}
+            Cela supprimera aussi les <strong>{{ n }}</strong> infrastructure{{ n|pluralize }}
+            actuellement rattachée{{ n|pluralize }} à cette catégorie.
+          {% endif %}
+        {% endwith %}
+        Cette action est irréversible.
+      </p>
+      <form method="post" style="display:flex; gap:10px; justify-content:center;">
+        {% csrf_token %}
+        <a href="{% url 'dashboard_categorie_list' %}" class="btn btn-outline">Annuler</a>
+        <button type="submit" class="btn btn-danger">Oui, supprimer définitivement</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

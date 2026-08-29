@@ -1,0 +1,401 @@
+{% extends "foncier/base.html" %}
+{% load static %}
+
+{% block title %}Contact - {{ block.super }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* =========================================
+       PAGE CONTACT — styles spécifiques
+       (s'appuie sur les variables globales de style.css)
+    ========================================= */
+
+    /* ---- BANNIÈRE AVEC IMAGE DE FOND ---- */
+    .page-banner {
+        position: relative;
+        background-image: url('{% static "foncier\img\gallery\kms.png" %}'); /* <-- remplacez par le chemin de votre photo */
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        overflow: hidden;
+        z-index: 1;
+        min-height: 600px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .page-banner::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(90, 60, 30, 0.72); /* voile marron/doré semi-transparent */
+        z-index: -1;
+    }
+
+    .page-banner .banner-breadcrumb,
+    .page-banner .banner-badge,
+    .page-banner h1,
+    .page-banner p {
+        position: relative;
+        z-index: 2;
+        color: #fff;
+    }
+
+    .page-banner .banner-breadcrumb a {
+        color: #fff;
+        opacity: 0.85;
+    }
+
+    .contact-layout {
+        display               : grid;
+        grid-template-columns : 0.85fr 1.15fr;
+        gap                   : 30px;
+        align-items           : start;
+    }
+
+    @media (max-width: 900px) {
+        .contact-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .contact-info-item {
+        display       : flex;
+        gap           : 16px;
+        margin-bottom : 20px;
+    }
+
+    .contact-info-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .contact-info-icon {
+        width           : 46px;
+        height          : 46px;
+        border-radius   : 12px;
+        background      : rgba(107, 74, 53, 0.08);
+        color           : var(--green);
+        display         : flex;
+        align-items     : center;
+        justify-content : center;
+        font-size       : 18px;
+        flex-shrink     : 0;
+    }
+
+    .contact-info-label {
+        font-size      : 11px;
+        font-weight    : 700;
+        text-transform : uppercase;
+        letter-spacing : 0.8px;
+        color          : var(--text-muted);
+        margin-bottom  : 4px;
+    }
+
+    .contact-info-value {
+        font-size   : 14.5px;
+        color       : var(--text);
+        font-weight : 600;
+        line-height : 1.4;
+    }
+
+    .contact-geo-card {
+        background    : linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+        color         : white;
+        border-radius : var(--radius);
+        padding       : 32px;
+        position      : relative;
+        overflow      : hidden;
+    }
+
+    .contact-geo-card::after {
+        content      : '\f279';
+        font-family  : 'Font Awesome 6 Free';
+        font-weight  : 900;
+        position     : absolute;
+        right        : -10px;
+        bottom       : -20px;
+        font-size    : 140px;
+        color        : rgba(255, 255, 255, 0.07);
+        z-index      : 0;
+    }
+
+    .contact-geo-tag {
+        display        : inline-block;
+        background     : rgba(255, 255, 255, 0.16);
+        padding        : 5px 14px;
+        border-radius  : 100px;
+        font-size      : 11px;
+        font-weight    : 700;
+        text-transform : uppercase;
+        letter-spacing : 0.8px;
+        margin-bottom  : 14px;
+        position       : relative;
+        z-index        : 1;
+    }
+
+    .contact-geo-card h3 {
+        font-family   : 'Playfair Display', serif;
+        font-size     : 19px;
+        margin-bottom : 10px;
+        position      : relative;
+        z-index       : 1;
+    }
+
+    .contact-geo-card p {
+        font-size   : 13.5px;
+        color       : rgba(255, 255, 255, 0.8);
+        line-height : 1.7;
+        position    : relative;
+        z-index     : 1;
+    }
+
+    .contact-form-card {
+        background    : white;
+        border-radius : var(--radius);
+        border        : 1px solid var(--border);
+        box-shadow    : var(--shadow-sm);
+        padding       : 38px;
+    }
+
+    .contact-form-head {
+        display       : flex;
+        align-items   : center;
+        gap           : 16px;
+        margin-bottom : 28px;
+        padding-bottom: 22px;
+        border-bottom : 1px solid var(--border);
+    }
+
+    .contact-form-icon {
+        width           : 54px;
+        height          : 54px;
+        border-radius   : 12px;
+        background      : rgba(107, 74, 53, 0.08);
+        color           : var(--green);
+        display         : flex;
+        align-items     : center;
+        justify-content : center;
+        font-size       : 22px;
+        flex-shrink     : 0;
+    }
+
+    .contact-form-head h3 {
+        font-size     : 18px;
+        font-weight   : 700;
+        color         : var(--text);
+        margin-bottom : 2px;
+    }
+
+    .contact-form-head p {
+        font-size : 13px;
+        color     : var(--text-muted);
+    }
+
+    .contact-fields-grid {
+        display              : grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap                  : 0 20px;
+    }
+
+    @media (max-width: 560px) {
+        .contact-fields-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .contact-field {
+        margin-bottom: 18px;
+    }
+
+    .contact-field-full {
+        grid-column: 1 / -1;
+    }
+
+    .contact-field label {
+        display        : block;
+        font-size      : 12px;
+        font-weight    : 600;
+        color          : var(--text-muted);
+        text-transform : uppercase;
+        letter-spacing : 0.8px;
+        margin-bottom  : 8px;
+    }
+
+    .contact-field input,
+    .contact-field select,
+    .contact-field textarea {
+        width         : 100%;
+        padding       : 13px 16px;
+        border        : 1.5px solid #e6e6e6;
+        border-radius : var(--radius-sm);
+        font-size     : 14.5px;
+        font-family   : 'DM Sans', Arial, sans-serif;
+        color         : var(--text);
+        background    : #fafafa;
+        outline       : none;
+        transition    : border-color 0.2s, background 0.2s;
+    }
+
+    .contact-field input:focus,
+    .contact-field select:focus,
+    .contact-field textarea:focus {
+        border-color : var(--green);
+        background   : white;
+    }
+
+    .contact-field textarea {
+        min-height : 140px;
+        resize     : vertical;
+    }
+
+    .contact-error {
+        color         : #b33;
+        font-size     : 12.5px;
+        margin-top    : 6px;
+        display       : flex;
+        align-items   : center;
+        gap           : 6px;
+    }
+
+    .contact-submit-btn {
+        width         : 100%;
+        padding       : 15px;
+        background    : var(--green);
+        color         : white;
+        border        : none;
+        border-radius : var(--radius-sm);
+        font-size     : 15px;
+        font-weight   : 600;
+        font-family   : 'DM Sans', Arial, sans-serif;
+        cursor        : pointer;
+        transition    : background 0.25s, transform 0.2s;
+        display       : flex;
+        align-items   : center;
+        justify-content: center;
+        gap           : 10px;
+    }
+
+    .contact-submit-btn:hover {
+        background : var(--green-light);
+        transform  : translateY(-1px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- BANNIÈRE DE PAGE -->
+<section class="page-banner">
+    <div class="banner-breadcrumb">
+        <a href="{% url 'home' %}">Accueil</a>
+        <i class="fa-solid fa-chevron-right" style="font-size:10px;"></i>
+        <span>Contact</span>
+    </div>
+    <span class="banner-badge">
+        <span class="badge-dot"></span> Portail d'assistance Plateforme centralisée de la commune de Keur Massar Nord.
+    </span>
+    <h1>Une administration à votre écoute</h1>
+    <p><strong><h2>Pour toute demande d'information,Notre équipe est à votre disposition pour répondre à vos questions sur le foncier, le cadastre et la fiscalité locale. Contactez-nous, nous vous répondrons rapidement.
+</h2></strong>
+</p>
+</section>
+
+<!-- CORPS DE PAGE -->
+<div class="page-body">
+    <div class="contact-layout">
+
+        <!-- COLONNE GAUCHE : infos & géoportail -->
+        <div style="display:flex; flex-direction:column; gap:24px;">
+
+            <div class="info-card">
+                <h2><i class="fa-solid fa-building" style="margin-right:8px;"></i>Hôtel de Ville</h2>
+                <p style="color:var(--text-muted); font-size:14px; margin-bottom:22px; line-height:1.7;">
+                    Nos bureaux vous accueillent pour le traitement de vos dossiers de régularisation et de paiement de taxes.
+                </p>
+
+                <div class="contact-info-item">
+                    <div class="contact-info-icon"><i class="fa-solid fa-location-dot"></i></div>
+                    <div>
+                        <div class="contact-info-label">Localisation</div>
+                        <div class="contact-info-value">Route des Niayes, face Commissariat, KMSN</div>
+                    </div>
+                </div>
+
+                <div class="contact-info-item">
+                    <div class="contact-info-icon"><i class="fa-solid fa-phone-volume"></i></div>
+                    <div>
+                        <div class="contact-info-label">Ligne directe</div>
+                        <div class="contact-info-value">+221 33 840 61 84 / +221 78 473 40 75</div>
+                    </div>
+                </div>
+
+                <div class="contact-info-item">
+                    <div class="contact-info-icon"><i class="fa-solid fa-clock"></i></div>
+                    <div>
+                        <div class="contact-info-label">Horaires d'ouverture</div>
+                        <div class="contact-info-value">Lun — Ven : 08:00 – 16:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="contact-geo-card">
+                <span class="contact-geo-tag">Couplage SIG &amp; Foncier</span>
+                <h3>Besoin d'une extraction de plan ?</h3>
+                <p>Si votre demande concerne la contestation graphique d'une parcelle sur le Géoportail, veuillez mentionner précisément l'identifiant NICAD de la parcelle cible dans l'objet de votre message.</p>
+            </div>
+
+        </div>
+
+        <!-- COLONNE DROITE : formulaire -->
+        <div class="contact-form-card">
+            <div class="contact-form-head">
+                <div class="contact-form-icon">
+                    <i class="fa-solid fa-signature"></i>
+                </div>
+                <div>
+                    <h3>Formulaire numérique</h3>
+                    <p>Traitement sécurisé et horodaté par la Commission Foncière.</p>
+                </div>
+            </div>
+
+            <form method="POST" novalidate>
+                {% csrf_token %}
+
+                <div class="contact-fields-grid">
+                    {% for field in form %}
+                        {% if field.name == 'message' or field.name == 'sujet' %}
+                            <div class="contact-field contact-field-full">
+                        {% else %}
+                            <div class="contact-field">
+                        {% endif %}
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="contact-error">
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                    {% for error in field.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="info-band" style="margin-top:6px;">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <p>En soumettant ce formulaire, vous acceptez que vos données soient traitées par les services municipaux de KMS Nord conformément aux dispositions relatives à la protection des données personnelles.</p>
+                </div>
+
+                <button type="submit" class="contact-submit-btn">
+                    <i class="fa-solid fa-paper-plane"></i> Soumettre ma demande à la mairie
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

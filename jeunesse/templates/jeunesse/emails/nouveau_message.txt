@@ -1,0 +1,10 @@
+﻿Bonjour {{ projet.nom_porteur }},
+
+Vous avez reÃ§u un nouveau message de la mairie de Keur Massar Nord au sujet de votre projet Â« {{ projet.titre_projet }} Â» :
+
+"{{ message_obj.contenu }}"
+
+Vous pouvez rÃ©pondre directement en contactant la mairie au numÃ©ro habituel, ou en rÃ©pondant Ã  cet email si une adresse de contact vous a Ã©tÃ© fournie.
+
+Cordialement,
+L'administration â€” Commune de Keur Massar Nord

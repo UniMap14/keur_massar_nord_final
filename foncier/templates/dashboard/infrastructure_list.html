@@ -1,0 +1,140 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Infrastructures{% endblock %}
+{% block header_title %}Infrastructures{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ infrastructures.count }} infrastructure(s) enregistrée(s)</div>{% endblock %}
+
+{% block topbar_extra %}
+<a href="{% url 'dashboard_categorie_list' %}" class="btn btn-outline"><i class="fa-solid fa-layer-group"></i> Catégories</a>
+<a href="{% url 'dashboard_infrastructure_create' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Nouvelle infrastructure</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .infra-filter-form { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; }
+    .search-input-wrap { position: relative; flex: 1; max-width: 320px; }
+    .search-input-wrap i {
+        position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+        font-size: 13px; color: var(--ink-quiet, #9a9284); pointer-events: none;
+    }
+    .search-input-wrap input {
+        width: 100%; border: 1px solid var(--line-strong); border-radius: 8px;
+        padding: 8px 14px 8px 36px; font-family: inherit; font-size: 13.5px;
+    }
+    .search-input-wrap input:focus {
+        outline: none; border-color: var(--green, #2f7a4f);
+        box-shadow: 0 0 0 3px rgba(47,122,79,0.12);
+    }
+    .infra-filter-form select {
+        border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 32px 8px 12px;
+        font-family: inherit; font-size: 13.5px; cursor: pointer; appearance: none;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9284' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center;
+    }
+
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .4s ease forwards; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .data-table tbody tr { transition: background .15s ease; }
+    .data-table tbody tr:hover { background: rgba(47,122,79,0.04); }
+
+    .cat-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 100px;
+        background: rgba(0,0,0,0.05);
+    }
+    .cat-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+
+    .row-actions { display: flex; gap: 8px; }
+    .row-actions .btn-sm { display: inline-flex; align-items: center; gap: 6px; }
+
+    .empty-state { text-align: center; padding: 50px 20px; }
+    .empty-state .icon {
+        width: 48px; height: 48px; border-radius: 50%;
+        background: rgba(122,114,102,0.1); color: var(--ink-quiet, #7a7266);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 14px; font-size: 18px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <form method="get" class="infra-filter-form">
+      <div class="search-input-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="Rechercher par nom ou quartier…">
+      </div>
+      <select name="categorie">
+        <option value="">Toutes les catégories</option>
+        {% for cat in toutes_categories %}
+        <option value="{{ cat.id }}" {% if categorie_id == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.label }}</option>
+        {% endfor %}
+      </select>
+      <select name="statut">
+        <option value="">Tous les statuts</option>
+        {% for code, libelle in statuts %}
+        <option value="{{ code }}" {% if statut == code %}selected{% endif %}>{{ libelle }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-outline"><i class="fa-solid fa-filter"></i> Filtrer</button>
+    </form>
+  </div>
+
+  <div class="panel-body flush">
+    {% if infrastructures %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Catégorie</th>
+          <th>Quartier</th>
+          <th>Statut</th>
+          <th>Ajoutée le</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for infra in infrastructures %}
+        <tr>
+          <td><strong>{{ infra.nom }}</strong></td>
+          <td>
+            <span class="cat-pill" style="color:{{ infra.categorie.couleur }};">
+              <span class="dot" style="background:{{ infra.categorie.couleur }};"></span>
+              {{ infra.categorie.label }}
+            </span>
+          </td>
+          <td>{{ infra.quartier|default:"—" }}</td>
+          <td>
+            {% if infra.statut == "FONCTIONNEL" %}
+              <span class="badge badge-ok"><i class="fa-solid fa-check"></i> Fonctionnel</span>
+            {% elif infra.statut == "EN_TRAVAUX" %}
+              <span class="badge badge-warn"><i class="fa-solid fa-person-digging"></i> En travaux</span>
+            {% elif infra.statut == "HORS_SERVICE" %}
+              <span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation"></i> Hors service</span>
+            {% else %}
+              <span class="badge badge-info"><i class="fa-solid fa-circle-info"></i> Projeté</span>
+            {% endif %}
+          </td>
+          <td>{{ infra.date_ajout|date:"d/m/Y" }}</td>
+          <td>
+            <div class="row-actions">
+              <a href="{% url 'dashboard_infrastructure_update' infra.pk %}" class="btn btn-outline btn-sm"><i class="fa-solid fa-pen"></i> Modifier</a>
+              <a href="{% url 'dashboard_infrastructure_delete' infra.pk %}" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash"></i> Supprimer</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+      Aucune infrastructure ne correspond à ta recherche.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

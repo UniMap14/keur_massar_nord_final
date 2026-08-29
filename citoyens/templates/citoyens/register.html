@@ -1,0 +1,178 @@
+{% extends "citoyens/_dark_base.html" %}
+
+{% block title %}Créer mon espace citoyen{% endblock %}
+
+{% block content %}
+  <h1 class="title-login">INSCRIPTION</h1>
+  <div class="title-sub">
+    Créez votre espace personnel pour suivre votre fiscalité et votre dossier foncier.
+    Votre compte sera activé après vérification par l'administration.
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="flash-error" role="alert">
+      {{ form.non_field_errors.0 }}
+    </div>
+  {% endif %}
+
+  <form method="post" id="registerForm" class="form-content" novalidate>
+    {% csrf_token %}
+    {{ form.site_web }}
+    {{ form.horodatage }}
+
+    <div class="form-section-label">Informations personnelles</div>
+
+    <div class="form-row">
+      <div class="form-field">
+        <label class="field-label" for="id_first_name">Prénom</label>
+        <div class="field-input-wrap">
+          <i class="fa-solid fa-user field-icon"></i>
+          <input type="text" name="first_name" id="id_first_name" placeholder="Prénom" required
+                 value="{{ form.first_name.value|default:'' }}"
+                 aria-invalid="{% if form.first_name.errors %}true{% else %}false{% endif %}">
+        </div>
+        {% if form.first_name.errors %}<span class="field-error">{{ form.first_name.errors.0 }}</span>{% endif %}
+      </div>
+      <div class="form-field">
+        <label class="field-label" for="id_last_name">Nom</label>
+        <div class="field-input-wrap">
+          <i class="fa-solid fa-user field-icon"></i>
+          <input type="text" name="last_name" id="id_last_name" placeholder="Nom" required
+                 value="{{ form.last_name.value|default:'' }}"
+                 aria-invalid="{% if form.last_name.errors %}true{% else %}false{% endif %}">
+        </div>
+        {% if form.last_name.errors %}<span class="field-error">{{ form.last_name.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label class="field-label" for="id_email">Email</label>
+      <div class="field-input-wrap">
+        <i class="fa-solid fa-envelope field-icon"></i>
+        <input type="email" name="email" id="id_email" placeholder="votre.email@exemple.com" required
+               value="{{ form.email.value|default:'' }}"
+               aria-invalid="{% if form.email.errors %}true{% else %}false{% endif %}">
+      </div>
+      {% if form.email.errors %}<span class="field-error">{{ form.email.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="form-field">
+      <label class="field-label" for="id_telephone">Téléphone (optionnel)</label>
+      <div class="field-input-wrap">
+        <i class="fa-solid fa-phone field-icon"></i>
+        <input type="text" name="telephone" id="id_telephone" placeholder="+221 XX XXX XX XX"
+               value="{{ form.telephone.value|default:'' }}">
+      </div>
+    </div>
+
+    <div class="form-section-label">Identifiants fiscalité &amp; foncier</div>
+
+    <div class="form-field">
+      <label class="field-label" for="id_numero_fiscal">Identifiant fiscalité</label>
+      <div class="field-input-wrap">
+        <i class="fa-solid fa-file-invoice-dollar field-icon"></i>
+        <input type="text" name="numero_fiscal" id="id_numero_fiscal" placeholder="Numéro d'identifiant fiscal" required
+               value="{{ form.numero_fiscal.value|default:'' }}"
+               aria-invalid="{% if form.numero_fiscal.errors %}true{% else %}false{% endif %}">
+      </div>
+      {% if form.numero_fiscal.errors %}
+        <span class="field-error">{{ form.numero_fiscal.errors.0 }}</span>
+      {% else %}
+        <span class="field-help">Indiqué sur votre avis d'imposition ou votre quittance.</span>
+      {% endif %}
+    </div>
+
+    <div class="form-field">
+      <label class="field-label" for="id_numero_foncier">Identifiant foncier (NICAD)</label>
+      <div class="field-input-wrap">
+        <i class="fa-solid fa-map-location-dot field-icon"></i>
+        <input type="text" name="numero_foncier" id="id_numero_foncier" placeholder="Numéro NICAD de la parcelle" required
+               value="{{ form.numero_foncier.value|default:'' }}"
+               aria-invalid="{% if form.numero_foncier.errors %}true{% else %}false{% endif %}">
+      </div>
+      {% if form.numero_foncier.errors %}<span class="field-error">{{ form.numero_foncier.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="form-section-label">Identifiants de connexion</div>
+
+    <div class="form-field">
+      <label class="field-label" for="id_username">Nom d'utilisateur</label>
+      <div class="field-input-wrap">
+        <i class="fa-solid fa-id-badge field-icon"></i>
+        <input type="text" name="username" id="id_username" placeholder="Nom d'utilisateur" required
+               value="{{ form.username.value|default:'' }}"
+               aria-invalid="{% if form.username.errors %}true{% else %}false{% endif %}">
+      </div>
+      {% if form.username.errors %}<span class="field-error">{{ form.username.errors.0 }}</span>{% endif %}
+    </div>
+
+    <div class="form-field">
+      <label class="field-label" for="id_password1">Mot de passe</label>
+      <div class="field-input-wrap">
+        <i class="fa-solid fa-lock field-icon"></i>
+        <input type="password" name="password1" id="id_password1" placeholder="Mot de passe" required
+               aria-invalid="{% if form.password1.errors %}true{% else %}false{% endif %}">
+        <button type="button" class="field-toggle-pass toggle-pass" data-target="id_password1">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+      </div>
+      {% if form.password1.errors %}
+        <span class="field-error">{{ form.password1.errors.0 }}</span>
+      {% else %}
+        <span class="field-help">8 caractères minimum, évitez un mot de passe trop simple.</span>
+      {% endif %}
+    </div>
+
+    <div class="form-field">
+      <label class="field-label" for="id_password2">Confirmer le mot de passe</label>
+      <div class="field-input-wrap">
+        <i class="fa-solid fa-lock field-icon"></i>
+        <input type="password" name="password2" id="id_password2" placeholder="Confirmer le mot de passe" required
+               aria-invalid="{% if form.password2.errors %}true{% else %}false{% endif %}">
+        <button type="button" class="field-toggle-pass toggle-pass" data-target="id_password2">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+      </div>
+      {% if form.password2.errors %}<span class="field-error">{{ form.password2.errors.0 }}</span>{% endif %}
+    </div>
+
+    <button type="submit" class="btn-login" id="registerBtn">
+      <i class="fa-solid fa-spinner"></i>
+      <span class="btn-label-text">CRÉER MON ESPACE</span>
+    </button>
+
+    <div class="register-footer">
+      Vous avez déjà un compte ? <a href="{% url 'citoyen_login' %}">Se connecter</a>
+      <div>
+        <a href="/" class="btn-home"><i class="fa-solid fa-arrow-left"></i> Retour à l'accueil</a>
+      </div>
+    </div>
+  </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    document.querySelectorAll('.toggle-pass').forEach(function (toggle) {
+      toggle.addEventListener('click', function () {
+        var input = document.getElementById(toggle.dataset.target);
+        if (!input) return;
+        var isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        toggle.querySelector('i').className = isPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+      });
+    });
+  })();
+
+  (function () {
+    var form = document.getElementById('registerForm');
+    var btn = document.getElementById('registerBtn');
+    if (!form || !btn) return;
+    form.addEventListener('submit', function (e) {
+      if (btn.classList.contains('is-loading')) { e.preventDefault(); return; }
+      btn.classList.add('is-loading');
+      setTimeout(function () { btn.disabled = true; }, 0);
+    });
+  })();
+</script>
+{% endblock %}

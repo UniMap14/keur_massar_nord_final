@@ -1,0 +1,108 @@
+{% extends 'foncier/base.html' %}
+{% block title %}Mentions légales - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .legal-content { max-width: 780px; }
+  .legal-content h3 { font-size: 16px; font-weight: 700; margin: 32px 0 10px; color: var(--text); }
+  .legal-content h3:first-of-type { margin-top: 8px; }
+  .legal-content p, .legal-content li { font-size: 14px; line-height: 1.7; color: var(--ink-quiet, #55524a); }
+  .legal-content ul { padding-left: 20px; margin: 8px 0; }
+  .legal-placeholder {
+    background: rgba(201,152,46,0.1); border: 1px dashed var(--gold);
+    border-radius: 6px; padding: 2px 8px; font-weight: 600; color: var(--green-dark, #3c2a20);
+  }
+  .legal-todo-note {
+    background: rgba(178,59,46,0.06); border: 1px dashed rgba(178,59,46,0.3);
+    border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--ink-quiet, #55524a);
+    margin-bottom: 32px; display: flex; gap: 12px; align-items: flex-start;
+  }
+  .legal-todo-note i { color: #b23b2e; margin-top: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Mentions légales</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Informations légales</div>
+    <h1>Mentions légales</h1>
+  </div>
+</section>
+
+<section class="container page-section">
+  <div class="legal-content">
+
+    <div class="legal-todo-note">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>
+        Les champs surlignés en <span class="legal-placeholder">doré</span> sont des informations
+        que seule la mairie peut fournir (raison sociale exacte, adresse officielle, hébergeur
+        réel...). Remplacez-les avant la mise en ligne publique du site.
+      </div>
+    </div>
+
+    <h3>Éditeur du site</h3>
+    <p>
+      Le présent site est édité par la <span class="legal-placeholder">Commune de Keur Massar Nord</span>,
+      collectivité territoriale sise <span class="legal-placeholder">[adresse officielle de la mairie]</span>.
+    </p>
+    <ul>
+      <li>Téléphone : +221 33 840 61 84</li>
+      <li>Email : info@keurmassarnord.com</li>
+      <li>Représentant légal : <span class="legal-placeholder">[Nom du Maire]</span>, Maire de la commune</li>
+    </ul>
+
+    <h3>Hébergement</h3>
+    <p>
+      Ce site est hébergé par <span class="legal-placeholder">[nom de l'hébergeur]</span>,
+      <span class="legal-placeholder">[adresse de l'hébergeur]</span>,
+      joignable au <span class="legal-placeholder">[téléphone de l'hébergeur]</span>.
+    </p>
+
+    <h3>Directeur de la publication</h3>
+    <p><span class="legal-placeholder">[Nom, fonction]</span></p>
+
+    <h3>Propriété intellectuelle</h3>
+    <p>
+      L'ensemble des contenus présents sur ce site (textes, cartographie, logos, données
+      cadastrales publiques) est la propriété de la Commune de Keur Massar Nord, sauf mention
+      contraire. Toute reproduction, représentation, modification ou adaptation de tout ou partie
+      des éléments du site, par quelque procédé que ce soit, sans autorisation préalable, est
+      interdite et constituerait une contrefaçon.
+    </p>
+    <p>
+      Le fond de carte est fourni par <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>
+      et ses contributeurs, sous licence ODbL.
+    </p>
+
+    <h3>Données cadastrales</h3>
+    <p>
+      Les limites de parcelles affichées sur ce site proviennent d'un relevé cadastral fourni par
+      les services de la commune. Elles sont communiquées à titre informatif et ne constituent pas
+      un document officiel opposable aux tiers. Pour toute démarche juridique ou administrative
+      nécessitant un document cadastral officiel, contactez les services fonciers de la mairie.
+    </p>
+
+    <h3>Limitation de responsabilité</h3>
+    <p>
+      La commune s'efforce d'assurer l'exactitude et la mise à jour des informations diffusées sur
+      ce site, mais ne peut garantir l'exhaustivité ou l'absence d'erreur. La commune ne saurait
+      être tenue responsable des dommages directs ou indirects résultant de l'accès ou de
+      l'utilisation de ce site.
+    </p>
+
+    <h3>Données personnelles</h3>
+    <p>
+      Le traitement des données personnelles collectées sur ce site (comptes citoyens, demandes,
+      signalements, paiements) est détaillé dans notre
+      <a href="{% url 'politique_confidentialite' %}">politique de confidentialité</a>.
+    </p>
+
+  </div>
+</section>
+{% endblock %}

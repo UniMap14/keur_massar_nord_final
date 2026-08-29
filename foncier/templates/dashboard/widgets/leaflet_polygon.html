@@ -1,0 +1,529 @@
+{# ============================================================
+   dashboard/widgets/leaflet_polygon.html
+   Carte Leaflet pour dessiner/modifier un polygone, avec couches
+   de contexte : zones du shapefile + parcelles déjà enregistrées.
+   ============================================================ #}
+
+<div class="leaflet-field">
+
+  <div class="leaflet-toolbar">
+    <div class="leaflet-search-wrap">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input
+        type="text"
+        class="leaflet-address-search"
+        id="{{ widget.map_id }}-search"
+        placeholder="Rechercher une adresse pour centrer la carte…"
+        autocomplete="off"
+      >
+    </div>
+  </div>
+
+  <div class="leaflet-map-wrap" style="position:relative;">
+    <div id="{{ widget.map_id }}" class="leaflet-polygon-map"></div>
+    <div class="leaflet-loading" id="{{ widget.map_id }}-loading">
+      <i class="fa-solid fa-spinner leaflet-spin"></i> Chargement de la carte…
+    </div>
+  </div>
+
+  <div class="leaflet-hint">
+    <i class="fa-solid fa-draw-polygon"></i>
+    Utilise l'outil polygone (icône en haut à gauche) pour dessiner le contour.
+    Les parcelles déjà enregistrées apparaissent en rouge — évite de dessiner par-dessus.
+  </div>
+
+  <div class="leaflet-area-info" id="{{ widget.map_id }}-area" style="display:none;">
+    <i class="fa-solid fa-ruler-combined"></i>
+    <span>Superficie mesurée : <strong><span id="{{ widget.map_id }}-area-value"></span></strong></span>
+    <button type="button" class="leaflet-area-apply" id="{{ widget.map_id }}-area-apply">
+      <i class="fa-solid fa-arrow-right-to-bracket"></i> Utiliser cette valeur pour le champ « Superficie »
+    </button>
+  </div>
+
+  <div class="leaflet-warning" id="{{ widget.map_id }}-warning" style="display:none;">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    Aucun polygone dessiné — ce champ est obligatoire avant d'enregistrer la parcelle.
+  </div>
+
+  <textarea
+    name="{{ widget.name }}"
+    id="{{ widget.attrs.id }}"
+    style="display:none;"
+  >{% if widget.value %}{{ widget.value }}{% endif %}</textarea>
+</div>
+
+<script>
+(function () {
+  function initLeafletPolygonField() {
+    var mapId = "{{ widget.map_id }}";
+    var inputId = "{{ widget.attrs.id }}";
+    var mapEl = document.getElementById(mapId);
+    var input = document.getElementById(inputId);
+    var loadingEl = document.getElementById(mapId + "-loading");
+    var areaBox = document.getElementById(mapId + "-area");
+    var areaValueEl = document.getElementById(mapId + "-area-value");
+    var areaApplyBtn = document.getElementById(mapId + "-area-apply");
+    var warningEl = document.getElementById(mapId + "-warning");
+    var searchInput = document.getElementById(mapId + "-search");
+
+    // BUGFIX : exclude_pk peut être None côté Python. On le sérialise
+    // proprement pour éviter d'injecter le littéral Python "None"
+    // (invalide en JavaScript) dans le script.
+    var excludePk = {{ widget.exclude_pk|default_if_none:"null" }};
+    var parcellesUrl = "{{ widget.parcelles_url|default:'' }}";
+    var zonesUrl = "{{ widget.zones_url|default:'' }}";
+
+    if (!mapEl || !input || mapEl._leafletInitDone) {
+      return;
+    }
+    mapEl._leafletInitDone = true;
+
+    var map = L.map(mapId).setView(
+      [{{ widget.default_lat|default:"14.7833" }}, {{ widget.default_lon|default:"-16.9333" }}],
+      {{ widget.default_zoom|default:"13" }}
+    );
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      subdomains: 'abc'
+    }).addTo(map);
+
+    // ---------- Couche de contexte : Zones (shapefile importé) ----------
+    var zonesLayer = L.geoJSON(null, {
+      style: {
+        color: '#6b4a35',
+        weight: 1.5,
+        dashArray: '4 4',
+        fillOpacity: 0.03
+      },
+      onEachFeature: function (feature, layer) {
+        var nom = feature.properties && feature.properties.nom ? feature.properties.nom : "Zone";
+        layer.bindTooltip(nom, { sticky: true });
+      }
+    });
+
+    // ---------- Couche de contexte : Parcelles déjà enregistrées ----------
+    var parcellesLayer = L.geoJSON(null, {
+      style: {
+        color: '#b3261e',
+        weight: 1.5,
+        fillColor: '#b3261e',
+        fillOpacity: 0.18
+      },
+      onEachFeature: function (feature, layer) {
+        var p = feature.properties || {};
+        var statut = p.statut_fiscal === 'EN_RETARD' ? 'En retard'
+                    : p.statut_fiscal === 'EXONERE' ? 'Exonéré'
+                    : 'À jour';
+        layer.bindPopup(
+          "<strong>" + (p.nicad || "Parcelle") + "</strong><br>" +
+          (p.adresse_parcelle || "") + "<br>Statut : " + statut
+        );
+      }
+    });
+
+    var couchesEnCours = 0;
+
+    function chargerCouche(url, layer, excludeId) {
+      if (!url) return;
+      couchesEnCours += 1;
+      fetch(url)
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (excludeId !== null && excludeId !== undefined && data.features) {
+            data.features = data.features.filter(function (f) {
+              return f.id !== excludeId;
+            });
+          }
+          layer.addData(data);
+        })
+        .catch(function (err) {
+          console.warn("Impossible de charger la couche de contexte (" + url + ") :", err);
+        })
+        .finally(function () {
+          couchesEnCours -= 1;
+          if (couchesEnCours <= 0 && loadingEl) {
+            loadingEl.classList.add("is-hidden");
+            setTimeout(function () { loadingEl.style.display = "none"; }, 250);
+          }
+        });
+    }
+
+    if (loadingEl && !zonesUrl && !parcellesUrl) {
+      loadingEl.classList.add("is-hidden");
+      setTimeout(function () { loadingEl.style.display = "none"; }, 250);
+    }
+
+    chargerCouche(zonesUrl, zonesLayer, null);
+    chargerCouche(parcellesUrl, parcellesLayer, excludePk);
+
+    zonesLayer.addTo(map);
+    parcellesLayer.addTo(map);
+
+    // ---------- Couche éditable : le polygone de la parcelle en cours ----------
+    var drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    function parseExisting(raw) {
+      raw = (raw || "").trim();
+      if (!raw) return null;
+      try {
+        if (raw.charAt(0) === "{") {
+          return JSON.parse(raw);
+        }
+        var match = raw.match(/POLYGON\s*\(\((.+)\)\)/i);
+        if (!match) return null;
+        var coords = match[1].split(",").map(function (pair) {
+          var xy = pair.trim().split(/\s+/).map(Number);
+          return [xy[0], xy[1]];
+        });
+        return { type: "Polygon", coordinates: [coords] };
+      } catch (e) {
+        console.warn("Géométrie existante illisible :", e);
+        return null;
+      }
+    }
+
+    var existingGeoJSON = parseExisting(input.value);
+    if (existingGeoJSON) {
+      var existingLayer = L.geoJSON(existingGeoJSON);
+      existingLayer.eachLayer(function (l) { drawnItems.addLayer(l); });
+      if (drawnItems.getLayers().length) {
+        map.fitBounds(drawnItems.getBounds(), { maxZoom: 17 });
+      }
+    }
+
+    var drawControl = new L.Control.Draw({
+      position: 'topleft',
+      edit: {
+        featureGroup: drawnItems,
+        remove: true
+      },
+      draw: {
+        polygon: {
+          allowIntersection: false,
+          showArea: true,
+          shapeOptions: { color: '#c9982e' }
+        },
+        polyline: false,
+        rectangle: false,
+        circle: false,
+        marker: false,
+        circlemarker: false
+      }
+    });
+    map.addControl(drawControl);
+
+    // ---------- Contrôle d'affichage des couches ----------
+    L.control.layers(null, {
+      "Zones / quartiers": zonesLayer,
+      "Parcelles existantes": parcellesLayer
+    }, { collapsed: true, position: 'topright' }).addTo(map);
+
+    // ---------- Recherche d'adresse (Nominatim / OpenStreetMap) ----------
+    if (searchInput) {
+      var searchTimeout = null;
+      searchInput.addEventListener("input", function () {
+        var q = searchInput.value.trim();
+        clearTimeout(searchTimeout);
+        if (q.length < 3) return;
+
+        searchTimeout = setTimeout(function () {
+          fetch(
+            "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
+            encodeURIComponent(q + ", Sénégal")
+          )
+            .then(function (res) { return res.json(); })
+            .then(function (results) {
+              if (results && results.length) {
+                var lat = parseFloat(results[0].lat);
+                var lon = parseFloat(results[0].lon);
+                map.setView([lat, lon], 16);
+              }
+            })
+            .catch(function (err) {
+              console.warn("Recherche d'adresse indisponible :", err);
+            });
+        }, 500);
+      });
+    }
+
+    // ---------- Calcul de superficie + synchronisation du champ texte ----------
+    function calculerSuperficieM2(layer) {
+      if (window.L && L.GeometryUtil && typeof L.GeometryUtil.geodesicArea === "function") {
+        return L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+      }
+      return null;
+    }
+
+    function afficherSuperficie(layer) {
+      var m2 = calculerSuperficieM2(layer);
+      if (m2 === null || !areaBox || !areaValueEl) return;
+
+      var ha = m2 / 10000;
+      areaValueEl.textContent = m2.toLocaleString("fr-FR", { maximumFractionDigits: 0 }) +
+        " m² (" + ha.toLocaleString("fr-FR", { maximumFractionDigits: 3 }) + " ha)";
+      areaBox.style.display = "flex";
+      areaBox.classList.add("is-visible");
+      areaBox.dataset.valueM2 = m2;
+    }
+
+    if (areaApplyBtn) {
+      areaApplyBtn.addEventListener("click", function () {
+        var m2 = parseFloat(areaBox.dataset.valueM2 || "0");
+        if (!m2) return;
+        var form = input.closest("form");
+        var champSuperficie = form ? form.querySelector('[name="superficie"]') : null;
+        if (champSuperficie) {
+          // Ajuster ici l'unité si le champ "superficie" attend des m² plutôt que des ha.
+          champSuperficie.value = (m2 / 10000).toFixed(3);
+          champSuperficie.dispatchEvent(new Event("change", { bubbles: true }));
+
+          // Petit retour visuel sur le bouton pour confirmer l'action
+          areaApplyBtn.classList.add("is-applied");
+          var originalHtml = areaApplyBtn.innerHTML;
+          areaApplyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Valeur appliquée';
+          setTimeout(function () {
+            areaApplyBtn.innerHTML = originalHtml;
+            areaApplyBtn.classList.remove("is-applied");
+          }, 1600);
+        }
+      });
+    }
+
+    function syncInput() {
+      var layers = drawnItems.getLayers();
+      if (!layers.length) {
+        input.value = "";
+        if (areaBox) {
+          areaBox.classList.remove("is-visible");
+          areaBox.style.display = "none";
+        }
+        return;
+      }
+      var geojson = layers[0].toGeoJSON().geometry;
+      input.value = JSON.stringify(geojson);
+      if (warningEl) {
+        warningEl.classList.remove("is-visible");
+        warningEl.style.display = "none";
+      }
+      afficherSuperficie(layers[0]);
+    }
+
+    map.on(L.Draw.Event.CREATED, function (e) {
+      drawnItems.clearLayers(); // un seul polygone à la fois
+      drawnItems.addLayer(e.layer);
+      syncInput();
+    });
+    map.on(L.Draw.Event.EDITED, syncInput);
+    map.on(L.Draw.Event.DELETED, syncInput);
+
+    // ---------- Validation avant soumission ----------
+    var form = input.closest("form");
+    if (form) {
+      form.addEventListener("submit", function (evt) {
+        if (!input.value.trim()) {
+          evt.preventDefault();
+          if (warningEl) {
+            warningEl.style.display = "flex";
+            warningEl.classList.remove("is-visible");
+            void warningEl.offsetWidth; // force le redémarrage de l'animation
+            warningEl.classList.add("is-visible");
+          }
+          mapEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    }
+
+    setTimeout(function () { map.invalidateSize(); }, 200);
+  }
+
+  if (typeof L === "undefined") {
+    var attempts = 0;
+    var waitForLeaflet = setInterval(function () {
+      attempts += 1;
+      if (typeof L !== "undefined") {
+        clearInterval(waitForLeaflet);
+        initLeafletPolygonField();
+      } else if (attempts > 100) {
+        clearInterval(waitForLeaflet);
+        console.error("Leaflet n'a pas pu être chargé (vérifie ta connexion).");
+      }
+    }, 100);
+  } else {
+    initLeafletPolygonField();
+  }
+})();
+</script>
+
+<style>
+  .leaflet-field {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== BARRE DE RECHERCHE ===== */
+  .leaflet-toolbar { margin-bottom: 8px; }
+
+  .leaflet-search-wrap {
+    position: relative;
+  }
+
+  .leaflet-search-wrap i {
+    position      : absolute;
+    left          : 13px;
+    top           : 50%;
+    transform     : translateY(-50%);
+    font-size     : 12.5px;
+    color         : #a89d8c;
+    pointer-events: none;
+    transition    : color .2s ease;
+  }
+
+  .leaflet-address-search {
+    width: 100%;
+    padding: 9px 12px 9px 34px;
+    border-radius: 8px;
+    border: 1px solid #d8cfc2;
+    font-size: 13.5px;
+    box-sizing: border-box;
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+
+  .leaflet-address-search:focus {
+    outline: none;
+    border-color: #2f7a4f;
+    box-shadow: 0 0 0 3px rgba(47,122,79,0.12);
+  }
+
+  .leaflet-address-search:focus ~ i { color: #2f7a4f; }
+
+  /* ===== CARTE ===== */
+  .leaflet-map-wrap {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1.5px solid #e6e0d4;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+
+  .leaflet-loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(250, 247, 240, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    font-size: 13.5px;
+    color: #6b6255;
+    font-weight: 600;
+    z-index: 1000;
+    pointer-events: none;
+    transition: opacity .25s ease;
+    opacity: 1;
+  }
+  .leaflet-loading.is-hidden { opacity: 0; }
+
+  .leaflet-spin {
+    animation: leafletSpin .8s linear infinite;
+  }
+  @keyframes leafletSpin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ===== TEXTE D'AIDE ===== */
+  .leaflet-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    color: #8a8276;
+    line-height: 1.6;
+  }
+  .leaflet-hint i {
+    color: #2f7a4f;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* ===== BLOC SUPERFICIE MESURÉE ===== */
+  .leaflet-area-info {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #f4efe4;
+    border-radius: 8px;
+    border-left: 3px solid #c9982e;
+    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  .leaflet-area-info.is-visible {
+    animation: leafletFadeIn .3s ease forwards;
+  }
+  @keyframes leafletFadeIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .leaflet-area-info i {
+    color: #a3791f;
+  }
+
+  .leaflet-area-apply {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #c9982e;
+    background: none;
+    color: #8a6414;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: background .18s ease, transform .18s ease;
+  }
+  .leaflet-area-apply:hover { background: #f0e4c8; transform: translateY(-1px); }
+  .leaflet-area-apply.is-applied {
+    background: rgba(58,125,68,0.14);
+    border-color: #3a7d44;
+    color: #2f6a39;
+  }
+
+  /* ===== AVERTISSEMENT ===== */
+  .leaflet-warning {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #fbeaea;
+    color: #a83a2f;
+    border-radius: 8px;
+    font-size: 13.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .leaflet-warning i { flex-shrink: 0; }
+  .leaflet-warning.is-visible {
+    animation: leafletShake .4s ease;
+  }
+  @keyframes leafletShake {
+    0%, 100% { transform: translateX(0); }
+    20%      { transform: translateX(-5px); }
+    40%      { transform: translateX(4px); }
+    60%      { transform: translateX(-3px); }
+    80%      { transform: translateX(2px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .leaflet-spin,
+    .leaflet-area-info.is-visible,
+    .leaflet-warning.is-visible {
+      animation: none !important;
+    }
+    .leaflet-area-info { opacity: 1 !important; transform: none !important; }
+  }
+</style>

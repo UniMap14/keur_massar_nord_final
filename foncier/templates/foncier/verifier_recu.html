@@ -1,0 +1,169 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Vérifier un reçu - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .cad-search-box {
+    max-width: 560px;
+    margin: -32px auto 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    padding: 20px;
+    display: flex;
+    gap: 10px;
+    position: relative;
+    z-index: 2;
+  }
+  .cad-search-box input[type="text"] {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 14px;
+    text-transform: uppercase;
+  }
+  .cad-search-box input[type="text"]:focus {
+    outline: none;
+    border-color: var(--green-dark);
+  }
+  .cad-search-box button {
+    border-radius: 999px;
+    padding: 12px 26px;
+    white-space: nowrap;
+  }
+
+  .recu-result { margin-top: 48px; max-width: 560px; margin-left: auto; margin-right: auto; }
+
+  .recu-card {
+    background: #fff; border: 2px solid rgba(47,122,79,0.25); border-radius: var(--radius);
+    padding: 30px 28px; text-align: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .recu-card.invalide { border-color: rgba(178,59,46,0.25); }
+
+  .recu-status-icon {
+    width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+    background: rgba(47,122,79,0.1); color: #2f7a4f;
+  }
+  .recu-card.invalide .recu-status-icon { background: rgba(178,59,46,0.1); color: #b23b2e; }
+
+  .recu-status-title { font-size: 19px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .recu-status-sub { font-size: 13.5px; color: var(--ink-quiet, #6f6a5e); margin-bottom: 24px; }
+
+  .recu-details {
+    text-align: left; border-top: 1px solid var(--border); padding-top: 20px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .recu-details .item .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-quiet, #6f6a5e); margin-bottom: 4px; font-weight: 600;
+  }
+  .recu-details .item .value { font-size: 14.5px; font-weight: 700; color: var(--text); }
+
+  .cad-empty {
+    text-align: center; padding: 60px 20px; color: var(--ink-quiet, #6f6a5e);
+  }
+  .cad-empty i { font-size: 30px; color: var(--gold); margin-bottom: 14px; display: block; }
+
+  .cad-privacy-note {
+    background: rgba(47,122,79,0.06); border: 1px dashed rgba(47,122,79,0.3);
+    border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--ink-quiet, #55524a);
+    margin-top: 40px; display: flex; gap: 12px; align-items: flex-start;
+    max-width: 560px; margin-left: auto; margin-right: auto;
+  }
+  .cad-privacy-note i { color: var(--green-dark); margin-top: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Vérifier un reçu</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Anti-fraude</div>
+    <h1>Vérifier l'authenticité d'un reçu.</h1>
+    <p>Confirmez qu'un reçu de paiement a bien été délivré par la commune.</p>
+  </div>
+</section>
+
+<section class="container page-section">
+
+  <form method="get" class="cad-search-box">
+    <input
+      type="text"
+      name="numero_recu"
+      value="{{ numero }}"
+      placeholder="Ex : KMSN-2026-A1B2C3D4"
+      autofocus
+    >
+    <button type="submit" class="btn btn-primary">
+      <i class="fa-solid fa-magnifying-glass"></i> Vérifier
+    </button>
+  </form>
+
+  <div class="recu-result">
+    {% if recherche_effectuee %}
+      {% if paiement %}
+        <div class="recu-card">
+          <div class="recu-status-icon"><i class="fa-solid fa-check"></i></div>
+          <div class="recu-status-title">Reçu authentique</div>
+          <div class="recu-status-sub">Ce reçu correspond bien à un paiement enregistré par la commune.</div>
+
+          <div class="recu-details">
+            <div class="item">
+              <div class="label">N° de reçu</div>
+              <div class="value">{{ paiement.numero_recu }}</div>
+            </div>
+            <div class="item">
+              <div class="label">Montant</div>
+              <div class="value">{{ paiement.montant|floatformat:0 }} FCFA</div>
+            </div>
+            <div class="item">
+              <div class="label">Date de paiement</div>
+              <div class="value">{{ paiement.date_paiement|date:"d/m/Y" }}</div>
+            </div>
+            <div class="item">
+              <div class="label">Mode de paiement</div>
+              <div class="value">{{ paiement.get_mode_paiement_display }}</div>
+            </div>
+            <div class="item" style="grid-column: 1 / -1;">
+              <div class="label">Taxe concernée</div>
+              <div class="value">{{ paiement.taxation.type_taxe.libelle }} ({{ paiement.taxation.annee_fiscale }})</div>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="recu-card invalide">
+          <div class="recu-status-icon"><i class="fa-solid fa-xmark"></i></div>
+          <div class="recu-status-title">Reçu introuvable</div>
+          <div class="recu-status-sub">
+            Aucun paiement ne correspond au numéro « {{ numero }} ».<br>
+            Vérifiez la saisie (majuscules, tirets) ou contactez le guichet fiscal de la mairie.
+          </div>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="cad-empty">
+        <i class="fa-solid fa-receipt"></i>
+        Saisissez le numéro inscrit sur le reçu pour vérifier son authenticité.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="cad-privacy-note">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>
+      Cette vérification confirme uniquement qu'un paiement existe (montant, date, type de taxe).
+      Aucun nom ni aucune information sur le contribuable ou la parcelle n'est jamais affiché ici.
+    </div>
+  </div>
+
+</section>
+{% endblock %}

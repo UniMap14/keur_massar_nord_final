@@ -1,0 +1,224 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Messages de contact{% endblock %}
+{% block header_title %}Messages de contact{% endblock %}
+{% block header_subtitle %}
+<div class="topbar-subtitle">
+  {{ messages_contact|length }} message(s)
+  {% if nb_non_traites %} · <strong style="color:var(--danger);">{{ nb_non_traites }} en attente</strong>{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ===== FILTRES ONGLETS ===== */
+    .msg-filter-tabs {
+        display: flex;
+        gap: 8px;
+    }
+    .msg-filter-tabs .btn {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 7px;
+        transition : transform .15s ease, box-shadow .15s ease;
+    }
+    .msg-filter-tabs .btn:hover { transform: translateY(-1px); }
+    .msg-filter-tabs .btn-primary {
+        box-shadow: 0 4px 12px -4px rgba(47,122,79,0.4);
+    }
+    .msg-filter-tabs .btn .tab-count {
+        background   : rgba(255,255,255,0.25);
+        padding      : 1px 7px;
+        border-radius: 100px;
+        font-size    : 11px;
+        font-weight  : 700;
+    }
+    .msg-filter-tabs .btn-outline .tab-count {
+        background   : rgba(47,122,79,0.1);
+        color        : var(--green, #2f7a4f);
+    }
+
+    /* ===== PANEL & TABLEAU ===== */
+    .panel {
+        opacity  : 0;
+        transform: translateY(10px);
+        animation: panelIn .4s ease forwards;
+    }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .data-table tbody tr {
+        opacity   : 0;
+        animation : rowIn .3s ease forwards;
+        transition: background .15s ease;
+    }
+    @keyframes rowIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ligne mise en avant si non traitée */
+    .data-table tbody tr.is-untreated {
+        background: rgba(201,152,46,0.05);
+    }
+    .data-table tbody tr.is-untreated:hover {
+        background: rgba(201,152,46,0.09);
+    }
+    .data-table tbody tr:not(.is-untreated):hover {
+        background: rgba(47,122,79,0.04);
+    }
+
+    .data-table td strong {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* petit point qui indique un message non traité, à côté du nom */
+    .is-untreated td strong::before {
+        content      : "";
+        width        : 7px;
+        height       : 7px;
+        border-radius: 50%;
+        background   : #c9982e;
+        flex-shrink  : 0;
+        animation    : dotPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+        0%, 100% { opacity: 1; }
+        50%      { opacity: 0.35; }
+    }
+
+    /* ===== BADGES ===== */
+    .badge {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 6px;
+    }
+    .badge i { font-size: 10px; }
+
+    /* ===== EMAIL ===== */
+    .msg-email {
+        color         : var(--ink-quiet, #7a7266);
+        font-size     : 13px;
+    }
+    .msg-email a {
+        color: inherit;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        transition: color .15s ease;
+    }
+    .msg-email a:hover {
+        color: var(--green, #2f7a4f);
+    }
+    .msg-email a i { font-size: 11px; opacity: 0.7; }
+
+    /* ===== ACTIONS ===== */
+    .row-actions .btn-sm {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 7px;
+        transition : transform .15s ease, box-shadow .15s ease;
+    }
+    .row-actions .btn-sm:hover {
+        transform : translateY(-1px);
+        box-shadow: 0 6px 14px -6px rgba(47,122,79,0.35);
+    }
+
+    /* ===== ÉTAT VIDE ===== */
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+    }
+    .empty-state .icon {
+        width           : 48px;
+        height          : 48px;
+        border-radius   : 50%;
+        background      : rgba(58,125,68,0.1);
+        color           : #3a7d44;
+        display         : flex;
+        align-items     : center;
+        justify-content : center;
+        margin          : 0 auto 14px;
+        font-size       : 18px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .panel, .data-table tbody tr, .is-untreated td strong::before {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="msg-filter-tabs">
+      <a href="{% url 'dashboard_message_list' %}" class="btn btn-sm {% if not filtre %}btn-primary{% else %}btn-outline{% endif %}">
+        <i class="fa-solid fa-inbox"></i> Tous
+      </a>
+      <a href="?statut=non_traite" class="btn btn-sm {% if filtre == 'non_traite' %}btn-primary{% else %}btn-outline{% endif %}">
+        <i class="fa-solid fa-clock"></i> Non traités
+        {% if nb_non_traites %}<span class="tab-count">{{ nb_non_traites }}</span>{% endif %}
+      </a>
+      <a href="?statut=traite" class="btn btn-sm {% if filtre == 'traite' %}btn-primary{% else %}btn-outline{% endif %}">
+        <i class="fa-solid fa-check"></i> Traités
+      </a>
+    </div>
+  </div>
+
+  <div class="panel-body flush">
+    {% if messages_contact %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Statut</th>
+          <th>Nom</th>
+          <th>Sujet</th>
+          <th>Email</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in messages_contact %}
+        <tr class="{% if not m.traite %}is-untreated{% endif %}" style="animation-delay: {{ forloop.counter0|add:1 }}0ms;">
+          <td>
+            {% if m.traite %}
+              <span class="badge badge-ok"><i class="fa-solid fa-check"></i> Traité</span>
+            {% else %}
+              <span class="badge badge-warn"><i class="fa-solid fa-clock"></i> En attente</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ m.nom }}</strong></td>
+          <td>{{ m.sujet }}</td>
+          <td class="msg-email">
+            <a href="mailto:{{ m.email }}"><i class="fa-solid fa-at"></i> {{ m.email }}</a>
+          </td>
+          <td>{{ m.date_envoi|date:"d/m/Y H:i" }}</td>
+          <td>
+            <div class="row-actions">
+              <a href="{% url 'dashboard_message_detail' m.pk %}" class="btn btn-outline btn-sm">
+                <i class="fa-solid fa-reply"></i> Voir &amp; répondre
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon"><i class="fa-solid fa-inbox"></i></div>
+      Aucun message pour le moment.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

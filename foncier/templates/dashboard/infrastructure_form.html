@@ -1,0 +1,115 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}{% if mode == "create" %}Nouvelle infrastructure{% else %}Modifier l'infrastructure{% endif %}{% endblock %}
+{% block header_title %}{% if mode == "create" %}Nouvelle infrastructure{% else %}Modifier « {{ infrastructure.nom }} »{% endif %}{% endblock %}
+{% block header_subtitle %}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .crumbs a { display: inline-flex; align-items: center; gap: 6px; }
+    .crumbs a i { font-size: 11px; opacity: 0.7; }
+
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .45s ease .05s forwards; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .form-field label {
+        display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12.5px;
+        color: var(--ink-quiet, #6f6a5e); text-transform: uppercase; letter-spacing: 0.4px;
+        margin-bottom: 7px;
+    }
+    .form-field input, .form-field select, .form-field textarea {
+        width: 100%; border: 1.5px solid var(--line-strong, #e6e0d4); border-radius: 8px;
+        padding: 10px 13px; font-family: inherit; font-size: 13.5px; background: #fdfcfa;
+        transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+        outline: none; border-color: var(--green, #2f7a4f);
+        box-shadow: 0 0 0 3px rgba(47,122,79,0.12); background: #fff;
+    }
+    .form-field .errorlist {
+        list-style: none; margin: 6px 0 0; padding: 0; color: #b3261e; font-size: 12px;
+    }
+    .form-field .hint {
+        font-size: 12px; color: var(--ink-quiet, #8a8276); margin-top: 6px;
+    }
+
+    .form-actions {
+        display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;
+        padding-top: 20px; border-top: 1px solid var(--line-strong, #e6e0d4);
+    }
+    .form-actions .btn { display: inline-flex; align-items: center; gap: 8px; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <a href="{% url 'dashboard_infrastructure_list' %}"><i class="fa-solid fa-building"></i> Infrastructures</a>
+  <span class="sep">/</span>
+  {% if mode == "create" %}Nouvelle{% else %}{{ infrastructure.nom }}{% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="{{ form.nom.id_for_label }}"><i class="fa-solid fa-signature"></i> Nom de l'infrastructure</label>
+          {{ form.nom }}
+          {{ form.nom.errors }}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.categorie.id_for_label }}"><i class="fa-solid fa-layer-group"></i> Catégorie</label>
+          {{ form.categorie }}
+          {{ form.categorie.errors }}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.quartier.id_for_label }}"><i class="fa-solid fa-signs-post"></i> Quartier</label>
+          {{ form.quartier }}
+          {{ form.quartier.errors }}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.statut.id_for_label }}"><i class="fa-solid fa-circle-check"></i> Statut</label>
+          {{ form.statut }}
+          {{ form.statut.errors }}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.latitude.id_for_label }}"><i class="fa-solid fa-location-dot"></i> Latitude</label>
+          {{ form.latitude }}
+          {{ form.latitude.errors }}
+          <div class="hint">Facultatif — utile pour un futur affichage sur le géoportail.</div>
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.longitude.id_for_label }}"><i class="fa-solid fa-location-dot"></i> Longitude</label>
+          {{ form.longitude }}
+          {{ form.longitude.errors }}
+        </div>
+
+        <div class="form-field full">
+          <label for="{{ form.notes.id_for_label }}"><i class="fa-solid fa-note-sticky"></i> Notes</label>
+          {{ form.notes }}
+          {{ form.notes.errors }}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="{% url 'dashboard_infrastructure_list' %}" class="btn btn-outline"><i class="fa-solid fa-xmark"></i> Annuler</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid {% if mode == 'create' %}fa-plus{% else %}fa-floppy-disk{% endif %}"></i>
+          {% if mode == "create" %}Créer l'infrastructure{% else %}Enregistrer les modifications{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

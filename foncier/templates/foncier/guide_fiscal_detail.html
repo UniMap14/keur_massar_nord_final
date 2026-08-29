@@ -1,0 +1,58 @@
+{% extends 'foncier/base.html' %}
+{% block title %}{{ guide.titre }} - KMS Nord Foncier{% endblock %}
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <a href="{% url 'fiscalite' %}">Fiscalité</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>{{ guide.titre }}</span>
+    </div>
+    <h1>{% if guide.sigle %}{{ guide.sigle }} — {% endif %}{{ guide.titre }}</h1>
+    <p>{{ guide.resume }}</p>
+  </div>
+</section>
+
+<section class="container page-section">
+  {% if guide.qui_est_concerne %}
+    <div class="card border-0 shadow-sm mb-3" style="padding:20px;">
+      <h5>Qui est concerné ?</h5>
+      <p>{{ guide.qui_est_concerne }}</p>
+    </div>
+  {% endif %}
+
+  {% if guide.taux_et_calcul %}
+    <div class="card border-0 shadow-sm mb-3" style="padding:20px;">
+      <h5>Taux et calcul</h5>
+      <p>{{ guide.taux_et_calcul }}</p>
+    </div>
+  {% endif %}
+
+  {% if guide.modalites_declaration %}
+    <div class="card border-0 shadow-sm mb-3" style="padding:20px;">
+      <h5>Modalités de déclaration</h5>
+      <p>{{ guide.modalites_declaration }}</p>
+    </div>
+  {% endif %}
+
+  {% if guide.sanctions %}
+    <div class="card border-0 shadow-sm mb-3" style="padding:20px;">
+      <h5>Sanctions en cas de manquement</h5>
+      <p>{{ guide.sanctions }}</p>
+    </div>
+  {% endif %}
+
+  {% if guide.references_legales %}
+    <div class="card border-0 shadow-sm mb-3" style="padding:20px; background:#f8f9fa;">
+      <h6 style="color:#6c757d;">Références légales</h6>
+      <p style="font-size:13px; color:#6c757d;">{{ guide.references_legales }}</p>
+    </div>
+  {% endif %}
+
+  <a href="{% url 'fiscalite' %}" class="btn btn-outline-secondary">
+    <i class="fa-solid fa-arrow-left"></i> Retour au guide fiscal
+  </a>
+</section>
+{% endblock %}

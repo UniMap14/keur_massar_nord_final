@@ -1,0 +1,317 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}{{ message_contact.sujet }}{% endblock %}
+{% block header_title %}{{ message_contact.sujet }}{% endblock %}
+{% block header_subtitle %}
+<div class="topbar-subtitle">
+  Reçu le {{ message_contact.date_envoi|date:"d/m/Y à H:i" }}
+  {% if message_contact.traite %} · <span class="badge badge-ok"><i class="fa-solid fa-check"></i> Traité</span>
+  {% else %} · <span class="badge badge-warn"><i class="fa-solid fa-clock"></i> En attente</span>{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ===== FIL D'ARIANE ===== */
+    .crumbs {
+        display    : flex;
+        align-items: center;
+        gap        : 8px;
+        font-size  : 13px;
+        opacity    : 0;
+        animation  : fadeIn .4s ease forwards;
+    }
+    .crumbs a { display: inline-flex; align-items: center; gap: 6px; }
+    .crumbs a i { font-size: 11px; opacity: 0.7; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    /* ===== PANELS ===== */
+    .panel {
+        opacity  : 0;
+        transform: translateY(10px);
+        animation: panelIn .45s ease forwards;
+    }
+    .panel:nth-of-type(1) { animation-delay: .04s; }
+    .panel:nth-of-type(2) { animation-delay: .12s; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .panel-header h2 {
+        display    : flex;
+        align-items: center;
+        gap        : 10px;
+    }
+    .panel-header h2 i {
+        color  : var(--green, #2f7a4f);
+        opacity: 0.85;
+        font-size: 15px;
+    }
+
+    /* ===== BADGE STATUT (en-tête) ===== */
+    .badge {
+        display       : inline-flex;
+        align-items   : center;
+        gap           : 5px;
+        font-size     : 12px;
+        vertical-align: middle;
+    }
+    .badge i { font-size: 10px; }
+
+    /* ===== FICHE CITOYEN ===== */
+    .contact-info-field {
+        opacity  : 0;
+        animation: fieldIn .4s ease forwards;
+    }
+    .contact-info-field:nth-of-type(1) { animation-delay: .08s; }
+    .contact-info-field:nth-of-type(2) { animation-delay: .11s; }
+    .contact-info-field:nth-of-type(3) { animation-delay: .14s; }
+    .contact-info-field:nth-of-type(4) { animation-delay: .17s; }
+    .contact-info-field:nth-of-type(5) { animation-delay: .20s; }
+    .contact-info-field:nth-of-type(6) { animation-delay: .23s; }
+    @keyframes fieldIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .contact-info-field label {
+        display      : flex;
+        align-items  : center;
+        gap          : 6px;
+        font-weight  : 600;
+        font-size    : 12px;
+        color        : var(--ink-quiet, #6f6a5e);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 7px;
+    }
+    .contact-info-field label i {
+        color: var(--green, #2f7a4f);
+        font-size: 11px;
+        opacity: 0.8;
+        width: 13px;
+    }
+
+    .contact-info-value {
+        padding      : 11px 14px;
+        background   : var(--brand-cream);
+        border-radius: 9px;
+        font-size    : 14px;
+        border       : 1px solid transparent;
+        transition   : border-color .2s ease, background .2s ease;
+    }
+    .contact-info-value:hover {
+        border-color: rgba(47,122,79,0.18);
+    }
+    .contact-info-value.strong { font-weight: 600; }
+
+    .contact-info-value a {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 7px;
+        color      : var(--green, #2f7a4f);
+        font-weight: 600;
+        text-decoration: none;
+    }
+    .contact-info-value a:hover { text-decoration: underline; }
+    .contact-info-value a i { font-size: 12px; }
+
+    .contact-info-message {
+        padding      : 16px 18px;
+        background   : var(--brand-cream);
+        border-radius: 9px;
+        white-space  : pre-wrap;
+        line-height  : 1.7;
+        font-size    : 14px;
+        border-left  : 3px solid var(--green, #2f7a4f);
+    }
+
+    /* ===== FORMULAIRE DE RÉPONSE ===== */
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        width         : 100%;
+        border        : 1.5px solid var(--line-strong, #e6e0d4);
+        border-radius : 8px;
+        padding       : 10px 13px;
+        font-family   : inherit;
+        font-size     : 13.5px;
+        background    : #fdfcfa;
+        transition    : border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+        outline      : none;
+        border-color : var(--green, #2f7a4f);
+        box-shadow   : 0 0 0 3px rgba(47,122,79,0.12);
+        background   : #fff;
+    }
+    .form-field textarea {
+        min-height: 160px;
+        resize    : vertical;
+    }
+
+    .form-field .errorlist {
+        list-style : none;
+        margin     : 6px 0 0;
+        padding    : 0;
+        color      : #b3261e;
+        font-size  : 12px;
+    }
+    .form-field .errorlist li {
+        display    : flex;
+        align-items: center;
+        gap        : 6px;
+    }
+    .form-field .errorlist li::before {
+        content     : "\f06a";
+        font-family : "Font Awesome 6 Free";
+        font-weight : 900;
+        font-size   : 11px;
+    }
+
+    .hint {
+        display      : flex;
+        align-items  : center;
+        gap          : 8px;
+        font-size    : 12.5px;
+        color        : var(--ink-quiet, #8a8276);
+        margin-top   : 9px;
+        padding      : 9px 12px;
+        background   : rgba(47,122,79,0.06);
+        border-radius: 7px;
+    }
+    .hint i { color: var(--green, #2f7a4f); flex-shrink: 0; }
+
+    /* ===== ACTIONS ===== */
+    .form-actions {
+        display        : flex;
+        justify-content: flex-end;
+        gap            : 12px;
+        margin-top     : 24px;
+        padding-top    : 20px;
+        border-top     : 1px solid var(--line-strong, #e6e0d4);
+    }
+    .form-actions .btn {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 8px;
+        transition : transform .18s ease, box-shadow .18s ease;
+    }
+    .form-actions .btn:hover { transform: translateY(-2px); }
+    .form-actions .btn-primary:hover {
+        box-shadow: 0 10px 22px -8px rgba(47,122,79,0.45);
+    }
+    .form-actions .btn.is-loading {
+        pointer-events: none;
+        opacity: 0.85;
+    }
+    .form-actions .btn .fa-spinner { display: none; }
+    .form-actions .btn.is-loading .fa-spinner { display: inline-block; animation: spin .7s linear infinite; }
+    .form-actions .btn.is-loading .btn-label-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (prefers-reduced-motion: reduce) {
+        .crumbs, .panel, .contact-info-field {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <a href="{% url 'dashboard_message_list' %}"><i class="fa-solid fa-envelope"></i> Messages de contact</a>
+  <span class="sep">/</span>
+  {{ message_contact.sujet }}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- ============ INFOS DU CITOYEN ============ -->
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-user"></i> Informations fournies par le formulaire</h2>
+  </div>
+  <div class="panel-body">
+    <div class="form-grid">
+      <div class="contact-info-field">
+        <label><i class="fa-solid fa-signature"></i> Nom</label>
+        <div class="contact-info-value strong">{{ message_contact.nom }}</div>
+      </div>
+      <div class="contact-info-field">
+        <label><i class="fa-solid fa-at"></i> Email</label>
+        <div class="contact-info-value">
+          <a href="mailto:{{ message_contact.email }}"><i class="fa-solid fa-paper-plane"></i> {{ message_contact.email }}</a>
+        </div>
+      </div>
+      <div class="contact-info-field">
+        <label><i class="fa-solid fa-phone"></i> Téléphone</label>
+        <div class="contact-info-value">{{ message_contact.telephone|default:"—" }}</div>
+      </div>
+      <div class="contact-info-field">
+        <label><i class="fa-solid fa-clock"></i> Date d'envoi</label>
+        <div class="contact-info-value">{{ message_contact.date_envoi|date:"d/m/Y à H:i" }}</div>
+      </div>
+      <div class="contact-info-field full">
+        <label><i class="fa-solid fa-tag"></i> Sujet</label>
+        <div class="contact-info-value strong">{{ message_contact.sujet }}</div>
+      </div>
+      <div class="contact-info-field full">
+        <label><i class="fa-solid fa-message"></i> Message</label>
+        <div class="contact-info-message">{{ message_contact.message }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FORMULAIRE DE RÉPONSE ============ -->
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-reply"></i> Répondre par email</h2>
+  </div>
+  <div class="panel-body">
+    <form method="post" id="replyForm">
+      {% csrf_token %}
+      <div class="form-grid">
+        <div class="form-field full">
+          <label for="{{ form.sujet.id_for_label }}"><i class="fa-solid fa-tag"></i> Sujet de l'email</label>
+          {{ form.sujet }}
+          {{ form.sujet.errors }}
+        </div>
+        <div class="form-field full">
+          <label for="{{ form.corps.id_for_label }}"><i class="fa-solid fa-pen"></i> Message</label>
+          {{ form.corps }}
+          {{ form.corps.errors }}
+          <div class="hint">
+            <i class="fa-solid fa-circle-info"></i>
+            L'email sera envoyé à <strong>{{ message_contact.email }}</strong>, et ce message sera automatiquement marqué comme traité.
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <a href="{% url 'dashboard_message_list' %}" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Retour à la liste</a>
+        <button type="submit" class="btn btn-primary" id="replyBtn">
+          <i class="fa-solid fa-spinner"></i>
+          <i class="fa-solid fa-paper-plane"></i>
+          <span class="btn-label-text">Envoyer la réponse</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var form = document.getElementById('replyForm');
+    var btn = document.getElementById('replyBtn');
+    if (!form || !btn) return;
+    form.addEventListener('submit', function () {
+      btn.classList.add('is-loading');
+    });
+  })();
+</script>
+
+{% endblock %}

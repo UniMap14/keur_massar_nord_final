@@ -1,0 +1,58 @@
+﻿{% extends 'foncier/base.html' %}
+{% block title %}Espace Jeunes - KMS Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ej-hero {
+    background: linear-gradient(135deg, var(--green-dark, #1f5c3a), var(--green, #2f7a4f));
+    color: #fff; border-radius: 16px; padding: 40px 32px; margin-bottom: 28px;
+  }
+  .ej-hero h1 { font-size: 26px; margin-bottom: 10px; }
+  .ej-hero p { font-size: 15px; opacity: .95; max-width: 640px; }
+  .ej-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .ej-card {
+    border: 1px solid #e9ecef; border-radius: 14px; padding: 22px; background: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+  }
+  .ej-card i { font-size: 22px; color: var(--green, #2f7a4f); margin-bottom: 10px; display:block; }
+  .ej-card h3 { font-size: 16px; margin-bottom: 8px; }
+  .ej-card p { font-size: 13.5px; color: #6c757d; margin-bottom: 14px; }
+  .ej-card a.btn { display:inline-block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="container page-section">
+  <div class="ej-hero">
+    <h1>Espace Jeunes â Keur Massar Nord</h1>
+    <p>
+      Un projet, une idée pour ton quartier ? La mairie de Keur Massar Nord t'accompagne.
+      Soumets ton projet, découvre les ressources disponibles pour entreprendre,
+      et échange directement avec l'administration communale.
+    </p>
+  </div>
+
+  <div class="ej-cards">
+    <div class="ej-card">
+      <i class="fa-solid fa-lightbulb"></i>
+      <h3>Soumettre mon projet</h3>
+      <p>« Présente ton projet (agriculture, commerce, numérique, artisanat...) et tes besoins pour le réaliser».</p>
+      <a href="{% url 'jeunesse_soumettre' %}" class="btn btn-primary">Je soumets mon projet</a>
+    </div>
+
+    <div class="ej-card">
+      <i class="fa-solid fa-hand-holding-dollar"></i>
+      <h3>Ressources & dispositifs</h3>
+      <p>Financements, formations, accompagnement : les dispositifs disponibles pour les jeunes entrepreneurs.</p>
+      <a href="{% url 'jeunesse_ressources' %}" class="btn btn-outline-secondary">Voir les ressources</a>
+    </div>
+
+    <div class="ej-card">
+      <i class="fa-solid fa-comments"></i>
+      <h3>Échanger avec la mairie </h3>
+      <p>Une fois ton projet soumis, l'administration peut te contacter directement pour en discuter.</p>
+      <a href="{% url 'contact' %}" class="btn btn-outline-secondary">Nous contacter</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

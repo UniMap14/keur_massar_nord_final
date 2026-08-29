@@ -1,0 +1,323 @@
+/* =========================================
+   ADMIN DJANGO — THÈME KMS NORD / DGID
+   Reskin via les variables CSS natives de
+   l'admin Django (4.x / 5.x) + finitions.
+   À placer dans : static/foncier/css/admin_custom.css
+========================================= */
+
+/* -----------------------------------------
+   1) VARIABLES — reprennent la palette de
+   style.css (--green, --gold, --off-white...)
+----------------------------------------- */
+:root {
+  --primary               : #6b4a35;   /* vert-brun DGID */
+  --secondary             : #3c2a20;   /* brun très foncé */
+  --accent                : #c9982e;   /* or/moutarde */
+  --primary-fg            : #ffffff;
+
+  --body-fg               : #2b211a;
+  --body-bg               : #f5efe2;
+  --body-quiet-color       : #6b5d4f;
+  --body-loud-color        : #2b211a;
+
+  --header-color           : #ffffff;
+  --header-branding-color  : #c9982e;
+  --header-bg              : #3c2a20;
+  --header-link-color      : #ffffff;
+
+  --breadcrumbs-fg         : rgba(255,255,255,.75);
+  --breadcrumbs-link-fg    : #ffffff;
+  --breadcrumbs-bg         : #6b4a35;
+
+  --link-fg                : #6b4a35;
+  --link-hover-color        : #3c2a20;
+  --link-selected-fg        : #a67c1f;
+
+  --hairline-color          : rgba(0,0,0,0.07);
+  --border-color            : rgba(0,0,0,0.12);
+
+  --error-fg                : #b3261e;
+
+  --message-success-bg       : #e5f3e8;
+  --message-warning-bg       : #f7ecd4;
+  --message-error-bg         : #fbe9e7;
+
+  --darkened-bg             : #efe7d6;
+  --selected-bg             : #f7ecd4;
+  --selected-row            : #f7ecd4;
+
+  --button-fg                : #ffffff;
+  --button-bg                : #6b4a35;
+  --button-hover-bg           : #3c2a20;
+  --default-button-bg         : #c9982e;
+  --default-button-hover-bg   : #a67c1f;
+  --close-button-bg           : #8a624a;
+  --close-button-hover-bg     : #6b4a35;
+  --delete-button-bg          : #b3261e;
+  --delete-button-hover-bg    : #8f1d17;
+
+  --object-tools-bg           : #6b4a35;
+  --object-tools-hover-bg     : #3c2a20;
+}
+
+/* -----------------------------------------
+   2) TYPOGRAPHIE
+----------------------------------------- */
+body, input, select, textarea, .button, input[type=submit], input[type=button] {
+  font-family: 'DM Sans', Arial, Helvetica, sans-serif;
+}
+
+#branding h1, #branding h1 a:link, #branding h1 a:visited,
+.login #branding h1, .login #branding h1 a {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+
+h1, h2, h3, .module h2, .module caption, .inline-group h2 {
+  font-family: 'Playfair Display', serif;
+}
+
+/* -----------------------------------------
+   3) HEADER
+----------------------------------------- */
+#header {
+  box-shadow: 0 2px 14px rgba(0,0,0,.18);
+  padding: 12px 40px;
+}
+
+#branding-kmsn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#branding-kmsn img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 10px rgba(201,152,46,.4);
+  border: 2px solid rgba(201,152,46,.5);
+}
+
+#user-tools {
+  font-size: 12.5px;
+}
+
+#user-tools a {
+  border-bottom: 1px solid transparent;
+  transition: border-color .2s;
+}
+
+#user-tools a:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* -----------------------------------------
+   4) BREADCRUMBS
+----------------------------------------- */
+div.breadcrumbs {
+  font-size: 12.5px;
+  padding: 10px 40px;
+}
+
+/* -----------------------------------------
+   5) SIDEBAR DE NAVIGATION (Django 4+)
+----------------------------------------- */
+#nav-sidebar {
+  border-right: 1px solid var(--hairline-color);
+  background: #fff;
+}
+
+#nav-sidebar .module th,
+#nav-sidebar .module caption {
+  font-size: 11px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--body-quiet-color);
+  background: transparent;
+  padding: 14px 16px 6px;
+}
+
+#nav-sidebar table tr:hover {
+  background: rgba(107,74,53,.06);
+}
+
+#nav-sidebar .current-app .section,
+#nav-sidebar .current-model {
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--selected-bg);
+  border-radius: 8px;
+}
+
+#nav-sidebar a:focus, #nav-sidebar a:hover {
+  text-decoration: none;
+  color: var(--secondary);
+}
+
+/* -----------------------------------------
+   6) MODULES / CARTES (page d'accueil admin
+      + fieldsets des formulaires)
+----------------------------------------- */
+.module {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.06);
+  border: 1px solid var(--hairline-color);
+  margin-bottom: 22px;
+}
+
+.module h2, .module caption, .inline-group h2 {
+  border-radius: 0;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dashboard .module table th {
+  font-weight: 600;
+  width: auto;
+}
+
+.dashboard .module table td a {
+  padding: 4px 0;
+  display: inline-block;
+}
+
+fieldset.module {
+  padding-bottom: 12px;
+}
+
+/* -----------------------------------------
+   7) BOUTONS
+----------------------------------------- */
+.button, input[type=submit], input[type=button],
+.submit-row input, a.button {
+  border-radius: 8px !important;
+  font-weight: 600;
+  letter-spacing: .2px;
+  transition: background .2s ease, transform .15s ease, box-shadow .2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.button:hover, input[type=submit]:hover, input[type=button]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,0,0,.15);
+}
+
+.button.default, input[type=submit].default {
+  color: var(--secondary);
+}
+
+.object-tools a.addlink {
+  border-radius: 8px;
+}
+
+/* -----------------------------------------
+   8) LISTES (changelist)
+----------------------------------------- */
+#changelist-filter {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--hairline-color);
+  box-shadow: 0 4px 16px rgba(0,0,0,.06);
+}
+
+#changelist-filter h2 {
+  font-size: 13px;
+}
+
+#result_list thead th {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+#result_list tbody tr:hover {
+  background: rgba(107,74,53,.04);
+}
+
+.paginator {
+  border-radius: 8px;
+}
+
+.paginator a:link, .paginator a:visited {
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.paginator .this-page {
+  background: var(--primary);
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-weight: 700;
+}
+
+/* -----------------------------------------
+   9) MESSAGES / ALERTES
+----------------------------------------- */
+ul.messagelist li {
+  border-radius: 8px;
+  padding: 12px 16px 12px 52px;
+}
+
+ul.messagelist li.success {
+  border-left: 4px solid #2e7d32;
+}
+ul.messagelist li.warning {
+  border-left: 4px solid var(--accent);
+}
+ul.messagelist li.error {
+  border-left: 4px solid var(--error-fg);
+}
+
+/* -----------------------------------------
+   10) PAGE DE CONNEXION
+----------------------------------------- */
+body.login {
+  background: linear-gradient(155deg, #3c2a20 0%, #6b4a35 62%, #8a624a 100%);
+}
+
+.login #container {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,.3);
+  margin-top: 8%;
+}
+
+.login #header {
+  background: #3c2a20;
+  justify-content: center;
+  padding: 24px 20px;
+}
+
+.login #branding h1 {
+  text-align: center;
+}
+
+.login .form-row {
+  padding: 12px 0;
+}
+
+.login .submit-row {
+  padding: 16px 0 0;
+}
+
+.login .submit-row input {
+  width: 100%;
+  padding: 12px;
+}
+
+/* -----------------------------------------
+   11) RESPONSIVE — petits écrans
+----------------------------------------- */
+@media (max-width: 767px) {
+  #header {
+    padding: 10px 16px;
+  }
+  div.breadcrumbs {
+    padding: 8px 16px;
+  }
+}

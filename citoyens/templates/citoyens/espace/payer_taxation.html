@@ -1,0 +1,176 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payer ma taxation · KMS Nord</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+        --green       : #6b4a35;
+        --green-dark  : #3c2a20;
+        --gold        : #c9982e;
+        --gold-dark   : #a67c1f;
+        --white       : #ffffff;
+        --off-white   : #f5efe2;
+        --text        : #2b211a;
+        --text-muted  : #6b5d4f;
+        --border      : rgba(0,0,0,0.08);
+        --shadow-sm   : 0 4px 16px rgba(43,33,26,0.06);
+        --radius      : 16px;
+        --radius-sm   : 10px;
+        --danger      : #b23b2e;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; font-family: 'DM Sans', Arial, sans-serif; color: var(--text);
+        background: var(--off-white); min-height: 100vh;
+    }
+    .topbar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 32px; background: var(--green-dark); color: var(--white);
+    }
+    .topbar .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; }
+    .topbar .brand i {
+        color: var(--green-dark); background: var(--gold); width: 34px; height: 34px;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .topbar a.back {
+        color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; font-weight: 500;
+        display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.25); transition: all .2s ease;
+    }
+    .topbar a.back:hover { color: var(--white); border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.06); }
+
+    .wrap { max-width: 480px; margin: 0 auto; padding: 40px 20px 60px; }
+    .wrap h1 {
+        font-family: 'Playfair Display', serif; font-size: 24px; margin: 0 0 8px; font-weight: 700; color: var(--text);
+    }
+    .wrap h1 i { color: var(--gold-dark); margin-right: 10px; }
+    .wrap .sub { color: var(--text-muted); font-size: 13.5px; margin-bottom: 26px; }
+
+    .card {
+        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        border-radius: var(--radius); padding: 30px 28px;
+    }
+
+    .montant-box {
+        background: var(--off-white); border: 1.5px dashed var(--gold); border-radius: var(--radius-sm);
+        padding: 16px 18px; margin-bottom: 24px; text-align: center;
+    }
+    .montant-box .label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; }
+    .montant-box .value { font-size: 22px; font-weight: 700; color: var(--text); }
+    .montant-box .detail { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
+
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+    .field input {
+        width: 100%; background: var(--off-white); border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text);
+        font-family: inherit; font-size: 14px; transition: border-color .2s ease, background .2s ease;
+    }
+    .field input:focus { outline: none; border-color: var(--gold); background: var(--white); }
+    .field .helptext { font-size: 12px; color: var(--text-muted); margin-top: 7px; }
+    .field .errorlist { list-style: none; padding: 0; margin: 7px 0 0; color: var(--danger); font-size: 12px; }
+
+    .operateurs { display: flex; flex-direction: column; gap: 10px; }
+    .operateurs label {
+        display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+        border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
+        font-size: 14px; font-weight: 600; color: var(--text); text-transform: none; letter-spacing: normal;
+        transition: border-color .2s ease, background .2s ease;
+    }
+    .operateurs label:hover { border-color: var(--gold); background: var(--off-white); }
+    .operateurs input[type="radio"] { accent-color: var(--gold-dark); width: 18px; height: 18px; }
+
+    .btn-gold {
+        background: var(--gold); color: var(--green-dark); font-weight: 700;
+        border: none; padding: 13px 20px; border-radius: 999px;
+        font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 9px;
+        transition: all .2s ease; width: 100%; justify-content: center;
+    }
+    .btn-gold:hover { background: #d9ad4f; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(201,152,46,0.35); }
+
+    .messages { margin-bottom: 20px; }
+    .messages .msg {
+        padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 10px;
+        background: rgba(178,59,46,0.08); color: var(--danger); border: 1px solid rgba(178,59,46,0.25);
+    }
+
+    .securite-note {
+        display: flex; gap: 10px; align-items: flex-start; font-size: 12px; color: var(--text-muted);
+        margin-top: 18px;
+    }
+    .securite-note i { color: var(--green); margin-top: 2px; }
+
+    @media (max-width: 480px) {
+      .topbar { padding: 14px 18px; }
+      .wrap { padding: 28px 14px 40px; }
+      .card { padding: 22px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand"><i class="fa-solid fa-fire"></i> KMS Nord — Espace Citoyen</div>
+    <a class="back" href="{% url 'citoyen_espace' %}"><i class="fa-solid fa-arrow-left"></i> Mon espace</a>
+  </div>
+
+  <div class="wrap">
+    <h1><i class="fa-solid fa-mobile-screen-button"></i>Payer en ligne</h1>
+    <div class="sub">{{ taxation.type_taxe.libelle }} — {{ taxation.annee_fiscale }}</div>
+
+    <div class="card">
+      {% if form.non_field_errors %}
+        <div class="messages">
+          {% for e in form.non_field_errors %}<div class="msg">{{ e }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="montant-box">
+        <div class="label">Montant à régler</div>
+        <div class="value">{{ taxation.solde|floatformat:0 }} FCFA</div>
+        {% if taxation.parcelle %}
+          <div class="detail">Parcelle {{ taxation.parcelle.nicad }}</div>
+        {% endif %}
+      </div>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="field">
+          <label>Opérateur</label>
+          <div class="operateurs">
+            {% for radio in form.operateur %}
+              <label>{{ radio.tag }} {{ radio.choice_label }}</label>
+            {% endfor %}
+          </div>
+          {{ form.operateur.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.telephone.id_for_label }}">Numéro de téléphone</label>
+          {{ form.telephone }}
+          {% if form.telephone.help_text %}<div class="helptext">{{ form.telephone.help_text }}</div>{% endif %}
+          {{ form.telephone.errors }}
+        </div>
+
+        <button type="submit" class="btn-gold">
+          <i class="fa-solid fa-lock"></i> Continuer vers le paiement
+        </button>
+      </form>
+
+      <div class="securite-note">
+        <i class="fa-solid fa-shield-halved"></i>
+        <div>Vous serez redirigé vers la page sécurisée de l'opérateur pour finaliser le paiement. Aucune information bancaire n'est stockée sur ce site.</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

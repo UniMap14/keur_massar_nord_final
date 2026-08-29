@@ -1,0 +1,43 @@
+﻿{% extends 'foncier/base.html' %}
+{% block title %}Ressources - Espace Jeunes{% endblock %}
+
+{% block extra_head %}
+<style>
+  .res-cat { margin-bottom: 30px; }
+  .res-cat h2 { font-size: 17px; color: var(--green, #2f7a4f); margin-bottom: 14px; }
+  .res-item {
+    border: 1px solid #e9ecef; border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; background:#fff;
+  }
+  .res-item h4 { font-size: 15px; margin-bottom: 6px; }
+  .res-item p { font-size: 13.5px; color:#6c757d; margin-bottom: 8px; }
+  .res-item .meta { font-size: 12.5px; color: var(--green, #2f7a4f); }
+  .res-empty { color:#6c757d; font-size:14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="container page-section">
+  <h1 style="font-size:22px; margin-bottom:6px;">Ressources pour jeunes entrepreneurs</h1>
+  <p style="color:#6c757d; font-size:14px; margin-bottom:26px;">
+    « Dispositifs, financements et contacts utiles pour réaliser ton projet à Keur Massar Nord. »
+  </p>
+
+  {% if par_categorie %}
+    {% for categorie, ressources in par_categorie.items %}
+      <div class="res-cat">
+        <h2>{{ categorie }}</h2>
+        {% for r in ressources %}
+          <div class="res-item">
+            <h4>{{ r.titre }}</h4>
+            <p>{{ r.description }}</p>
+            {% if r.contact %}<div class="meta"><i class="fa-solid fa-phone"></i> {{ r.contact }}</div>{% endif %}
+            {% if r.lien %}<div class="meta"><a href="{{ r.lien }}" target="_blank" rel="noopener">{{ r.lien }}</a></div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="res-empty">« Aucune ressource publiée pour l'instant. »</p>
+  {% endif %}
+</section>
+{% endblock %}

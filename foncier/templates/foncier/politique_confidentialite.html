@@ -1,0 +1,170 @@
+{% extends 'foncier/base.html' %}
+{% block title %}Politique de confidentialité - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .legal-content { max-width: 780px; }
+  .legal-content h3 { font-size: 16px; font-weight: 700; margin: 32px 0 10px; color: var(--text); }
+  .legal-content h3:first-of-type { margin-top: 8px; }
+  .legal-content p, .legal-content li { font-size: 14px; line-height: 1.7; color: var(--ink-quiet, #55524a); }
+  .legal-content ul { padding-left: 20px; margin: 8px 0; }
+  .legal-placeholder {
+    background: rgba(201,152,46,0.1); border: 1px dashed var(--gold);
+    border-radius: 6px; padding: 2px 8px; font-weight: 600; color: var(--green-dark, #3c2a20);
+  }
+  .legal-todo-note {
+    background: rgba(178,59,46,0.06); border: 1px dashed rgba(178,59,46,0.3);
+    border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--ink-quiet, #55524a);
+    margin-bottom: 32px; display: flex; gap: 12px; align-items: flex-start;
+  }
+  .legal-todo-note i { color: #b23b2e; margin-top: 2px; }
+
+  .data-table {
+    width: 100%; border-collapse: collapse; margin: 16px 0 28px; font-size: 13px;
+  }
+  .data-table th, .data-table td {
+    text-align: left; padding: 10px 12px; border-bottom: 1px solid rgba(0,0,0,0.08); vertical-align: top;
+  }
+  .data-table th {
+    background: rgba(47,122,79,0.06); font-weight: 700; color: var(--green-dark, #3c2a20);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Politique de confidentialité</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Vos données personnelles</div>
+    <h1>Politique de confidentialité</h1>
+    <p>Dernière mise à jour : <span class="legal-placeholder">[date]</span></p>
+  </div>
+</section>
+
+<section class="container page-section">
+  <div class="legal-content">
+
+    <div class="legal-todo-note">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>
+        Les champs <span class="legal-placeholder">dorés</span> doivent être complétés par la mairie
+        avant mise en ligne (durées de conservation exactes, contact du responsable de traitement).
+        Le reste de cette page décrit fidèlement les données réellement collectées par le site,
+        fonctionnalité par fonctionnalité.
+      </div>
+    </div>
+
+    <h3>Qui est responsable de vos données ?</h3>
+    <p>
+      La Commune de Keur Massar Nord est responsable du traitement des données personnelles
+      collectées via ce site. Pour toute question, contactez
+      <span class="legal-placeholder">[nom/fonction du responsable de traitement]</span> à
+      l'adresse info@keurmassarnord.com.
+    </p>
+
+    <h3>Quelles données collectons-nous, et pourquoi ?</h3>
+    <p>Selon la façon dont vous utilisez le site, nous collectons :</p>
+
+    <table class="data-table">
+      <tr><th>Fonctionnalité</th><th>Données collectées</th><th>Finalité</th></tr>
+      <tr>
+        <td>Création d'un compte citoyen</td>
+        <td>Nom, prénom, identifiant, email, mot de passe (chiffré)</td>
+        <td>Vous identifier pour accéder à votre espace personnel (taxations, démarches)</td>
+      </tr>
+      <tr>
+        <td>Signalement citoyen</td>
+        <td>Titre, description, lieu, photo (optionnelle), position GPS (optionnelle),
+            téléphone (optionnel)</td>
+        <td>Traiter votre signalement ; le téléphone sert uniquement à vous notifier par SMS
+            quand il est résolu</td>
+      </tr>
+      <tr>
+        <td>Démarche en ligne</td>
+        <td>Type de démarche, pièce jointe éventuelle</td>
+        <td>Traiter votre demande auprès des services municipaux</td>
+      </tr>
+      <tr>
+        <td>Paiement en ligne d'une taxe</td>
+        <td>Numéro de téléphone (opérateur de paiement)</td>
+        <td>Initier le paiement via Orange Money ou Wave. <strong>Aucune donnée bancaire n'est
+            stockée sur ce site</strong> : le paiement se déroule entièrement chez l'opérateur</td>
+      </tr>
+      <tr>
+        <td>Formulaire de contact</td>
+        <td>Nom, email, message</td>
+        <td>Répondre à votre message</td>
+      </tr>
+      <tr>
+        <td>Navigation sur le site</td>
+        <td>Cookie de session, jeton de sécurité (anti-fraude)</td>
+        <td>Nécessaires au fonctionnement du site (connexion, formulaires sécurisés) — voir
+            « Cookies » ci-dessous</td>
+      </tr>
+    </table>
+
+    <p>
+      Le signalement citoyen reste possible <strong>sans créer de compte</strong> et sans laisser
+      de téléphone : dans ce cas, un code de suivi anonyme vous permet de consulter son statut
+      ultérieurement.
+    </p>
+
+    <h3>Qui peut voir vos données ?</h3>
+    <p>
+      Vos données ne sont jamais rendues publiques sur le site. Les signalements, démarches et
+      informations fiscales détaillées ne sont consultables que par les agents municipaux
+      habilités, selon leur service (fiscal ou technique). La carte publique (géoportail) n'affiche
+      que des informations non nominatives sur les parcelles (superficie, secteur) — jamais le nom
+      d'un propriétaire ni de statut fiscal.
+    </p>
+
+    <h3>Combien de temps conservons-nous vos données ?</h3>
+    <p>
+      <span class="legal-placeholder">[Durée à définir par la mairie]</span> — à titre indicatif,
+      les données liées à un dossier fiscal ou foncier sont généralement conservées pendant la
+      durée nécessaire à la gestion du dossier, augmentée des délais légaux de conservation
+      applicables aux archives communales.
+    </p>
+
+    <h3>Vos droits</h3>
+    <p>Conformément à la loi n° 2008-12 du 25 janvier 2008 sur la protection des données à caractère personnel, vous disposez d'un droit :</p>
+    <ul>
+      <li>d'accès à vos données ;</li>
+      <li>de rectification, si elles sont inexactes ;</li>
+      <li>de suppression, dans les limites permises par les obligations légales de conservation
+          des archives communales ;</li>
+      <li>d'opposition à certains traitements.</li>
+    </ul>
+    <p>
+      Pour exercer ces droits, contactez-nous via le <a href="{% url 'contact' %}">formulaire de
+      contact</a>, ou saisissez directement la Commission de protection des données personnelles
+      (CDP) du Sénégal.
+    </p>
+
+    <h3>Cookies</h3>
+    <p>
+      Ce site utilise uniquement des cookies strictement nécessaires à son fonctionnement
+      (maintien de votre connexion, protection contre les attaques de type CSRF). Aucun cookie
+      publicitaire ou de suivi tiers n'est déposé.
+    </p>
+    <p>
+      La carte interactive charge des tuiles cartographiques depuis des services tiers gratuits
+      (OpenStreetMap, OpenFreeMap) : ces services peuvent recevoir votre adresse IP au moment du
+      chargement de la carte, indépendamment de ce site.
+    </p>
+
+    <h3>Sécurité</h3>
+    <p>
+      Les mots de passe sont stockés de façon chiffrée (jamais en clair). Les accès à
+      l'administration sont réservés aux agents habilités, selon leur rôle. Aucune donnée bancaire
+      n'est collectée ni stockée par ce site : les paiements se déroulent intégralement sur les
+      plateformes sécurisées d'Orange Money et Wave.
+    </p>
+
+  </div>
+</section>
+{% endblock %}

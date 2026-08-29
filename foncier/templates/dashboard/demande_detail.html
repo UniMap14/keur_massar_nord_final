@@ -1,0 +1,140 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Dossier {{ demande.numero_dossier }}{% endblock %}
+{% block header_title %}{{ demande.type_demande.libelle }}{% endblock %}
+{% block header_subtitle %}
+<div class="topbar-subtitle">
+  Dossier {{ demande.numero_dossier }} · Déposé le {{ demande.date_demande|date:"d/m/Y à H:i" }}
+  {% if demande.statut == 'RECUE' %} · <span class="badge badge-info"><i class="fa-solid fa-inbox"></i> Reçue</span>
+  {% elif demande.statut == 'EN_COURS' %} · <span class="badge badge-warn"><i class="fa-solid fa-clock"></i> En cours</span>
+  {% elif demande.statut == 'PRETE' %} · <span class="badge badge-ok"><i class="fa-solid fa-check"></i> Prête</span>
+  {% elif demande.statut == 'REJETEE' %} · <span class="badge badge-danger"><i class="fa-solid fa-xmark"></i> Rejetée</span>
+  {% else %} · <span class="badge"><i class="fa-solid fa-box-archive"></i> Clôturée</span>{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .45s ease forwards; }
+    .panel:nth-of-type(1) { animation-delay: .04s; }
+    .panel:nth-of-type(2) { animation-delay: .12s; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .panel-header h2 { display: flex; align-items: center; gap: 10px; }
+    .panel-header h2 i { color: var(--green, #2f7a4f); opacity: 0.85; font-size: 15px; }
+
+    .info-field {
+        display: flex; flex-direction: column; gap: 4px; padding: 10px 0;
+        border-bottom: 1px solid var(--line, #ece6da);
+    }
+    .info-field:last-child { border-bottom: none; }
+    .info-field label {
+        font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+        color: var(--ink-quiet, #7a7266); display: flex; align-items: center; gap: 6px;
+    }
+    .info-field .val { font-size: 14px; font-weight: 500; }
+
+    .form-field { margin-bottom: 18px; }
+    .form-field label {
+        display: flex; align-items: center; gap: 6px; font-size: 13px;
+        font-weight: 600; margin-bottom: 8px;
+    }
+    .form-field select, .form-field textarea {
+        width: 100%; border: 1.5px solid var(--line-strong, #e6e0d4);
+        border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px;
+    }
+    .form-field select:focus, .form-field textarea:focus {
+        outline: none; border-color: var(--green, #2f7a4f);
+        box-shadow: 0 0 0 3px rgba(47,122,79,0.12);
+    }
+    .form-field textarea { min-height: 130px; resize: vertical; }
+    .form-field .errorlist { list-style: none; margin: 6px 0 0; padding: 0; color: #c0392b; font-size: 12px; }
+
+    .attachment-link {
+        display: inline-flex; align-items: center; gap: 8px; color: var(--green, #2f7a4f);
+        text-decoration: none; font-size: 13px; font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-id-card"></i> Informations du dossier</h2>
+  </div>
+  <div class="panel-body">
+    <div class="info-field">
+      <label><i class="fa-solid fa-user"></i> Demandeur</label>
+      <div class="val">{{ demande.demandeur.get_full_name|default:demande.demandeur.username }} — {{ demande.demandeur.email }}</div>
+    </div>
+    <div class="info-field">
+      <label><i class="fa-solid fa-file-signature"></i> Type de démarche</label>
+      <div class="val">{{ demande.type_demande.libelle }} ({{ demande.type_demande.get_categorie_display }})</div>
+    </div>
+    {% if demande.parcelle %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-map-pin"></i> Parcelle concernée</label>
+      <div class="val">{{ demande.parcelle.nicad }}</div>
+    </div>
+    {% endif %}
+    {% if demande.objet %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-align-left"></i> Précisions du demandeur</label>
+      <div class="val" style="font-weight:400;">{{ demande.objet }}</div>
+    </div>
+    {% endif %}
+    {% if demande.piece_jointe %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-paperclip"></i> Pièce jointe</label>
+      <div class="val">
+        <a class="attachment-link" href="{% url 'demande_piece_jointe' demande.pk %}" target="_blank" rel="noopener">
+          <i class="fa-solid fa-download"></i> Télécharger le fichier
+        </a>
+      </div>
+    </div>
+    {% endif %}
+    {% if demande.agent_traitant %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-user-tie"></i> Dernier agent à avoir traité ce dossier</label>
+      <div class="val">{{ demande.agent_traitant.get_full_name|default:demande.agent_traitant.username }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-pen-to-square"></i> Traiter ce dossier</h2>
+  </div>
+  <div class="panel-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-field">
+        <label for="{{ form.statut.id_for_label }}"><i class="fa-solid fa-flag"></i> Statut du dossier</label>
+        {{ form.statut }}
+        {{ form.statut.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.agent_traitant.id_for_label }}"><i class="fa-solid fa-user"></i> Agent assigné</label>
+        {{ form.agent_traitant }}
+        {{ form.agent_traitant.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.commentaire_agent.id_for_label }}"><i class="fa-solid fa-comment"></i> Message pour le citoyen</label>
+        {{ form.commentaire_agent }}
+        {{ form.commentaire_agent.errors }}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+        </button>
+        <a href="{% url 'dashboard_demande_list' %}" class="btn btn-outline">
+          <i class="fa-solid fa-arrow-left"></i> Retour à la liste
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

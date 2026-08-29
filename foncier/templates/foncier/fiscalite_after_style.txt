@@ -1,0 +1,738 @@
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header id="header">
+  <a href="index.html" class="logo">
+    <div class="logo-icon">D</div>
+    <div class="logo-text">
+      <div class="logo-name">DGID Sénégal</div>
+      <div class="logo-sub">Direction Générale des Impôts et Domaines</div>
+    </div>
+  </a>
+  <nav>
+    <ul id="navMenu">
+      <li><a href="index.html">Accueil</a></li>
+      <li><a href="fiscalite.html" class="active">Fiscalité</a></li>
+      <li><a href="domaine.html">Domaine</a></li>
+      <li><a href="conservation.html">Conservation</a></li>
+      <li><a href="cadastre.html">Cadastre</a></li>
+      <li><a href="geoportail.html">Géoportail</a></li>
+    </ul>
+  </nav>
+  <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+</header>
+
+<!-- ══════════ BANNIÈRE ══════════ -->
+<section class="page-banner">
+  <div class="banner-inner">
+    <div class="banner-breadcrumb">
+      <a href="index.html"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Fiscalité</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Direction de la Fiscalité</div>
+    <h1>La <span>Fiscalité</span><br>Sénégalaise</h1>
+    <p>Découvrez le système fiscal du Sénégal, vos obligations en tant que particulier ou entreprise, et utilisez nos outils de simulation pour anticiper vos impôts.</p>
+    <div class="banner-actions">
+      <a href="#simulateur" class="btn-primary" onclick="openTab('simulateur')">
+        <i class="fa-solid fa-calculator"></i> Simuler mon impôt
+      </a>
+      <a href="espace-contribuable.html" class="btn-outline-w">
+        <i class="fa-solid fa-user"></i> Espace contribuable
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ ONGLETS ══════════ -->
+<div class="tabs-wrapper">
+  <div class="tabs-inner">
+    <button class="tab-btn active" onclick="openTab('general')">
+      <i class="fa-solid fa-book-open"></i> Cadre Général
+    </button>
+    <button class="tab-btn" onclick="openTab('particulier')">
+      <i class="fa-solid fa-user"></i> Particuliers
+    </button>
+    <button class="tab-btn" onclick="openTab('entreprise')">
+      <i class="fa-solid fa-building"></i> Entreprises
+    </button>
+    <button class="tab-btn" onclick="openTab('procedures')">
+      <i class="fa-solid fa-list-check"></i> Procédures
+    </button>
+    <button class="tab-btn" onclick="openTab('simulateur')" id="tab-simulateur">
+      <i class="fa-solid fa-calculator"></i> Simulateur IR
+    </button>
+  </div>
+</div>
+
+<!-- ══════════ CORPS ══════════ -->
+<div class="page-body">
+
+  <!-- ── CADRE GÉNÉRAL ── -->
+  <div class="tab-panel active" id="panel-general">
+
+    <div class="info-band a-animer">
+      <i class="fa-solid fa-circle-info"></i>
+      <p><strong>Système fiscal sénégalais :</strong> Le Sénégal dispose d'un Code Général des Impôts (CGI) codifiant l'ensemble des règles fiscales. La DGID est chargée de l'assiette, du contrôle et du recouvrement des impôts directs et indirects.</p>
+    </div>
+
+    <div class="intro-grid">
+      <div class="intro-card a-animer">
+        <div class="intro-card-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+        <h3>Principes fondamentaux</h3>
+        <p>Le système fiscal sénégalais repose sur les principes d'équité, de progressivité et de légalité. Tout impôt doit être institué par la loi.</p>
+        <ul>
+          <li>Obligation déclarative annuelle pour tout contribuable</li>
+          <li>Principe de l'annualité de l'impôt</li>
+          <li>Droits et garanties du contribuable lors des contrôles</li>
+          <li>Possibilité de recours administratif et juridictionnel</li>
+        </ul>
+      </div>
+      <div class="intro-card a-animer">
+        <div class="intro-card-icon"><i class="fa-solid fa-sitemap"></i></div>
+        <h3>Organisation de la DGID</h3>
+        <p>La Direction Générale est organisée autour de trois grandes directions opérationnelles :</p>
+        <ul>
+          <li><strong>Direction des Impôts :</strong> Fiscalité directe et indirecte</li>
+          <li><strong>Direction du Domaine :</strong> Gestion du patrimoine de l'État</li>
+          <li><strong>Direction du Cadastre :</strong> Topographie et cartographie foncière</li>
+          <li><strong>Conservation Foncière :</strong> Immatriculation des immeubles</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="section-title a-animer">Les principaux impôts au Sénégal</h2>
+    <p class="section-sub a-animer">Vue d'ensemble des taxes et impôts gérés par la DGID.</p>
+
+    <div class="impots-grid">
+      <div class="impot-card a-animer">
+        <div class="impot-card-ic ic-or"><i class="fa-solid fa-user-tie"></i></div>
+        <h4>Impôt sur le Revenu (IR)</h4>
+        <p>Impôt progressif annuel sur les revenus des personnes physiques (salaires, revenus fonciers, BIC...).</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 0% à 40%</span>
+      </div>
+      <div class="impot-card a-animer">
+        <div class="impot-card-ic ic-bl"><i class="fa-solid fa-building"></i></div>
+        <h4>Impôt sur les Sociétés (IS)</h4>
+        <p>Impôt sur les bénéfices des personnes morales (SA, SARL, GIE...) résidentes au Sénégal.</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 30%</span>
+      </div>
+      <div class="impot-card a-animer">
+        <div class="impot-card-ic ic-gr"><i class="fa-solid fa-tag"></i></div>
+        <h4>Taxe sur la Valeur Ajoutée (TVA)</h4>
+        <p>Taxe sur la consommation collectée par les assujettis et reversée mensuellement à la DGID.</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 18%</span>
+      </div>
+      <div class="impot-card a-animer">
+        <div class="impot-card-ic ic-pu"><i class="fa-solid fa-store"></i></div>
+        <h4>Patente</h4>
+        <p>Contribution annuelle des commerçants, industriels et prestataires de services exerçant au Sénégal.</p>
+        <span class="taux"><i class="fa-solid fa-info-circle"></i> Variable / CA</span>
+      </div>
+      <div class="impot-card a-animer">
+        <div class="impot-card-ic ic-re"><i class="fa-solid fa-house"></i></div>
+        <h4>Contribution Foncière (CFPB)</h4>
+        <p>Impôt annuel sur les propriétés bâties dû par tout propriétaire d'immeuble sur le territoire.</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 5% à 7,5%</span>
+      </div>
+      <div class="impot-card a-animer">
+        <div class="impot-card-ic ic-te"><i class="fa-solid fa-briefcase"></i></div>
+        <h4>Taxe Professionnelle Unique (TPU)</h4>
+        <p>Régime simplifié pour les micro-entreprises dont le chiffre d'affaires est inférieur à 50 millions FCFA.</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 5% à 8% du CA</span>
+      </div>
+    </div>
+
+    <h2 class="section-title a-animer">Barème de l'IR 2025 — Personnes physiques</h2>
+    <p class="section-sub a-animer">Tranches de revenus et taux progressifs applicables pour l'exercice fiscal 2025.</p>
+    <div class="table-wrap a-animer">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tranche de revenu annuel (FCFA)</th>
+            <th>Taux marginal</th>
+            <th>Impôt maximum sur la tranche</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>0 à 630 000</td><td>0%</td><td>0 FCFA</td></tr>
+          <tr><td>630 001 à 1 500 000</td><td>20%</td><td>174 000 FCFA</td></tr>
+          <tr><td>1 500 001 à 4 000 000</td><td>30%</td><td>750 000 FCFA</td></tr>
+          <tr><td>4 000 001 à 8 000 000</td><td>35%</td><td>1 400 000 FCFA</td></tr>
+          <tr><td>Au-delà de 8 000 000</td><td>40%</td><td>Sans plafond</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /panel-general -->
+
+  <!-- ── PARTICULIERS ── -->
+  <div class="tab-panel" id="panel-particulier">
+
+    <h2 class="section-title">Vos obligations fiscales en tant que particulier</h2>
+    <p class="section-sub">Découvrez les démarches à effectuer selon votre situation personnelle.</p>
+
+    <div class="info-band">
+      <i class="fa-solid fa-circle-info"></i>
+      <p><strong>Première déclaration ?</strong> Commencez par obtenir votre NIF (Numéro d'Identification Fiscale) auprès du centre des impôts le plus proche ou en ligne via votre <a href="espace-contribuable.html" style="color:var(--green);font-weight:600;">espace contribuable</a>.</p>
+    </div>
+
+    <div class="intro-grid" style="margin-bottom:36px;">
+      <div class="intro-card">
+        <div class="intro-card-icon"><i class="fa-solid fa-file-invoice"></i></div>
+        <h3>Revenus imposables</h3>
+        <p>Sont soumis à l'IR :</p>
+        <ul>
+          <li>Traitements et salaires</li>
+          <li>Revenus fonciers (loyers)</li>
+          <li>Bénéfices industriels et commerciaux (BIC)</li>
+          <li>Bénéfices non commerciaux (BNC)</li>
+          <li>Revenus agricoles</li>
+          <li>Revenus de capitaux mobiliers</li>
+        </ul>
+      </div>
+      <div class="intro-card">
+        <div class="intro-card-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <h3>Exonérations et déductions</h3>
+        <p>Bénéficiez de déductions pour :</p>
+        <ul>
+          <li>Charges de famille (abattement par enfant)</li>
+          <li>Cotisations retraite et prévoyance</li>
+          <li>Frais professionnels (forfait 20%)</li>
+          <li>Intérêts d'emprunt immobilier</li>
+          <li>Revenus &lt; 630 000 FCFA/an : exonérés</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="section-title">Démarche pas à pas</h2>
+    <p class="section-sub">Comment déclarer votre impôt sur le revenu.</p>
+    <div class="steps-list">
+      <div class="step-item a-animer">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Obtenez votre NIF</h4>
+          <p>Munissez-vous de votre CNI et rendez-vous au centre des impôts ou créez votre compte en ligne sur l'<a href="espace-contribuable.html">espace contribuable</a>. Le NIF est délivré gratuitement sous 48h.</p>
+        </div>
+      </div>
+      <div class="step-item a-animer">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Rassemblez vos justificatifs</h4>
+          <p>Fiches de paie, relevés bancaires, contrats de location, factures professionnelles... Conservez tous les documents de l'année écoulée.</p>
+        </div>
+      </div>
+      <div class="step-item a-animer">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Remplissez votre déclaration</h4>
+          <p>Utilisez le formulaire DGID-IR-001 disponible sur la page <a href="formulaires.html">Formulaires</a> ou déclarez directement en ligne sur votre <a href="espace-contribuable.html">espace contribuable</a>.</p>
+        </div>
+      </div>
+      <div class="step-item a-animer">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Déposez avant le 30 avril</h4>
+          <p>La déclaration annuelle d'IR doit être soumise avant le <strong>30 avril</strong> de l'année suivant l'exercice. Des pénalités de 25% s'appliquent en cas de retard.</p>
+        </div>
+      </div>
+      <div class="step-item a-animer">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Payez votre impôt</h4>
+          <p>Réglez en ligne (carte, mobile money), au guichet ou par virement bancaire. Téléchargez votre quittance depuis votre espace personnel.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn-band">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <p><strong>Rappel :</strong> Tout salarié dont l'employeur effectue déjà les retenues à la source doit quand même déposer une déclaration annuelle s'il dispose d'autres sources de revenus (loyers, activité secondaire...).</p>
+    </div>
+
+  </div><!-- /panel-particulier -->
+
+  <!-- ── ENTREPRISES ── -->
+  <div class="tab-panel" id="panel-entreprise">
+
+    <h2 class="section-title">Fiscalité des entreprises</h2>
+    <p class="section-sub">Obligations fiscales pour les personnes morales et entrepreneurs individuels.</p>
+
+    <div class="intro-grid" style="margin-bottom:36px;">
+      <div class="intro-card">
+        <div class="intro-card-icon"><i class="fa-solid fa-file-contract"></i></div>
+        <h3>Régimes fiscaux</h3>
+        <ul>
+          <li><strong>Régime du réel :</strong> CA ≥ 100 millions FCFA — Comptabilité complète obligatoire</li>
+          <li><strong>Régime simplifié :</strong> CA entre 50 et 100 millions — Comptabilité allégée</li>
+          <li><strong>Régime du forfait / TPU :</strong> CA &lt; 50 millions — Déclaration simplifiée</li>
+        </ul>
+      </div>
+      <div class="intro-card">
+        <div class="intro-card-icon"><i class="fa-solid fa-calendar-check"></i></div>
+        <h3>Calendrier fiscal entreprises</h3>
+        <ul>
+          <li><strong>15 de chaque mois :</strong> Déclaration et paiement TVA</li>
+          <li><strong>15 de chaque mois :</strong> Retenues sur salaires (RS)</li>
+          <li><strong>31 mars :</strong> Patente et contributions foncières</li>
+          <li><strong>30 avril :</strong> IS — Déclaration annuelle</li>
+          <li><strong>Trimestriel :</strong> Acomptes provisionnels IS</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="section-title">Obligations déclaratives</h2>
+    <p class="section-sub">Ce que chaque entreprise doit déclarer et quand.</p>
+
+    <div class="table-wrap a-animer">
+      <table class="data-table">
+        <thead>
+          <tr><th>Déclaration</th><th>Fréquence</th><th>Échéance</th><th>Formulaire</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>TVA</td><td>Mensuelle</td><td>15 du mois suivant</td><td>DGID-TVA-001</td></tr>
+          <tr><td>Retenues sur salaires</td><td>Mensuelle</td><td>15 du mois suivant</td><td>DGID-RS-002</td></tr>
+          <tr><td>IS — Acompte 1er trimestre</td><td>Trimestrielle</td><td>15 mars</td><td>DGID-AP-003</td></tr>
+          <tr><td>Patente</td><td>Annuelle</td><td>31 mars</td><td>DGID-PAT-001</td></tr>
+          <tr><td>IS — Déclaration annuelle</td><td>Annuelle</td><td>30 avril</td><td>DGID-IS-001</td></tr>
+          <tr><td>CFE (Contribution Foncière)</td><td>Annuelle</td><td>31 mars</td><td>DGID-CFE-004</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-band a-animer">
+      <i class="fa-solid fa-circle-info"></i>
+      <p><strong>Télédéclaration obligatoire</strong> pour toutes les entreprises du régime du réel dont le chiffre d'affaires dépasse <strong>100 millions FCFA</strong>. Connectez-vous sur votre <a href="espace-contribuable.html" style="color:var(--green);font-weight:600;">espace contribuable</a>.</p>
+    </div>
+
+  </div><!-- /panel-entreprise -->
+
+  <!-- ── PROCÉDURES ── -->
+  <div class="tab-panel" id="panel-procedures">
+
+    <h2 class="section-title">Procédures fiscales</h2>
+    <p class="section-sub">Guides pratiques pour les principales démarches auprès de la DGID.</p>
+
+    <div class="proc-grid">
+
+      <div class="proc-card a-animer">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-gr"><i class="fa-solid fa-id-card"></i></div>
+          <h3>Obtenir un NIF</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Se munir d'une pièce d'identité valide (CNI ou passeport)</li>
+          <li>Remplir le formulaire de demande de NIF</li>
+          <li>Déposer au centre des impôts OU créer un compte en ligne</li>
+          <li>Recevoir le NIF sous 48 heures ouvrables</li>
+          <li>Le NIF est gratuit et valable à vie</li>
+        </ul>
+      </div>
+
+      <div class="proc-card a-animer">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-bl"><i class="fa-solid fa-file-circle-check"></i></div>
+          <h3>Attestation de régularité</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Être à jour dans vos obligations déclaratives</li>
+          <li>Se connecter à l'espace contribuable</li>
+          <li>Sélectionner "Demande d'attestation"</li>
+          <li>Télécharger le document sous 24h</li>
+          <li>Validité : 3 mois — Gratuit</li>
+        </ul>
+      </div>
+
+      <div class="proc-card a-animer">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-or"><i class="fa-solid fa-gavel"></i></div>
+          <h3>Contester un redressement</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Délai : 30 jours après notification</li>
+          <li>Rédiger une réclamation motivée écrite</li>
+          <li>Adresser au Directeur des Impôts compétent</li>
+          <li>Si rejet : saisir la Commission de Conciliation</li>
+          <li>Dernier recours : Tribunal régional hors classe</li>
+        </ul>
+      </div>
+
+      <div class="proc-card a-animer">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-pu"><i class="fa-solid fa-handshake"></i></div>
+          <h3>Demande de facilités de paiement</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Rédiger une demande motivée avant l'échéance</li>
+          <li>Joindre les pièces justifiant la situation financière</li>
+          <li>Adresser au Directeur des Impôts concerné</li>
+          <li>Accord possible : paiement en 3 à 12 mensualités</li>
+          <li>Des garanties peuvent être exigées</li>
+        </ul>
+      </div>
+
+      <div class="proc-card a-animer">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-te"><i class="fa-solid fa-search"></i></div>
+          <h3>Vérification de comptabilité</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Avis de vérification remis 8 jours avant</li>
+          <li>Vous avez le droit d'être assisté d'un conseil</li>
+          <li>Durée maximale : 6 mois (3 mois renouvelable)</li>
+          <li>Notification des résultats par lettre recommandée</li>
+          <li>30 jours pour répondre aux observations</li>
+        </ul>
+      </div>
+
+      <div class="proc-card a-animer">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-re"><i class="fa-solid fa-rotate-left"></i></div>
+          <h3>Remboursement de crédit TVA</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Remplir le formulaire DGID-RBT-006</li>
+          <li>Joindre toutes les factures d'achats</li>
+          <li>Déposer à la Direction des Impôts compétente</li>
+          <li>Instruction du dossier : 3 mois maximum</li>
+          <li>Remboursement par virement bancaire</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="info-band a-animer">
+      <i class="fa-solid fa-circle-info"></i>
+      <p>Téléchargez les formulaires nécessaires à ces procédures sur la page <a href="formulaires.html" style="color:var(--green);font-weight:600;">Formulaires à télécharger</a>. Consultez également les textes législatifs applicables sur la page <a href="textes-legislatifs.html" style="color:var(--green);font-weight:600;">Textes Législatifs</a>.</p>
+    </div>
+
+  </div><!-- /panel-procedures -->
+
+  <!-- ── SIMULATEUR ── -->
+  <div class="tab-panel" id="panel-simulateur">
+
+    <h2 class="section-title">Simulateur de l'Impôt sur le Revenu</h2>
+    <p class="section-sub">Estimez votre charge fiscale annuelle selon le barème progressif sénégalais 2025. Résultat indicatif.</p>
+
+    <div class="sim-layout">
+
+      <!-- FORMULAIRE -->
+      <div class="sim-form">
+        <h3><i class="fa-solid fa-calculator" style="color:var(--green);margin-right:10px;"></i>Vos informations</h3>
+        <p>Renseignez vos revenus pour obtenir une estimation.</p>
+
+        <div class="sim-field">
+          <label for="simType">Type d'impôt</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-receipt"></i>
+            <select id="simType" onchange="resetResult()">
+              <option value="ir">Impôt sur le Revenu (IR) — Particulier</option>
+              <option value="is">Impôt sur les Sociétés (IS) — Entreprise</option>
+              <option value="tva">TVA — 18%</option>
+              <option value="tpu">Taxe Professionnelle Unique (TPU)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sim-field">
+          <label for="simRevenu">Revenu / Chiffre d'affaires annuel (FCFA)</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-money-bill-wave"></i>
+            <input type="number" id="simRevenu" placeholder="Ex : 5 000 000" min="0" oninput="resetResult()">
+          </div>
+        </div>
+
+        <div class="sim-field" id="champ-charges" style="display:none;">
+          <label for="simCharges">Charges déductibles (FCFA)</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-minus-circle"></i>
+            <input type="number" id="simCharges" placeholder="Ex : 1 000 000" min="0" oninput="resetResult()">
+          </div>
+        </div>
+
+        <div class="sim-field" id="champ-enfants">
+          <label for="simEnfants">Nombre d'enfants à charge</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-children"></i>
+            <select id="simEnfants" onchange="resetResult()">
+              <option value="0">0 enfant</option>
+              <option value="1">1 enfant</option>
+              <option value="2">2 enfants</option>
+              <option value="3">3 enfants</option>
+              <option value="4">4 enfants et plus</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="sim-btn" onclick="calculer()">
+          <i class="fa-solid fa-calculator"></i>
+          Calculer mon impôt
+        </button>
+      </div>
+
+      <!-- RÉSULTAT -->
+      <div class="sim-result-box">
+        <h3><i class="fa-solid fa-chart-bar" style="color:var(--green);margin-right:10px;"></i>Résultat de simulation</h3>
+        <div id="simEmpty" class="sim-empty">
+          <i class="fa-solid fa-calculator"></i>
+          <p>Renseignez vos informations et cliquez sur <strong>Calculer</strong> pour obtenir votre estimation.</p>
+        </div>
+        <div id="simResult" style="display:none;">
+          <div class="result-row">
+            <span class="result-label">Revenu brut annuel</span>
+            <span class="result-value" id="res-revenu">—</span>
+          </div>
+          <div class="result-row" id="row-abattement">
+            <span class="result-label">Abattement frais professionnels (20%)</span>
+            <span class="result-value" id="res-abatt">—</span>
+          </div>
+          <div class="result-row" id="row-enfants">
+            <span class="result-label">Déduction enfants à charge</span>
+            <span class="result-value" id="res-enfants">—</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Revenu imposable net</span>
+            <span class="result-value" id="res-net">—</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label"><strong>Impôt estimé</strong></span>
+            <span class="result-value tax" id="res-impot">—</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Taux effectif d'imposition</span>
+            <span class="result-value" id="res-taux">—</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Revenu net après impôt</span>
+            <span class="result-value total" id="res-net-apres">—</span>
+          </div>
+          <div class="bareme-visual" id="bareme-visual">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;font-weight:600;">Répartition par tranche</p>
+            <div id="bareme-bars"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="warn-band" style="margin-top:28px;">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <p><strong>Important :</strong> Cette simulation est fournie à titre indicatif sur la base du barème 2025. Le montant réel de votre impôt peut différer selon votre situation personnelle. Pour un calcul précis, consultez un <a href="annuaire-bureaux.html" style="color:#8a6a00;font-weight:600;">centre des impôts</a> ou votre conseiller fiscal.</p>
+    </div>
+
+  </div><!-- /panel-simulateur -->
+
+</div><!-- /page-body -->
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div class="logo">
+        <div class="logo-icon">D</div>
+        <div class="logo-text">
+          <div class="logo-name">DGID Sénégal</div>
+          <div class="logo-sub">Direction Générale des Impôts et Domaines</div>
+        </div>
+      </div>
+      <p class="footer-brand-desc">Plateforme officielle de gestion fiscale, foncière et cadastrale de la République du Sénégal.</p>
+      <div class="footer-social">
+        <a href="https://www.facebook.com/dgidsn/" class="soc-btn"><i class="fa-brands fa-facebook-f"></i></a>
+        <a href="#" class="soc-btn"><i class="fa-brands fa-x-twitter"></i></a>
+        <a href="#" class="soc-btn"><i class="fa-brands fa-linkedin-in"></i></a>
+        <a href="https://www.impotsetdomaines.gouv.sn" class="soc-btn"><i class="fa-solid fa-globe"></i></a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Services</h4>
+      <ul>
+        <li><a href="fiscalite.html">Fiscalité</a></li>
+        <li><a href="domaine.html">Domaine</a></li>
+        <li><a href="conservation.html">Conservation</a></li>
+        <li><a href="cadastre.html">Cadastre</a></li>
+        <li><a href="geoportail.html">Géoportail</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Liens utiles</h4>
+      <ul>
+        <li><a href="espace-contribuable.html">Espace contribuable</a></li>
+        <li><a href="formulaires.html">Formulaires à télécharger</a></li>
+        <li><a href="textes-legislatifs.html">Textes législatifs</a></li>
+        <li><a href="annuaire-bureaux.html">Annuaire des bureaux</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Contact</h4>
+      <ul>
+        <li><a href="tel:+221338892002"><i class="fa-solid fa-phone footer-icon"></i>+221 33 889 20 02</a></li>
+        <li><a href="https://www.impotsetdomaines.gouv.sn"><i class="fa-solid fa-globe footer-icon"></i>impotsetdomaines.gouv.sn</a></li>
+        <li><a href="#"><i class="fa-solid fa-location-dot footer-icon"></i>31, Rue Thiong x Vincens, Dakar</a></li>
+        <li><a href="#"><i class="fa-solid fa-clock footer-icon"></i>Lun – Ven : 8h – 17h</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2026 Direction Générale des Impôts et Domaines — République du Sénégal. Tous droits réservés.</p>
+  </div>
+</footer>
+
+<!-- ══════════ JAVASCRIPT ══════════ -->
+<script>
+
+/* ── Header scroll ── */
+window.addEventListener('scroll', function(){
+  document.getElementById('header').classList.toggle('scrolled', window.scrollY > 50);
+});
+
+/* ── Menu mobile ── */
+const menuToggle = document.getElementById('menuToggle');
+const navMenu    = document.getElementById('navMenu');
+menuToggle.addEventListener('click', function(){
+  navMenu.classList.toggle('open');
+  const i = menuToggle.querySelector('i');
+  i.classList.toggle('fa-bars');
+  i.classList.toggle('fa-xmark');
+});
+
+/* ── Navigation onglets ── */
+function openTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  // Activer le bon bouton
+  const btns = document.querySelectorAll('.tab-btn');
+  const labels = ['general','particulier','entreprise','procedures','simulateur'];
+  const idx = labels.indexOf(id);
+  if (idx >= 0) btns[idx].classList.add('active');
+  // Scroll vers le contenu
+  document.querySelector('.tabs-wrapper').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ── Gestion champs simulateur ── */
+document.getElementById('simType').addEventListener('change', function(){
+  const type = this.value;
+  document.getElementById('champ-enfants').style.display = type === 'ir' ? '' : 'none';
+  document.getElementById('champ-charges').style.display = (type === 'is' || type === 'tpu') ? '' : 'none';
+  resetResult();
+});
+
+function resetResult(){
+  document.getElementById('simEmpty').style.display = 'block';
+  document.getElementById('simResult').style.display = 'none';
+}
+
+/* ── Calcul ── */
+function calculer(){
+  const type    = document.getElementById('simType').value;
+  const revenu  = parseFloat(document.getElementById('simRevenu').value) || 0;
+  const charges = parseFloat(document.getElementById('simCharges').value) || 0;
+  const enfants = parseInt(document.getElementById('simEnfants').value) || 0;
+
+  if (revenu <= 0) { alert('Veuillez saisir un revenu valide.'); return; }
+
+  let impot = 0, net = revenu, abatt = 0, deductEnfants = 0, libType = '';
+
+  if (type === 'ir') {
+    // Abattement frais pro 20% (plafonné à 900 000 FCFA)
+    abatt = Math.min(revenu * 0.20, 900000);
+    // Déduction enfants : 90 000 FCFA par enfant (max 4)
+    deductEnfants = Math.min(enfants, 4) * 90000;
+    net = Math.max(revenu - abatt - deductEnfants, 0);
+    // Barème progressif
+    if      (net <= 630000)     impot = 0;
+    else if (net <= 1500000)    impot = (net - 630000) * 0.20;
+    else if (net <= 4000000)    impot = 174000 + (net - 1500000) * 0.30;
+    else if (net <= 8000000)    impot = 924000 + (net - 4000000) * 0.35;
+    else                        impot = 2324000 + (net - 8000000) * 0.40;
+    libType = 'Impôt sur le Revenu (IR)';
+  }
+  else if (type === 'is') {
+    net = Math.max(revenu - charges, 0);
+    impot = net > 0 ? Math.max(net * 0.30, 500000) : 0;
+    abatt = charges;
+    libType = 'Impôt sur les Sociétés (IS)';
+  }
+  else if (type === 'tva') {
+    impot = revenu * 0.18;
+    net = revenu;
+    libType = 'TVA (18%)';
+  }
+  else if (type === 'tpu') {
+    net = Math.max(revenu - charges, 0);
+    const taux = net <= 10000000 ? 0.05 : net <= 25000000 ? 0.06 : 0.08;
+    impot = net * taux;
+    abatt = charges;
+    libType = 'Taxe Professionnelle Unique (TPU)';
+  }
+
+  impot = Math.round(impot);
+  const tauxEffectif = revenu > 0 ? ((impot / revenu) * 100).toFixed(1) : 0;
+  const netApres = Math.max(revenu - impot, 0);
+
+  const fmt = v => Math.round(v).toLocaleString('fr-FR') + ' FCFA';
+
+  document.getElementById('res-revenu').textContent  = fmt(revenu);
+  document.getElementById('res-net').textContent     = fmt(net);
+  document.getElementById('res-impot').textContent   = fmt(impot);
+  document.getElementById('res-taux').textContent    = tauxEffectif + '%';
+  document.getElementById('res-net-apres').textContent = fmt(netApres);
+
+  const rowAbatt   = document.getElementById('row-abattement');
+  const rowEnfants = document.getElementById('row-enfants');
+
+  if (type === 'ir') {
+    rowAbatt.style.display   = '';
+    rowEnfants.style.display = '';
+    document.getElementById('res-abatt').textContent   = '- ' + fmt(abatt);
+    document.getElementById('res-enfants').textContent = '- ' + fmt(deductEnfants);
+  } else if (type === 'is' || type === 'tpu') {
+    rowAbatt.style.display   = '';
+    rowEnfants.style.display = 'none';
+    document.getElementById('res-abatt').textContent = '- ' + fmt(abatt);
+    rowAbatt.querySelector('.result-label').textContent = 'Charges déductibles';
+  } else {
+    rowAbatt.style.display   = 'none';
+    rowEnfants.style.display = 'none';
+  }
+
+  // Barème visuel (IR seulement)
+  const bv = document.getElementById('bareme-visual');
+  const bb = document.getElementById('bareme-bars');
+  if (type === 'ir') {
+    bv.style.display = '';
+    const tranches = [
+      {label:'0% → 630 000', max:630000, taux:0},
+      {label:'20% → 1 500 000', max:1500000, taux:20},
+      {label:'30% → 4 000 000', max:4000000, taux:30},
+      {label:'35% → 8 000 000', max:8000000, taux:35},
+      {label:'40% au-delà',   max:Infinity, taux:40},
+    ];
+    bb.innerHTML = '';
+    tranches.forEach(function(t, i){
+      const fill = net >= t.max ? 100 : Math.max(0, Math.min(100, ((net - (i > 0 ? [0,630000,1500000,4000000,8000000][i] : 0)) / (t.max - [0,630000,1500000,4000000,8000000][i])) * 100));
+      if (net < (i > 0 ? [0,630000,1500000,4000000,8000000][i] : 0)) return;
+      bb.innerHTML += '<div class="bareme-bar-wrap"><div class="bareme-bar-label"><span>'+t.label+'</span><span>'+t.taux+'%</span></div><div class="bareme-bar-track"><div class="bareme-bar-fill" style="width:'+Math.min(fill,100)+'%"></div></div></div>';
+    });
+  } else {
+    bv.style.display = 'none';
+  }
+
+  document.getElementById('simEmpty').style.display  = 'none';
+  document.getElementById('simResult').style.display = 'block';
+}
+
+/* ── Animations scroll ── */
+const obs = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if (e.isIntersecting){ e.target.classList.add('visible'); obs.unobserve(e.target); }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.a-animer').forEach(el => obs.observe(el));
+
+</script>
+
+</body>
+</html>

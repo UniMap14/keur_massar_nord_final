@@ -1,0 +1,39 @@
+# --- Secrets / environnement (JAMAIS sur GitHub) ---
+.env
+*.env
+!.env.example
+
+# --- Environnements virtuels Python ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# --- Django ---
+staticfiles/
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# --- Fichiers uploadés par les utilisateurs ---
+# (à ne pas versionner : volumineux et propres à chaque environnement ;
+#  penser à les sauvegarder séparément — voir suggestion "backups" ci-dessous)
+media/
+media_prive/
+
+# --- Sauvegardes de la base de données (données sensibles) ---
+sauvegardes/
+
+# --- Éditeurs / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,266 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Portail officiel de gestion foncière et fiscale de la commune de Keur Massar Nord.">
+  <title>{% block title %}KMS Nord Foncier{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{% static 'foncier/css/style.css' %}">
+
+  <style>
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      z-index: 2000;
+      background: #fff;
+      color: #000;
+      padding: 10px 16px;
+      border-radius: 0 0 8px 0;
+      font-weight: 600;
+    }
+    .skip-link:focus {
+      left: 0;
+    }
+
+    /* ===== Bande institutionnelle (toutes les pages) ===== */
+    .gov-bar {
+      background: var(--green-dark);
+      color: rgba(255,255,255,.85);
+      font-size: 11.5px;
+      letter-spacing: .5px;
+      padding: 5px 60px;
+    }
+    .gov-bar .gov-bar-inner {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .gov-bar a { color: rgba(255,255,255,.85); }
+    .gov-bar a:hover { color: var(--gold); }
+    .gov-bar .flag-dot { display:inline-flex; gap:3px; margin-right:8px; }
+    .gov-bar .flag-dot span { width:6px; height:6px; border-radius:50%; display:inline-block; }
+    .gov-bar .flag-dot span:nth-child(1){ background:#00853f; }
+    .gov-bar .flag-dot span:nth-child(2){ background:#fdef42; }
+    .gov-bar .flag-dot span:nth-child(3){ background:#e31b23; }
+
+    @media (max-width: 600px) {
+      .gov-bar { padding: 6px 16px; }
+      .gov-bar-inner { flex-direction: column; gap: 4px; align-items: flex-start; font-size: 10.5px; }
+    }
+
+    /* ===== Améliorations navbar ===== */
+    #header {
+      transition: box-shadow .25s ease;
+    }
+    #header.scrolled {
+      box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    }
+
+    #navMenu li a {
+      position: relative;
+      transition: color .2s ease;
+    }
+    #navMenu li a:not([aria-current="page"])::after {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 2px;
+      height: 2px;
+      background: var(--gold);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .25s ease;
+    }
+    #navMenu li a:not([aria-current="page"]):hover::after {
+      transform: scaleX(1);
+    }
+
+    #navMenu li a:focus-visible,
+    .menu-toggle:focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 991px) {
+      #navMenu.open {
+        animation: km-nav-slide .25s ease;
+      }
+      @keyframes km-nav-slide {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+<a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+<div class="gov-bar">
+  <div class="gov-bar-inner">
+    <span><span class="flag-dot"><span></span><span></span><span></span></span>République du Sénégal &mdash; Commune de Keur Massar Nord</span>
+    <span>
+      <a href="{% url 'fiscalite' %}"><i class="fa-solid fa-headset"></i> Assistance</a>
+      &nbsp;&middot;&nbsp;
+      <a href="{% url 'dashboard_home' %}"><i class="fa-solid fa-lock"></i> Espace agents</a>
+    </span>
+  </div>
+</div>
+
+<header id="header">
+  <div class="container-fluid header-inner d-flex align-items-center justify-content-between">
+    <a class="logo" href="{% url 'home' %}" aria-label="Accueil KMS Nord">
+      <img src="{% static 'foncier/images/logo.jpeg' %}" alt="Logo Keur Massar Nord" class="logo-img">
+      <div>
+        <div class="logo-name">KMS Nord</div>
+        <div class="logo-sub">Foncier &amp; Fiscal</div>
+      </div>
+    </a>
+    <nav aria-label="Navigation principale">
+      <ul id="navMenu">
+        <li><a href="{% url 'home' %}">Accueil</a></li>
+        <li><a href="{% url 'infrastructures' %}">Infrastructures</a></li>
+        <li><a href="{% url 'fiscalite' %}">Fiscalité</a></li>
+        <li><a href="{% url 'contact' %}">Contact</a></li>
+        <li><a href="{% url 'dashboard_home' %}">Gestion</a></li>
+      </ul>
+    </nav>
+    <button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-controls="navMenu" aria-expanded="false">
+      <i class="fa-solid fa-bars" aria-hidden="true"></i>
+    </button>
+  </div>
+</header>
+
+<main class="main-content" id="main-content">
+  {% if messages %}
+    <div class="container mt-3" role="region" aria-label="Messages">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer>
+  <div class="footer-grid container">
+    <div class="footer-brand">
+      <div class="logo">
+        <img src="{% static 'foncier/images/logo.jpeg' %}" alt="Logo Keur Massar Nord" class="logo-img">
+        <div>
+          <div class="logo-name">KMS Nord</div>
+          <div class="logo-sub">Foncier &amp; Fiscal</div>
+        </div>
+      </div>
+      <p class="footer-brand-desc">Outil professionnel de gestion foncière et fiscale de la collectivité de Keur Massar Nord.</p>
+      <img src="{% static 'foncier/img/logo-dgid.png' %}" alt="Direction Générale des Impôts et des Domaines" style="height:26px; margin-bottom:16px; filter: brightness(0) invert(1); opacity:0.75;">
+      <div class="footer-social">
+        <a href="#" class="soc-btn" aria-label="Facebook" target="_blank" rel="noopener noreferrer">
+          <i class="fa-brands fa-facebook-f" aria-hidden="true"></i>
+        </a>
+        <a href="#" class="soc-btn" aria-label="X (Twitter)" target="_blank" rel="noopener noreferrer">
+          <i class="fa-brands fa-x-twitter" aria-hidden="true"></i>
+        </a>
+        <a href="#" class="soc-btn" aria-label="LinkedIn" target="_blank" rel="noopener noreferrer">
+          <i class="fa-brands fa-linkedin-in" aria-hidden="true"></i>
+        </a>
+        <a href="#" class="soc-btn" aria-label="Site web officiel" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-globe" aria-hidden="true"></i>
+        </a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Navigation</h4>
+      <ul>
+        <li><a href="{% url 'home' %}">Accueil</a></li>
+        <li><a href="{% url 'geoportail' %}">Géoportail</a></li>
+        <li><a href="{% url 'fiscalite' %}">Fiscalité</a></li>
+        <li><a href="{% url 'contact' %}">Contact</a></li>
+        <li><a href="{% url 'dashboard_home' %}">Administration</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Contact</h4>
+      <ul>
+        <li><a href="{% url 'contact' %}">Formulaire de contact</a></li>
+        <li><a href="tel:+221338892002"><i class="fa-solid fa-phone footer-icon" aria-hidden="true"></i> +221 33 840 61 84</a></li>
+        <li><a href="tel:+221784734075"><i class="fa-solid fa-phone footer-icon" aria-hidden="true"></i> +221 78 473 40 75</a></li>
+        <li><a href="#"><i class="fa-solid fa-location-dot footer-icon" aria-hidden="true"></i> Keur Massar Nord, Dakar</a></li>
+        <li><a href="#"><i class="fa-solid fa-envelope footer-icon" aria-hidden="true"></i> info@keurmassarnord.com</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Services clés</h4>
+      <ul>
+        <li><a href="{% url 'geoportail' %}">Carte foncière</a></li>
+        <li><a href="{% url 'fiscalite' %}">Suivi fiscal</a></li>
+        <li><a href="{% url 'dashboard_home' %}">Tableau de bord</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>&copy; {% now "Y" %} KMS Nord &mdash; Gestion foncière et fiscale. Tous droits réservés.</p>
+    <p style="margin-top:6px;">
+      <a href="{% url 'mentions_legales' %}" style="color:inherit; text-decoration:underline;">Mentions légales</a>
+      &nbsp;·&nbsp;
+      <a href="{% url 'politique_confidentialite' %}" style="color:inherit; text-decoration:underline;">Politique de confidentialité</a>
+    </p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+<script>
+  document.addEventListener('scroll', function () {
+    document.getElementById('header').classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  document.getElementById('menuToggle').addEventListener('click', function () {
+    const nav = document.getElementById('navMenu');
+    const isOpen = nav.classList.toggle('open');
+    this.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    const icon = this.querySelector('i');
+    icon.classList.toggle('fa-bars', !isOpen);
+    icon.classList.toggle('fa-xmark', isOpen);
+  });
+
+  const current = window.location.pathname;
+  document.querySelectorAll('header nav a').forEach(function (link) {
+    const isHome = link.pathname === '/';
+    const isActive = isHome ? current === '/' : (current === link.pathname || current.startsWith(link.pathname + '/'));
+    if (isActive) {
+      link.classList.add('active');
+      link.setAttribute('aria-current', 'page');
+    }
+  });
+</script>
+
+<div class="voice-widget">
+  <span class="voice-tooltip" id="voiceTooltip">Activer le guide vocal</span>
+  <button class="voice-btn" id="voiceBtn" aria-label="Activer le guide vocal">
+
+    <i class="fa-solid fa-volume-high" id="voiceIcon" aria-hidden="true"></i>
+  </button>
+  <script src="{% static 'foncier/js/voice-guide.js' %}" defer></script>
+</div>
+
+<script src="{% static 'foncier/js/voice-guide.js' %}" defer></script>
+
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>

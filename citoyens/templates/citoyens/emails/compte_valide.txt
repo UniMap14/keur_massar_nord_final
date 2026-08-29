@@ -1,0 +1,12 @@
+Bonjour {{ prenom }},
+
+Bonne nouvelle : votre inscription sur l'espace citoyen de Keur Massar Nord a été validée par l'administration.
+
+Vous pouvez désormais vous connecter avec votre nom d'utilisateur et le mot de passe que vous avez choisis à l'inscription, pour accéder à votre espace personnel (fiscalité, dossier foncier).
+
+Connexion : {{ login_url }}
+
+Si vous n'êtes pas à l'origine de cette inscription, contactez-nous au plus vite.
+
+Cordialement,
+L'administration — Commune de Keur Massar Nord

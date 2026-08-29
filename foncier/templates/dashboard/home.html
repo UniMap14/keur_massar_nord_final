@@ -1,0 +1,509 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Tableau de bord{% endblock %}
+{% block header_title %}Tableau de bord{% endblock %}
+
+{% block extra_head %}
+<style>
+    .stats-charts-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+    }
+
+    /* ===== KPI CARDS — habillage visuel ===== */
+    .kpi-card {
+        position : relative;
+        overflow : hidden;
+        opacity  : 0;
+        transform: translateY(14px);
+        animation: kpiIn .5s ease forwards;
+        transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease;
+    }
+    .kpi-card:nth-child(1) { animation-delay: .02s; }
+    .kpi-card:nth-child(2) { animation-delay: .07s; }
+    .kpi-card:nth-child(3) { animation-delay: .12s; }
+    .kpi-card:nth-child(4) { animation-delay: .17s; }
+    .kpi-card:nth-child(5) { animation-delay: .22s; }
+    @keyframes kpiIn { to { opacity: 1; transform: translateY(0); } }
+
+    .kpi-card:hover {
+        transform : translateY(-4px);
+        box-shadow: 0 14px 28px -12px rgba(0,0,0,0.16);
+    }
+
+    .kpi-card .kpi-icon {
+        width           : 40px;
+        height          : 40px;
+        border-radius   : 11px;
+        display         : flex;
+        align-items     : center;
+        justify-content : center;
+        margin-bottom   : 14px;
+        font-size       : 16px;
+    }
+
+    .kpi-card.tone-green .kpi-icon { background: rgba(58,125,68,0.12); color: #3a7d44; }
+    .kpi-card.tone-red   .kpi-icon { background: rgba(179,38,30,0.10); color: #b3261e; }
+    .kpi-card.tone-gold  .kpi-icon { background: rgba(201,152,46,0.14); color: #a3791f; }
+    .kpi-card.tone-blue  .kpi-icon { background: rgba(45,100,160,0.10); color: #2d64a0; }
+
+    .kpi-card::after {
+        content      : "";
+        position     : absolute;
+        top          : -30px;
+        right        : -30px;
+        width        : 90px;
+        height       : 90px;
+        border-radius: 50%;
+        background   : currentColor;
+        opacity      : 0.05;
+        pointer-events: none;
+    }
+    .kpi-card.tone-green { color: #3a7d44; }
+    .kpi-card.tone-red   { color: #b3261e; }
+    .kpi-card.tone-gold  { color: #a3791f; }
+    .kpi-card.tone-blue  { color: #2d64a0; }
+
+    .kpi-card .label,
+    .kpi-card .value,
+    .kpi-card .delta {
+        position: relative;
+        z-index: 1;
+        color: inherit;
+    }
+    .kpi-card .label { color: var(--ink-quiet, #7a7266) !important; }
+    .kpi-card .value { color: var(--ink, #2a2620) !important; }
+    .kpi-card .delta { color: var(--ink-quiet, #7a7266) !important; font-size: 12px; }
+
+    a.kpi-card {
+        transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, border-color .2s ease;
+    }
+    a.kpi-card:hover {
+        border-color: transparent;
+    }
+    a.kpi-card .value {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    a.kpi-card .value::after {
+        content: "\f061";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        font-size: 13px;
+        opacity: 0;
+        transform: translateX(-4px);
+        transition: opacity .2s ease, transform .2s ease;
+    }
+    a.kpi-card:hover .value::after {
+        opacity: 0.6;
+        transform: translateX(0);
+    }
+
+    /* ===== PANELS ===== */
+    .panel {
+        opacity  : 0;
+        transform: translateY(10px);
+        animation: panelIn .5s ease forwards;
+    }
+    .panel:nth-of-type(1) { animation-delay: .1s; }
+    .panel:nth-of-type(2) { animation-delay: .16s; }
+    .panel:nth-of-type(3) { animation-delay: .22s; }
+    .panel:nth-of-type(4) { animation-delay: .28s; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .panel-header h2 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .panel-header h2 i {
+        color: var(--green, #3a7d44);
+        font-size: 15px;
+        opacity: 0.85;
+    }
+
+    /* ===== BARRE DE PROGRESSION ===== */
+    .recouvrement-bar-track {
+        background     : #eee6d6;
+        border-radius  : 999px;
+        height         : 12px;
+        overflow       : hidden;
+        position       : relative;
+    }
+    .recouvrement-bar-fill {
+        height        : 100%;
+        border-radius : 999px;
+        width         : 0%;
+        transition    : width 1s cubic-bezier(.2,.8,.2,1);
+        position      : relative;
+        overflow      : hidden;
+    }
+    .recouvrement-bar-fill::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+        animation: shimmer 2.2s linear infinite;
+    }
+    @keyframes shimmer {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    /* ===== ACTIONS RAPIDES ===== */
+    .btn i {
+        margin-right: 6px;
+    }
+    .btn-sm {
+        transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .btn-sm:hover {
+        transform: translateY(-2px);
+    }
+    .btn-primary.btn-sm:hover {
+        box-shadow: 0 8px 18px -6px rgba(58,125,68,0.45);
+    }
+
+    /* ===== TABLEAUX ===== */
+    .data-table tbody tr {
+        transition: background .15s ease;
+    }
+    .data-table tbody tr:hover {
+        background: rgba(58,125,68,0.04);
+    }
+
+    .badge-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .badge-danger::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        display: inline-block;
+    }
+
+    /* ===== ÉTATS VIDES ===== */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+    }
+    .empty-state .icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 14px;
+        font-size: 18px;
+    }
+    .empty-state .icon.icon-neutral {
+        background: rgba(122,114,102,0.1);
+        color: var(--ink-quiet, #7a7266);
+    }
+    .empty-state .icon.icon-success {
+        background: rgba(58,125,68,0.12);
+        color: #3a7d44;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .kpi-card, .panel, .recouvrement-bar-fill::after {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="kpi-grid">
+  <div class="kpi-card tone-green">
+    <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+    <div class="label">Recouvrement total</div>
+    <div class="value">{{ total_recouvre_fmt }}</div>
+    <div class="delta">Total des taxes collectées</div>
+  </div>
+
+  <div class="kpi-card tone-red">
+    <div class="kpi-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+    <div class="label">Restes à recouvrer</div>
+    <div class="value">{{ reste_a_recouvrer_fmt }}</div>
+    <div class="delta">Montant encore dû</div>
+  </div>
+
+  <div class="kpi-card tone-gold">
+    <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="label">Contentieux fonciers</div>
+    <div class="value">{{ parcelles_en_retard }}</div>
+    <div class="delta">Parcelles en retard de paiement</div>
+  </div>
+
+  <div class="kpi-card tone-blue">
+    <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
+    <div class="label">Propriétaires enregistrés</div>
+    <div class="value">{{ total_proprios }}</div>
+    <div class="delta">Citoyens dans la base SIG</div>
+  </div>
+
+  <a href="{% url 'dashboard_message_list' %}" class="kpi-card tone-gold" style="text-decoration:none; color:inherit; display:block;">
+    <div class="kpi-icon"><i class="fa-solid fa-envelope-open-text"></i></div>
+    <div class="label">Messages non traités</div>
+    <div class="value">{{ nb_messages_non_traites|default:0 }}</div>
+    <div class="delta">En attente de réponse</div>
+  </a>
+</div>
+
+<!-- ============ TAUX DE RECOUVREMENT ============ -->
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-chart-line"></i> Taux de recouvrement</h2>
+    <span style="font-weight:700; font-size:15px;">{{ taux_recouvrement }} %</span>
+  </div>
+  <div class="panel-body">
+    <div class="recouvrement-bar-track">
+      <div class="recouvrement-bar-fill" data-target="{{ taux_recouvrement }}" style="
+        background: {% if taux_recouvrement >= 75 %}#3a7d44{% elif taux_recouvrement >= 40 %}#c9982e{% else %}#b3261e{% endif %};
+      "></div>
+    </div>
+    <p style="color:var(--ink-quiet); font-size:13px; margin:10px 0 0;">
+      {{ total_recouvre_fmt }} recouvrés — {{ reste_a_recouvrer_fmt }} restant à percevoir.
+    </p>
+  </div>
+</div>
+
+<!-- ============ GRAPHIQUES ============ -->
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-chart-column"></i> Évolution des paiements (12 derniers mois)</h2>
+  </div>
+  <div class="panel-body">
+    <canvas id="chartEvolution" height="90"></canvas>
+  </div>
+</div>
+
+<div class="stats-charts-row">
+  <div class="panel">
+    <div class="panel-header">
+      <h2><i class="fa-solid fa-map-location-dot"></i> Taux de recouvrement par zone</h2>
+    </div>
+    <div class="panel-body">
+      {% if chart_zones_has_data %}
+        <canvas id="chartZones" height="220"></canvas>
+      {% else %}
+        <p style="color:var(--ink-quiet); font-size:13px;">
+          Pas encore assez de données par zone (il faut des parcelles rattachées à une zone, avec des taxations).
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2><i class="fa-solid fa-chart-pie"></i> Répartition par type de taxe</h2>
+    </div>
+    <div class="panel-body">
+      {% if chart_taxes_has_data %}
+        <canvas id="chartTaxes" height="220"></canvas>
+      {% else %}
+        <p style="color:var(--ink-quiet); font-size:13px;">
+          Aucune taxation enregistrée pour le moment.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ============ ACTIONS RAPIDES ============ -->
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-bolt"></i> Actions rapides</h2>
+  </div>
+  <div class="panel-body" style="display:flex; gap:12px; flex-wrap:wrap;">
+    <a href="{% url 'dashboard_parcelle_create' %}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i>Nouvelle parcelle</a>
+    <a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="btn btn-outline btn-sm"><i class="fa-solid fa-clock-rotate-left"></i>Voir les retardataires</a>
+    <a href="{% url 'dashboard_message_list' %}?statut=non_traite" class="btn btn-outline btn-sm"><i class="fa-solid fa-envelope"></i>Traiter les messages</a>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-receipt"></i> Derniers paiements</h2>
+    <a href="{% url 'dashboard_paiement_list' %}" class="btn btn-outline btn-sm">Voir tout</a>
+  </div>
+  <div class="panel-body flush">
+    {% if derniers_paiements %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Reçu</th>
+          <th>Contribuable</th>
+          <th>Montant</th>
+          <th>Date</th>
+          <th>Mode</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in derniers_paiements %}
+        <tr>
+          <td>{{ p.numero_recu }}</td>
+          <td>{{ p.taxation.contribuable }}</td>
+          <td>{{ p.montant|floatformat:0 }} FCFA</td>
+          <td>{{ p.date_paiement|date:"d/m/Y" }}</td>
+          <td>{{ p.mode_paiement }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon icon-neutral"><i class="fa-regular fa-circle"></i></div>
+      Aucun paiement enregistré pour le moment.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-scale-unbalanced"></i> Parcelles en retard — les plus élevées</h2>
+    <a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="btn btn-outline btn-sm">Voir tout</a>
+  </div>
+  <div class="panel-body flush">
+    {% if top_retardaires %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>NICAD</th>
+          <th>Propriétaire</th>
+          <th>Zone</th>
+          <th>Taxe annuelle</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for parcelle in top_retardaires %}
+        <tr>
+          <td>{{ parcelle.nicad }}</td>
+          <td>{{ parcelle.proprietaire }}</td>
+          <td>{{ parcelle.zone }}</td>
+          <td><span class="badge badge-danger">{{ parcelle.montant_taxe_annuelle|floatformat:0 }} FCFA</span></td>
+          <td>
+            <a href="{% url 'dashboard_parcelle_update' parcelle.pk %}" class="btn btn-outline btn-sm"><i class="fa-solid fa-pen"></i>Modifier</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon icon-success"><i class="fa-solid fa-check"></i></div>
+      Aucune parcelle en retard — tout est à jour.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Anime la barre de recouvrement de 0 jusqu'à sa valeur réelle
+    var bar = document.querySelector('.recouvrement-bar-fill');
+    if (bar) {
+        var target = bar.getAttribute('data-target') || 0;
+        requestAnimationFrame(function () {
+            setTimeout(function () {
+                bar.style.width = target + '%';
+            }, 150);
+        });
+    }
+});
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var palette = ['#2f7a4f', '#c9982e', '#3a7d44', '#b3261e', '#6f6a5e', '#8a8276', '#a3791f', '#7a7266'];
+
+    var elEvolution = document.getElementById('chartEvolution');
+    if (elEvolution) {
+        new Chart(elEvolution, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_mois_labels|safe }},
+                datasets: [{
+                    label: 'Paiements reçus (FCFA)',
+                    data: {{ chart_mois_valeurs|safe }},
+                    backgroundColor: 'rgba(47,122,79,0.75)',
+                    borderRadius: 5,
+                    maxBarThickness: 34,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: function (v) { return v.toLocaleString('fr-FR') + ' F'; } }
+                    }
+                }
+            }
+        });
+    }
+
+    var elZones = document.getElementById('chartZones');
+    if (elZones) {
+        new Chart(elZones, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_zones_labels|safe }},
+                datasets: [{
+                    label: 'Taux de recouvrement (%)',
+                    data: {{ chart_zones_valeurs|safe }},
+                    backgroundColor: 'rgba(201,152,46,0.75)',
+                    borderRadius: 5,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, max: 100, ticks: { callback: function (v) { return v + '%'; } } } }
+            }
+        });
+    }
+
+    var elTaxes = document.getElementById('chartTaxes');
+    if (elTaxes) {
+        new Chart(elTaxes, {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_taxes_labels|safe }},
+                datasets: [{
+                    data: {{ chart_taxes_valeurs|safe }},
+                    backgroundColor: palette,
+                    borderWidth: 2,
+                    borderColor: '#fdfcfa',
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

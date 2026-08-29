@@ -1,0 +1,36 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Supprimer l'actualité{% endblock %}
+{% block header_title %}Supprimer l'actualité{% endblock %}
+{% block header_subtitle %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <a href="{% url 'dashboard_actualite_list' %}">Actualités</a>
+  <span class="sep">/</span>
+  Suppression
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+    <div class="confirm-box">
+      <div class="icon">!</div>
+      <h2 style="margin-bottom:8px;">Confirmer la suppression</h2>
+      <p style="color:var(--ink-quiet); margin-bottom:22px;">
+        Tu es sur le point de supprimer définitivement l'actualité
+        <strong>{{ actualite.titre }}</strong>.
+        Cette action est irréversible.
+      </p>
+      <form method="post" style="display:flex; gap:10px; justify-content:center;">
+        {% csrf_token %}
+        <a href="{% url 'dashboard_actualite_list' %}" class="btn btn-outline">Annuler</a>
+        <button type="submit" class="btn btn-danger">Oui, supprimer définitivement</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

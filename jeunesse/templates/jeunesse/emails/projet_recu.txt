@@ -1,0 +1,10 @@
+﻿Bonjour {{ projet.nom_porteur }},
+
+Nous avons bien reÃ§u votre projet Â« {{ projet.titre_projet }} Â» via l'Espace Jeunes de Keur Massar Nord.
+
+L'Ã©quipe de la mairie va l'Ã©tudier et pourra vous recontacter par tÃ©lÃ©phone ou email pour en discuter davantage.
+
+Merci pour votre engagement dans le dÃ©veloppement du quartier.
+
+Cordialement,
+L'administration â€” Commune de Keur Massar Nord

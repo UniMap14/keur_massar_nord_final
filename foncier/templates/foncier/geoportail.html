@@ -1,0 +1,1146 @@
+{% extends 'foncier/base.html' %}
+{% block title %}Géoportail - KMS Nord Foncier{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+<style>
+  .sidebar-left { flex: 2; min-height: 700px; position: relative; }
+  .sidebar-right { flex: 1; max-height: 700px; overflow-y: auto; }
+  .sidebar-right .card { margin-bottom: 16px; border-radius: 8px; }
+  .filter-section { padding: 12px; border-bottom: 1px solid #e9ecef; }
+  .filter-section:last-child { border-bottom: none; }
+  .filter-section h5 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .filter-section h5:hover,
+  .filter-section h5:focus-visible {
+    color: var(--green);
+  }
+  .filter-section h5:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  .filter-section h5 i:first-child {
+    margin-right: 4px;
+  }
+  .stats-value { font-size: 20px; font-weight: 700; color: var(--green); }
+  .stats-label { font-size: 12px; color: #6c757d; margin-bottom: 8px; }
+  .control-toggle { display: flex; gap: 8px; margin: 8px 0; }
+  .control-toggle label { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 0; cursor: pointer; }
+  .search-input { width: 100%; padding: 8px; font-size: 13px; border: 1px solid #dee2e6; border-radius: 4px; }
+  .export-btn { width: 100%; padding: 8px; font-size: 13px; margin: 4px 0; cursor: pointer; }
+
+  .map-loader {
+    position: absolute;
+    inset: 0;
+    background: rgba(245, 239, 226, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    z-index: 1200;
+    transition: opacity 0.3s ease;
+  }
+  .map-loader.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .map-loader-spinner {
+    width: 38px;
+    height: 38px;
+    border: 4px solid rgba(107, 74, 53, 0.15);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spinLoader 0.8s linear infinite;
+  }
+  @keyframes spinLoader {
+    to { transform: rotate(360deg); }
+  }
+  .map-loader p {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .zoom-hint {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 26, 20, 0.88);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 900;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  }
+  .zoom-hint i { color: var(--gold); }
+
+  .map-legend {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    z-index: 1100;
+    background: rgba(245, 239, 226, 0.95);
+    border: 1px solid rgba(201, 152, 46, 0.35);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow-sm);
+    font-size: 12px;
+    cursor: pointer;
+    max-width: 200px;
+  }
+  .map-legend:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 3px;
+  }
+  .map-legend h6 {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .map-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .map-legend-item:last-child {
+    margin-bottom: 0;
+  }
+  .map-legend-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  @media (max-width: 900px) {
+    .map-legend {
+      max-width: 160px;
+      font-size: 11px;
+      padding: 10px 12px;
+    }
+  }
+
+  .filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .filter-actions button {
+    flex: 1;
+  }
+
+  /* Fiche de parcelle (popup) : carte blanche épurée */
+  .maplibregl-popup.fiche-parcelle .maplibregl-popup-content {
+    padding: 0;
+    border-radius: 14px;
+    box-shadow: 0 12px 34px rgba(43, 33, 26, 0.18);
+    overflow: hidden;
+    min-width: 260px;
+  }
+  .maplibregl-popup.fiche-parcelle .maplibregl-popup-close-button { display: none; }
+  .fp-card { padding: 18px 20px; font-family: 'DM Sans', Arial, sans-serif; }
+  .fp-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .fp-head h4 {
+    font-size: 15px; font-weight: 700; color: var(--text); margin: 0;
+  }
+  .fp-close {
+    border: none; background: none; cursor: pointer; color: var(--text-muted);
+    font-size: 15px; line-height: 1; padding: 2px 4px;
+  }
+  .fp-close:hover { color: var(--text); }
+  .fp-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 6px 0; font-size: 13px; border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .fp-row:last-of-type { border-bottom: none; }
+  .fp-row .fp-label { color: var(--text-muted); }
+  .fp-row .fp-value { font-weight: 600; color: var(--text); text-align: right; }
+  .fp-link {
+    display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 600;
+    color: var(--green); text-decoration: none;
+  }
+  .fp-link:hover { text-decoration: underline; }
+
+  .map-view-toggle {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 1100;
+    display: flex;
+    background: rgba(245, 239, 226, 0.95);
+    border: 1px solid rgba(201, 152, 46, 0.35);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .map-view-toggle button {
+    border: none;
+    background: none;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+  .map-view-toggle button.active {
+    background: var(--green);
+    color: #fff;
+  }
+  #map3d {
+    display: none;
+    height: 100%;
+    width: 100%;
+  }
+  .map3d-hint {
+    position: absolute;
+    top: 60px;
+    right: 14px;
+    z-index: 1100;
+    background: rgba(245, 239, 226, 0.95);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    max-width: 190px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  @media (max-width: 900px) {
+    .page-section > .container > div[style*="display: flex"] {
+      flex-direction: column !important;
+      min-height: auto !important;
+    }
+    .sidebar-left {
+      min-height: 420px;
+      flex: none;
+      width: 100%;
+    }
+    .sidebar-right {
+      max-height: none;
+      overflow-y: visible;
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Géoportail</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Cartographie foncière</div>
+    <h1>Visualisez les parcelles de la commune en un seul lieu.</h1>
+    <p>Accédez à une carte interactive avec filtres, recherche et export de données.</p>
+    <a href="{% url 'recherche_cadastrale' %}" class="btn btn-outline" style="margin-top:14px; display:inline-flex; align-items:center; gap:8px;">
+      <i class="fa-solid fa-magnifying-glass"></i> Rechercher une parcelle par NICAD ou adresse
+    </a>
+  </div>
+</section>
+<section class="container page-section">
+  <div style="display: flex; gap: 16px; min-height: 700px;">
+
+    <div class="sidebar-left">
+      <div class="card border-0 shadow-sm overflow-hidden" style="height: 100%;">
+        <div id="map" style="height: 100%;"></div>
+        <div id="map3d"></div>
+
+        <div class="map-view-toggle">
+          <button type="button" id="btnVue2D" class="active">Vue 2D</button>
+          <button type="button" id="btnVue3D">Vue 3D</button>
+        </div>
+        <div class="map3d-hint" id="map3dHint" style="display:none;">
+          Glisse avec le clic droit (ou deux doigts) pour incliner et pivoter la vue.
+        </div>
+
+        <div id="mapLoader" class="map-loader">
+          <div class="map-loader-spinner"></div>
+          <p>Chargement de la carte...</p>
+        </div>
+        <div id="zoomHint" class="zoom-hint" style="display:none;">
+          <i class="fa-solid fa-magnifying-glass-plus"></i>
+          Zoomez pour afficher les parcelles (trop nombreuses à cette échelle).
+        </div>
+        <div
+          class="map-legend"
+          tabindex="0"
+          role="button"
+          aria-label="En savoir plus sur la légende de la carte"
+          id="legendBtn"
+        >
+          <h6><i class="fa-solid fa-book"></i> Légende</h6>
+          <div class="map-legend-item">
+            <span class="map-legend-swatch" style="background:#6b4a35; border: 1px dashed #6b4a35;"></span>
+            <span>Zone/Quartier</span>
+          </div>
+          <div class="map-legend-item">
+            <span class="map-legend-swatch" style="background:#c9982e;"></span>
+            <span>Parcelle</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-right">
+
+      <div class="card border-0 shadow-sm">
+        <div class="filter-section">
+          <h5 tabindex="0" role="button" id="couchesTitle">
+            <i class="fa-solid fa-layer-group"></i> Couches
+          </h5>
+          <div class="control-toggle">
+            <label>
+              <input type="checkbox" id="toggle-zones" checked>
+              <span>Zones/Quartiers</span>
+            </label>
+          </div>
+          <div class="control-toggle">
+            <label>
+              <input type="checkbox" id="toggle-parcelles" checked>
+              <span>Parcelles</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="filter-section">
+          <h5 tabindex="0" role="button" id="itineraireTitle">
+            <i class="fa-solid fa-location-crosshairs"></i> Itinéraire
+          </h5>
+          <button id="btnGeolocaliser" class="btn btn-sm btn-primary" style="width:100%;">
+            <i class="fa-solid fa-location-dot"></i> Me géolocaliser
+          </button>
+          <div id="position-status" style="margin-top:8px; font-size:12px;" aria-live="polite"></div>
+          <div id="route-info" style="margin-top:8px; font-size:13px; display:none;">
+            <div><b>Distance :</b> <span id="route-distance"></span></div>
+            <div><b>Durée estimée :</b> <span id="route-duree"></span></div>
+            <button id="btnEffacerItineraire" class="btn btn-sm btn-outline-danger" style="width:100%; margin-top:6px;">
+              <i class="fa-solid fa-xmark"></i> Effacer l'itinéraire
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="filter-section">
+          <h5 tabindex="0" role="button" id="rechercheTitle">
+            <i class="fa-solid fa-magnifying-glass"></i> Rechercher
+          </h5>
+          <input type="text" id="search-nicad" class="search-input" placeholder="Entrer NICAD...">
+          <button id="btnSearchParcelle" class="btn btn-sm btn-primary" style="width:100%; margin-top:8px;">Rechercher</button>
+          <div id="search-result" style="margin-top:8px; font-size:12px;" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="filter-section">
+          <h5 tabindex="0" role="button" id="filtresTitle">
+            <i class="fa-solid fa-filter"></i> Filtres
+          </h5>
+
+          <label for="filter-zone" style="font-size:13px; font-weight:500; margin-top:8px; display:block;">Zone/Quartier</label>
+          <select id="filter-zone" class="search-input">
+            <option value="">-- Toutes les zones --</option>
+          </select>
+
+          <label for="filter-occupation" style="font-size:13px; font-weight:500; margin-top:8px; display:block;">Occupation du sol</label>
+          <select id="filter-occupation" class="search-input">
+            <option value="">-- Toutes --</option>
+          </select>
+
+          <div class="filter-actions">
+            <button id="btnReinitialiser" class="btn btn-sm btn-outline-secondary">
+              <i class="fa-solid fa-rotate-left"></i> Réinitialiser
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="filter-section">
+          <h5 tabindex="0" role="button" id="statistiquesTitle">
+            <i class="fa-solid fa-chart-pie"></i> Statistiques
+          </h5>
+          <div style="margin-bottom:12px;">
+            <div class="stats-label">Parcelles affichées</div>
+            <div class="stats-value" id="stat-parcelles" aria-live="polite">0</div>
+          </div>
+          <div>
+            <div class="stats-label">Superficie totale</div>
+            <div class="stats-value" id="stat-superficie" aria-live="polite">0 m²</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="filter-section">
+          <h5 tabindex="0" role="button" id="exportTitle">
+            <i class="fa-solid fa-download"></i> Exporter
+          </h5>
+          <button id="btnExportCSV" class="btn btn-sm btn-success export-btn">
+            <i class="fa-solid fa-file-csv"></i> CSV
+          </button>
+          <button id="btnExportGeoJSON" class="btn btn-sm btn-info export-btn">
+            <i class="fa-solid fa-map"></i> GeoJSON
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+  const voiceTextesGeo = {
+    couches: `Le panneau couches vous permet d'afficher ou de masquer les zones et quartiers,
+      ainsi que les parcelles, directement sur la carte.`,
+    itineraire: `Le panneau itinéraire vous permet de vous géolocaliser sur la carte,
+      puis de calculer automatiquement la distance et la durée du trajet jusqu'à une parcelle
+      de votre choix, en cliquant sur le bouton itinéraire dans sa fiche.`,
+    recherche: `Le panneau recherche vous permet de retrouver instantanément une parcelle
+      en tapant son numéro NICAD. La carte se centre alors automatiquement dessus.`,
+    filtres: `Le panneau filtres vous permet d'afficher uniquement les parcelles d'une zone
+      ou d'un quartier précis, ou selon leur occupation du sol.`,
+    statistiques: `Le panneau statistiques affiche en temps réel le nombre de parcelles
+      actuellement affichées, ainsi que leur superficie totale.`,
+    export: `Le panneau export vous permet de télécharger les données des parcelles affichées,
+      au format C S V pour un tableur, ou au format Géo J S O N pour un logiciel cartographique.`,
+    legende: `La légende explique le code couleur de la carte : brun en pointillé pour les zones
+      et quartiers, doré pour les parcelles.`,
+  };
+
+  if (typeof VoiceGuide !== 'undefined') {
+    VoiceGuide.setPageText(`
+      Vous êtes sur le géoportail. Cette carte interactive affiche toutes les parcelles
+      de la commune. À droite, plusieurs panneaux vous permettent de filtrer,
+      rechercher, exporter les données ou calculer un itinéraire. Cliquez sur le titre
+      d'un panneau à tout moment pour en savoir plus sur son fonctionnement.
+    `.replace(/\s+/g, ' ').trim());
+  }
+</script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+<script>
+  // ============================================================
+  // VUE 3D (MapLibre GL JS + OpenFreeMap "Liberty")
+  // ============================================================
+  let map3d = null;
+  let is3DActive = false;
+  let sharedParcellesData = null;
+
+  // La commune a ~38 000 parcelles : on ne charge plus tout d'un coup.
+  // On ne charge les parcelles que si on est suffisamment zoomé, et on
+  // recharge automatiquement la zone visible quand la carte bouge.
+  const MIN_ZOOM_PARCELLES = 14;
+  let bboxReloadTimer = null;
+  let premierChargementParcelles = true;
+
+  function toggleVue3D(activer3D) {
+    if (activer3D === is3DActive) return;
+    is3DActive = activer3D;
+
+    const map2dEl = document.getElementById('map');
+    const map3dEl = document.getElementById('map3d');
+    const hintEl = document.getElementById('map3dHint');
+    const btn2d = document.getElementById('btnVue2D');
+    const btn3d = document.getElementById('btnVue3D');
+
+    if (is3DActive) {
+      map2dEl.style.display = 'none';
+      map3dEl.style.display = 'block';
+      hintEl.style.display = 'block';
+      btn2d.classList.remove('active');
+      btn3d.classList.add('active');
+
+      if (!map3d) {
+        initMap3D();
+      } else {
+        setTimeout(function () { map3d.resize(); }, 50);
+      }
+    } else {
+      map3dEl.style.display = 'none';
+      map2dEl.style.display = 'block';
+      hintEl.style.display = 'none';
+      btn3d.classList.remove('active');
+      btn2d.classList.add('active');
+      setTimeout(function () { if (map) map.resize(); }, 50);
+    }
+  }
+
+  function initMap3D() {
+    map3d = new maplibregl.Map({
+      container: 'map3d',
+      style: 'https://tiles.openfreemap.org/styles/liberty',
+      center: [-17.31, 14.79],
+      zoom: 15.5,
+      pitch: 60,
+      bearing: -17,
+      canvasContextAttributes: { antialias: true }
+    });
+
+    map3d.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+
+    map3d.on('load', function () {
+      chargerParcelles3D();
+    });
+  }
+
+  function chargerParcelles3D() {
+    function applyData(data) {
+      if (map3d.getSource('parcelles-3d')) {
+        map3d.getSource('parcelles-3d').setData(data);
+        return;
+      }
+
+      map3d.addSource('parcelles-3d', { type: 'geojson', data: data });
+
+      map3d.addLayer({
+        id: 'parcelles-3d-layer',
+        source: 'parcelles-3d',
+        type: 'fill-extrusion',
+        paint: {
+          // Pas de donnée fiscale sur la carte publique : hauteur/couleur fixes.
+          'fill-extrusion-color': '#c9982e',
+          'fill-extrusion-height': 5,
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.75
+        }
+      });
+
+      map3d.on('click', 'parcelles-3d-layer', function (e) {
+        const props = e.features[0].properties;
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(
+            '<strong>Parcelle ' + props.nicad + '</strong><br>' +
+            '<small>' + (props.adresse_parcelle || '') + '</small>'
+          )
+          .addTo(map3d);
+      });
+
+      map3d.on('mouseenter', 'parcelles-3d-layer', function () {
+        map3d.getCanvas().style.cursor = 'pointer';
+      });
+      map3d.on('mouseleave', 'parcelles-3d-layer', function () {
+        map3d.getCanvas().style.cursor = '';
+      });
+    }
+
+    if (sharedParcellesData) {
+      applyData(sharedParcellesData);
+      return;
+    }
+
+    fetch('{% url "api_parcelles" %}')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        sharedParcellesData = data;
+        applyData(data);
+      })
+      .catch(function (e) { console.error('Erreur chargement parcelles 3D:', e); });
+  }
+
+  // ============================================================
+  // VUE 2D (MapLibre GL JS + deck.gl, rendu WebGL2)
+  //
+  // Le fond de carte et l'affichage des zones/parcelles utilisent
+  // désormais deck.gl (superposé à MapLibre via MapboxOverlay) au lieu
+  // de Leaflet : rendu GPU, plus fluide avec un grand nombre de
+  // polygones. La logique de chargement (bbox / vue d'ensemble mise en
+  // cache) est identique à avant, seule la façon de dessiner change.
+  // ============================================================
+
+  let map;
+  let deckOverlay;
+  let zonesVisible = true, parcellesVisible = true;
+  let allZones = {}, allParcelles = {};
+  let filteredParcelles = [];
+  let selectedFeature = null;
+  let userMarker = null, userLatLng = null;
+  let routeGeoJSON = null;
+  let popupActif = null;
+
+  // Style vectoriel OpenFreeMap "Liberty" (gratuit, sans clé), le même
+  // que celui déjà utilisé pour la vue 3D — bien plus fin visuellement
+  // que des tuiles raster OSM brutes (labels, teintes douces, routes
+  // détaillées).
+  const CARTE_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+
+  // Calcule l'enveloppe [ [minLng,minLat], [maxLng,maxLat] ] d'une liste
+  // de features GeoJSON (remplace L.geoJSON(...).getBounds() de Leaflet).
+  function bboxDeFeatures(features) {
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+
+    function visiter(coords) {
+      if (typeof coords[0] === 'number') {
+        const [lng, lat] = coords;
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      } else {
+        coords.forEach(visiter);
+      }
+    }
+
+    (features || []).forEach(function (f) {
+      if (f.geometry && f.geometry.coordinates) visiter(f.geometry.coordinates);
+    });
+
+    if (!isFinite(minLng)) return null;
+    return [[minLng, minLat], [maxLng, maxLat]];
+  }
+
+  function fermerPopup() {
+    if (popupActif) { popupActif.remove(); popupActif = null; }
+  }
+
+  function fermerFicheParcelle() {
+    fermerPopup();
+    selectedFeature = null;
+    updateDeckLayers();
+  }
+
+  function idDeFeature(feature) {
+    // Identifiant stable pour comparer une feature à la sélection
+    // courante (les objets peuvent différer entre deux chargements
+    // même pour la même parcelle).
+    return feature && feature.properties ? feature.properties.nicad : null;
+  }
+
+  function couleurZone() { return [107, 74, 53, 25]; }
+  function couleurLigneZone() { return [107, 74, 53, 230]; }
+
+  function couleurParcelle(feature) {
+    // Carte publique : pas de statut fiscal, teinte dorée douce, avec
+    // une sélection mise en avant en vert vif (comme la maquette de
+    // référence) pour bien distinguer la parcelle active.
+    return idDeFeature(feature) === idDeFeature(selectedFeature)
+      ? [47, 122, 79, 235]
+      : [201, 152, 46, 95];
+  }
+
+  function couleurLigneParcelle(feature) {
+    return idDeFeature(feature) === idDeFeature(selectedFeature)
+      ? [47, 122, 79, 255]
+      : [201, 152, 46, 200];
+  }
+
+  // Reconstruit la liste complète des calques deck.gl à partir de l'état
+  // courant (zones, parcelles affichées, sélection, itinéraire) et les
+  // envoie à l'overlay. Point d'entrée unique appelé après chaque
+  // changement (chargement, filtre, sélection, bascule de calque...).
+  function updateDeckLayers() {
+    const parcellesAffichees = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
+
+    const layers = [
+      new deck.GeoJsonLayer({
+        id: 'zones',
+        data: allZones,
+        visible: zonesVisible,
+        filled: true,
+        stroked: true,
+        getFillColor: couleurZone,
+        getLineColor: couleurLigneZone,
+        lineWidthMinPixels: 2,
+        pickable: true,
+        onClick: function (info) {
+          if (!info.object) return;
+          fermerPopup();
+          popupActif = new maplibregl.Popup()
+            .setLngLat(info.coordinate)
+            .setHTML('<strong>' + (info.object.properties.nom || '') + '</strong>')
+            .addTo(map);
+        }
+      }),
+      new deck.GeoJsonLayer({
+        id: 'parcelles',
+        data: { type: 'FeatureCollection', features: parcellesAffichees },
+        visible: parcellesVisible,
+        filled: true,
+        stroked: true,
+        getFillColor: couleurParcelle,
+        getLineColor: couleurLigneParcelle,
+        lineWidthMinPixels: 1,
+        pickable: true,
+        updateTriggers: {
+          getFillColor: [selectedFeature],
+          getLineColor: [selectedFeature]
+        },
+        onClick: function (info) {
+          if (!info.object) return;
+          selectedFeature = info.object;
+          const props = info.object.properties;
+          fermerPopup();
+
+          const ficheHTML =
+            '<div class="fp-card">' +
+              '<div class="fp-head">' +
+                '<h4>Parcelle : ' + (props.nicad || '') + '</h4>' +
+                '<button type="button" class="fp-close" id="fpCloseBtn" aria-label="Fermer">✕</button>' +
+              '</div>' +
+              '<div class="fp-row"><span class="fp-label">Superficie</span><span class="fp-value">' + Math.round(props.superficie || 0) + ' m²</span></div>' +
+              (props.occupation_sol ? '<div class="fp-row"><span class="fp-label">Occupation du sol</span><span class="fp-value">' + props.occupation_sol + '</span></div>' : '') +
+              (props.zone_nom ? '<div class="fp-row"><span class="fp-label">Zone</span><span class="fp-value">' + props.zone_nom + '</span></div>' : '') +
+              (props.adresse_parcelle ? '<div class="fp-row"><span class="fp-label">Secteur</span><span class="fp-value">' + props.adresse_parcelle + '</span></div>' : '') +
+              '<a class="fp-link" href="{% url "recherche_cadastrale" %}?q=' + encodeURIComponent(props.nicad || '') + '">Voir la fiche complète →</a>' +
+            '</div>';
+
+          popupActif = new maplibregl.Popup({ className: 'fiche-parcelle', closeButton: false, maxWidth: '300px' })
+            .setLngLat(info.coordinate)
+            .setHTML(ficheHTML)
+            .addTo(map);
+
+          const closeBtn = document.getElementById('fpCloseBtn');
+          if (closeBtn) closeBtn.addEventListener('click', fermerFicheParcelle);
+
+          updateStats();
+          updateDeckLayers();
+        }
+      })
+    ];
+
+    if (routeGeoJSON) {
+      layers.push(new deck.GeoJsonLayer({
+        id: 'itineraire',
+        data: routeGeoJSON,
+        stroked: true,
+        filled: false,
+        getLineColor: [255, 102, 0, 220],
+        lineWidthMinPixels: 5
+      }));
+    }
+
+    deckOverlay.setProps({ layers: layers });
+  }
+
+  function initMap() {
+    map = new maplibregl.Map({
+      container: 'map',
+      style: CARTE_STYLE,
+      center: [-17.31, 14.79],
+      zoom: 14
+    });
+    map.addControl(new maplibregl.NavigationControl(), 'top-left');
+
+    deckOverlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
+    map.addControl(deckOverlay);
+
+    map.on('load', function () {
+      Promise.all([loadZones(), loadParcelles()]).finally(function () {
+        const loader = document.getElementById('mapLoader');
+        if (loader) loader.classList.add('hidden');
+      });
+    });
+
+    // Recharge les parcelles visibles à chaque déplacement/zoom de la
+    // carte (avec un petit délai pour ne pas spammer le serveur pendant
+    // qu'on glisse la carte).
+    map.on('moveend', function () {
+      clearTimeout(bboxReloadTimer);
+      bboxReloadTimer = setTimeout(loadParcelles, 400);
+    });
+  }
+
+  function loadZones() {
+    return fetch('{% url "api_zones" %}')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        allZones = data;
+        updateDeckLayers();
+      })
+      .catch(function (e) { console.error('Erreur zones:', e); });
+  }
+
+  function loadParcelles() {
+    const zoomHint = document.getElementById('zoomHint');
+
+    // Dézoomé : on charge TOUTES les parcelles d'un coup (géométrie très
+    // simplifiée, mise en cache côté serveur) pour une vue d'ensemble
+    // complète de la commune. Zoomé : rechargement précis limité à la
+    // zone visible, pour le détail fin.
+    if (map.getZoom() < MIN_ZOOM_PARCELLES) {
+      if (zoomHint) zoomHint.style.display = 'none';
+      return fetch('{% url "api_parcelles_toutes" %}')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          allParcelles = data;
+          sharedParcellesData = data;
+          updateDeckLayers();
+          updateStats();
+        })
+        .catch(function (e) { console.error('Erreur parcelles (vue d\'ensemble):', e); });
+    }
+
+    const b = map.getBounds();
+    const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
+    return fetch('{% url "api_parcelles" %}?bbox=' + bbox)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        allParcelles = data;
+        sharedParcellesData = data;
+        updateDeckLayers();
+        populateZoneFilter();
+        populateOccupationFilter();
+        updateStats();
+        if (premierChargementParcelles) {
+          appliquerRechercheDepuisURL();
+          premierChargementParcelles = false;
+        }
+      })
+      .catch(function (e) { console.error('Erreur parcelles:', e); });
+  }
+
+  function appliquerRechercheDepuisURL() {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (!q) return;
+
+    document.getElementById('search-nicad').value = q;
+
+    const zoneSelect = document.getElementById('filter-zone');
+    const zoneMatch = Array.from(zoneSelect.options).find(function (opt) {
+      return opt.value.toLowerCase() === q.toLowerCase();
+    });
+
+    if (zoneMatch) {
+      zoneSelect.value = zoneMatch.value;
+      applyFilters();
+      if (filteredParcelles.length) {
+        const bounds = bboxDeFeatures(filteredParcelles);
+        if (bounds) map.fitBounds(bounds, { padding: 50 });
+      }
+    } else {
+      searchParcelle();
+    }
+  }
+
+  function zoneLabelDe(feature) {
+    const p = feature.properties || {};
+    return p.zone_nom || p.adresse_parcelle || null;
+  }
+
+  function populateZoneFilter() {
+    const zones = new Set();
+    if (allParcelles.features) {
+      allParcelles.features.forEach(function (f) {
+        const label = zoneLabelDe(f);
+        if (label) zones.add(label);
+      });
+    }
+    const select = document.getElementById('filter-zone');
+    Array.from(zones).sort().forEach(function (zone) {
+      const opt = document.createElement('option');
+      opt.value = zone;
+      opt.textContent = zone;
+      select.appendChild(opt);
+    });
+  }
+
+  function populateOccupationFilter() {
+    const occupations = new Set();
+    if (allParcelles.features) {
+      allParcelles.features.forEach(function (f) {
+        if (f.properties.occupation_sol) occupations.add(f.properties.occupation_sol);
+      });
+    }
+    const select = document.getElementById('filter-occupation');
+    Array.from(occupations).sort().forEach(function (occ) {
+      const opt = document.createElement('option');
+      opt.value = occ;
+      opt.textContent = occ;
+      select.appendChild(opt);
+    });
+  }
+
+  function applyFilters() {
+    const zoneFilter = document.getElementById('filter-zone').value;
+    const occupationFilter = document.getElementById('filter-occupation').value;
+
+    let filtered = allParcelles.features || [];
+    if (zoneFilter) {
+      filtered = filtered.filter(function (f) { return zoneLabelDe(f) === zoneFilter; });
+    }
+    if (occupationFilter) {
+      filtered = filtered.filter(function (f) { return f.properties.occupation_sol === occupationFilter; });
+    }
+
+    filteredParcelles = filtered;
+    updateDeckLayers();
+    updateStats();
+  }
+
+  function searchParcelle() {
+    const nicad = document.getElementById('search-nicad').value.toUpperCase().trim();
+    const result = document.getElementById('search-result');
+
+    if (!nicad) {
+      result.textContent = '';
+      return;
+    }
+
+    const found = (allParcelles.features || []).find(function (f) {
+      return f.properties.nicad && f.properties.nicad.toUpperCase().includes(nicad);
+    });
+
+    if (found) {
+      result.innerHTML = '<span style="color:green;"><i class="fa-solid fa-check"></i> Trouvé: ' + found.properties.nicad + '</span>';
+      const bounds = bboxDeFeatures([found]);
+      if (bounds) map.fitBounds(bounds, { padding: 50 });
+      selectedFeature = found;
+      updateStats();
+      updateDeckLayers();
+    } else {
+      result.innerHTML = '<span style="color:red;"><i class="fa-solid fa-times"></i> Non trouvé</span>';
+    }
+  }
+
+  function reinitialiserFiltres() {
+    document.getElementById('filter-zone').value = '';
+    document.getElementById('filter-occupation').value = '';
+    document.getElementById('search-nicad').value = '';
+    document.getElementById('search-result').textContent = '';
+    filteredParcelles = [];
+    updateDeckLayers();
+    updateStats();
+  }
+
+  function updateStats() {
+    const features = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
+    const total = features.length;
+    const superficieTotale = features.reduce(function (sum, f) {
+      return sum + (parseFloat(f.properties.superficie) || 0);
+    }, 0);
+
+    document.getElementById('stat-parcelles').textContent = total.toLocaleString('fr-FR');
+    document.getElementById('stat-superficie').textContent = Math.round(superficieTotale).toLocaleString('fr-FR') + ' m²';
+  }
+
+  function csvEscape(value) {
+    if (value === null || value === undefined) return '""';
+    const str = String(value).replace(/"/g, '""');
+    return '"' + str + '"';
+  }
+
+  function exportCSV() {
+    const features = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
+    let csv = 'NICAD,Adresse,Superficie,Occupation du sol\n';
+    features.forEach(function (f) {
+      const props = f.properties;
+      csv += [
+        csvEscape(props.nicad),
+        csvEscape(props.adresse_parcelle),
+        csvEscape(props.superficie),
+        csvEscape(props.occupation_sol)
+      ].join(',') + '\n';
+    });
+    downloadFile(csv, 'parcelles.csv', 'text/csv');
+  }
+
+  function exportGeoJSON() {
+    const features = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
+    const geojson = { type: 'FeatureCollection', features: features };
+    downloadFile(JSON.stringify(geojson, null, 2), 'parcelles.geojson', 'application/json');
+  }
+
+  function downloadFile(content, filename, type) {
+    const blob = new Blob([content], { type: type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function localiserMoi() {
+    const status = document.getElementById('position-status');
+
+    if (!navigator.geolocation) {
+      status.innerHTML = '<span style="color:red;">Géolocalisation non supportée par ce navigateur.</span>';
+      return;
+    }
+
+    status.textContent = 'Localisation en cours...';
+
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        userLatLng = [pos.coords.latitude, pos.coords.longitude];
+
+        if (userMarker) userMarker.remove();
+
+        const el = document.createElement('div');
+        el.style.cssText = 'background:#c9982e; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 6px rgba(0,0,0,0.5);';
+
+        userMarker = new maplibregl.Marker({ element: el })
+          .setLngLat([userLatLng[1], userLatLng[0]])
+          .setPopup(new maplibregl.Popup().setText('Vous êtes ici'))
+          .addTo(map);
+
+        map.flyTo({ center: [userLatLng[1], userLatLng[0]], zoom: 15 });
+        status.innerHTML = '<span style="color:green;"><i class="fa-solid fa-check"></i> Position trouvée.</span>';
+      },
+      function (err) {
+        status.innerHTML = '<span style="color:red;">Impossible de récupérer votre position (' + err.message + ').</span>';
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  function calculerItineraire(lat, lng) {
+    const status = document.getElementById('position-status');
+
+    if (!userLatLng) {
+      status.innerHTML = '<span style="color:#dc3545;"><i class="fa-solid fa-triangle-exclamation"></i> Clique d\'abord sur « Me géolocaliser » pour définir ton point de départ.</span>';
+      return;
+    }
+
+    fermerPopup();
+
+    const url = 'https://router.project-osrm.org/route/v1/driving/' + userLatLng[1] + ',' + userLatLng[0] + ';' + lng + ',' + lat + '?overview=full&geometries=geojson';
+
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.routes || !data.routes.length) {
+          status.innerHTML = '<span style="color:#dc3545;"><i class="fa-solid fa-triangle-exclamation"></i> Aucun itinéraire trouvé jusqu\'à cette parcelle.</span>';
+          return;
+        }
+
+        const route = data.routes[0];
+        routeGeoJSON = route.geometry;
+        updateDeckLayers();
+
+        const bounds = bboxDeFeatures([{ geometry: route.geometry }]);
+        if (bounds) map.fitBounds(bounds, { padding: 50 });
+
+        const distanceKm = (route.distance / 1000).toFixed(2);
+        const dureeMin = Math.round(route.duration / 60);
+
+        document.getElementById('route-distance').textContent = distanceKm + ' km';
+        document.getElementById('route-duree').textContent = dureeMin + ' min';
+        document.getElementById('route-info').style.display = 'block';
+      })
+      .catch(function (e) {
+        console.error('Erreur itinéraire:', e);
+        status.innerHTML = '<span style="color:#dc3545;"><i class="fa-solid fa-triangle-exclamation"></i> Erreur lors du calcul de l\'itinéraire. Réessaie plus tard.</span>';
+      });
+  }
+
+  function effacerItineraire() {
+    routeGeoJSON = null;
+    updateDeckLayers();
+    document.getElementById('route-info').style.display = 'none';
+  }
+
+  // ============================================================
+  // ATTACHE DES ÉVÉNEMENTS
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', function () {
+    function onEvent(id, evenement, gestionnaire) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener(evenement, gestionnaire);
+      } else {
+        console.warn('Élément #' + id + ' introuvable (ignoré).');
+      }
+    }
+
+    onEvent('btnVue2D', 'click', function () { toggleVue3D(false); });
+    onEvent('btnVue3D', 'click', function () { toggleVue3D(true); });
+
+    onEvent('btnGeolocaliser', 'click', localiserMoi);
+    onEvent('btnEffacerItineraire', 'click', effacerItineraire);
+
+    onEvent('btnSearchParcelle', 'click', searchParcelle);
+    onEvent('search-nicad', 'keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); searchParcelle(); }
+    });
+
+    onEvent('filter-zone', 'change', applyFilters);
+    onEvent('filter-occupation', 'change', applyFilters);
+    onEvent('btnReinitialiser', 'click', reinitialiserFiltres);
+
+    onEvent('btnExportCSV', 'click', exportCSV);
+    onEvent('btnExportGeoJSON', 'click', exportGeoJSON);
+
+    onEvent('toggle-zones', 'change', function (e) {
+      zonesVisible = e.target.checked;
+      updateDeckLayers();
+    });
+
+    onEvent('toggle-parcelles', 'change', function (e) {
+      parcellesVisible = e.target.checked;
+      updateDeckLayers();
+    });
+
+    // Titres de panneaux : guide vocal au clic et au clavier
+    [
+      { id: 'couchesTitle', key: 'couches' },
+      { id: 'itineraireTitle', key: 'itineraire' },
+      { id: 'rechercheTitle', key: 'recherche' },
+      { id: 'filtresTitle', key: 'filtres' },
+      { id: 'statistiquesTitle', key: 'statistiques' },
+      { id: 'exportTitle', key: 'export' }
+    ].forEach(function (item) {
+      const el = document.getElementById(item.id);
+      if (!el) return;
+      el.addEventListener('click', function () {
+        if (typeof VoiceGuide !== 'undefined') VoiceGuide.speakSection(voiceTextesGeo[item.key]);
+      });
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (typeof VoiceGuide !== 'undefined') VoiceGuide.speakSection(voiceTextesGeo[item.key]);
+        }
+      });
+    });
+
+    const legendBtn = document.getElementById('legendBtn');
+    if (legendBtn) {
+      legendBtn.addEventListener('click', function () {
+        if (typeof VoiceGuide !== 'undefined') VoiceGuide.speakSection(voiceTextesGeo.legende);
+      });
+      legendBtn.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (typeof VoiceGuide !== 'undefined') VoiceGuide.speakSection(voiceTextesGeo.legende);
+        }
+      });
+    }
+
+    try {
+      initMap();
+    } catch (e) {
+      console.error('Erreur au démarrage de la carte :', e);
+      const loader = document.getElementById('mapLoader');
+      if (loader) {
+        loader.innerHTML = '<div style="color:#b23b2e; text-align:center; padding:20px;">Erreur au chargement de la carte. Voir la console (F12) pour le détail.</div>';
+      }
+    }
+  });
+</script>
+{% endblock %}

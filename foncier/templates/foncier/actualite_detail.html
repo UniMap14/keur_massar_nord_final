@@ -1,0 +1,88 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}{{ actualite.titre }} - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .actu-detail-wrap { max-width: 760px; margin: 0 auto; }
+  .actu-detail-photo {
+    width: 100%; height: 320px; border-radius: var(--radius); overflow: hidden;
+    margin-bottom: 28px; background: linear-gradient(135deg, var(--green), var(--green-dark));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .actu-detail-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .actu-detail-photo i { font-size: 50px; color: rgba(255,255,255,0.4); }
+
+  .actu-detail-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+  .actu-detail-tag {
+    background: var(--gold); color: var(--green-dark); font-weight: 700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .05em; padding: 5px 14px; border-radius: 999px;
+  }
+  .actu-detail-date { color: var(--ink-quiet, #6f6a5e); font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
+
+  .actu-detail-title { font-family: 'Playfair Display', serif; font-size: clamp(26px, 4vw, 36px); font-weight: 700; margin-bottom: 22px; }
+  .actu-detail-chapo { font-size: 16px; color: var(--text); font-weight: 500; line-height: 1.7; margin-bottom: 24px; }
+  .actu-detail-content { font-size: 15px; color: var(--ink-quiet, #55524a); line-height: 1.85; white-space: pre-line; }
+
+  .actu-back { display: inline-flex; align-items: center; gap: 8px; color: var(--green-dark); text-decoration: none; font-weight: 600; font-size: 13.5px; margin-bottom: 28px; }
+  .actu-back:hover { color: var(--gold-dark); }
+
+  .actu-autres { margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border); }
+  .actu-autres h3 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="container page-section" style="padding-top: 130px;">
+
+  <div class="actu-detail-wrap">
+    <a href="{% url 'actualites' %}" class="actu-back"><i class="fa-solid fa-arrow-left"></i> Retour aux actualités</a>
+
+    <div class="actu-detail-photo">
+      {% if actualite.photo %}
+        <img src="{{ actualite.photo.url }}" alt="{{ actualite.titre }}">
+      {% else %}
+        <i class="fa-solid fa-newspaper"></i>
+      {% endif %}
+    </div>
+
+    <div class="actu-detail-meta">
+      <span class="actu-detail-tag">{{ actualite.get_categorie_display }}</span>
+      <span class="actu-detail-date"><i class="fa-solid fa-calendar"></i> {{ actualite.date_publication|date:"d F Y" }}</span>
+    </div>
+
+    <h1 class="actu-detail-title">{{ actualite.titre }}</h1>
+    <p class="actu-detail-chapo">{{ actualite.chapo }}</p>
+
+    {% if actualite.contenu %}
+      <div class="actu-detail-content">{{ actualite.contenu }}</div>
+    {% endif %}
+
+    {% if autres %}
+    <div class="actu-autres">
+      <h3>À lire aussi</h3>
+      <div class="news-grid">
+        {% for a in autres %}
+        <a href="{% url 'actualite_detail' a.pk %}" class="news-card" style="text-decoration:none; color:inherit;">
+          <div class="news-img {% cycle 'news-img-1' 'news-img-2' 'news-img-3' %}">
+            {% if a.photo %}
+              <img src="{{ a.photo.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+            {% else %}
+              <i class="fa-solid fa-newspaper news-img-icon"></i>
+            {% endif %}
+            <span class="news-tag">{{ a.get_categorie_display }}</span>
+          </div>
+          <div class="news-body">
+            <div class="news-date"><i class="fa-solid fa-calendar"></i> {{ a.date_publication|date:"d F Y" }}</div>
+            <h3>{{ a.titre }}</h3>
+            <p>{{ a.chapo }}</p>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</section>
+{% endblock %}

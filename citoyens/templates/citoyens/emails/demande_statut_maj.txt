@@ -1,0 +1,20 @@
+Bonjour {{ prenom }},
+
+Le statut de votre démarche auprès de la commune de Keur Massar Nord a changé.
+
+Démarche : {{ demande.type_demande.libelle }}
+Numéro de dossier : {{ demande.numero_dossier }}
+Nouveau statut : {{ statut_libelle }}
+{% if demande.commentaire_agent %}
+Message de l'administration :
+{{ demande.commentaire_agent }}
+{% endif %}
+{% if demande.statut == 'PRETE' %}
+Votre document/réponse est prêt. Merci de vous présenter aux services de la commune (ou de suivre les instructions ci-dessus) pour le retrait.
+{% elif demande.statut == 'REJETEE' %}
+Votre demande n'a pas pu être traitée favorablement. Consultez le motif ci-dessus, et n'hésitez pas à nous contacter pour plus de précisions.
+{% endif %}
+Suivre mon dossier : {{ suivi_url }}
+
+Cordialement,
+L'administration — Commune de Keur Massar Nord

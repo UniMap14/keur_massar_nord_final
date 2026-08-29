@@ -1,0 +1,15 @@
+# Dépendances Python du projet KMS Nord.
+# Installation :  pip install -r requirements.txt
+#
+# Remarque GDAL/GEOS : django.contrib.gis nécessite en plus une
+# installation SYSTÈME de GDAL/GEOS (ex : OSGeo4W sur Windows, déjà
+# configurée dans settings.py). Ce n'est pas un paquet pip.
+
+Django==5.2.3
+django-unfold==0.81.0
+psycopg2-binary==2.9.12
+Pillow==12.3.0
+reportlab==5.0.0
+
+# Nouvellement requis pour charger le fichier .env (voir settings.py)
+python-dotenv==1.2.2

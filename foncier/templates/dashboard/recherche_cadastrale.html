@@ -1,0 +1,142 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Recherche cadastrale - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .cad-search-box {
+    max-width: 640px;
+    margin: -32px auto 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    padding: 20px;
+    display: flex;
+    gap: 10px;
+    position: relative;
+    z-index: 2;
+  }
+  .cad-search-box input[type="text"] {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+  .cad-search-box input[type="text"]:focus {
+    outline: none;
+    border-color: var(--green-dark);
+  }
+  .cad-search-box button {
+    border-radius: 999px;
+    padding: 12px 26px;
+    white-space: nowrap;
+  }
+
+  .cad-results { margin-top: 48px; }
+  .cad-result-card {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 24px; margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    flex-wrap: wrap;
+    opacity: 0; transform: translateY(10px); animation: cadIn .4s ease forwards;
+  }
+  @keyframes cadIn { to { opacity: 1; transform: translateY(0); } }
+
+  .cad-result-title { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+  .cad-result-meta { font-size: 13px; color: var(--ink-quiet, #6f6a5e); display: flex; gap: 16px; flex-wrap: wrap; }
+  .cad-result-meta span { display: inline-flex; align-items: center; gap: 6px; }
+
+  .cad-empty {
+    text-align: center; padding: 60px 20px; color: var(--ink-quiet, #6f6a5e);
+  }
+  .cad-empty i { font-size: 30px; color: var(--gold); margin-bottom: 14px; display: block; }
+
+  .cad-privacy-note {
+    background: rgba(47,122,79,0.06); border: 1px dashed rgba(47,122,79,0.3);
+    border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--ink-quiet, #55524a);
+    margin-top: 40px; display: flex; gap: 12px; align-items: flex-start;
+  }
+  .cad-privacy-note i { color: var(--green-dark); margin-top: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Recherche cadastrale</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Cadastre</div>
+    <h1>Retrouvez une parcelle de la commune.</h1>
+    <p>Recherchez par numéro NICAD, adresse/quartier ou nom de zone.</p>
+  </div>
+</section>
+
+<section class="container page-section">
+
+  <form method="get" class="cad-search-box">
+    <input
+      type="text"
+      name="q"
+      value="{{ q }}"
+      placeholder="Ex : NICAD 12345, Quartier Darou Salam, Zone A…"
+      autofocus
+    >
+    <button type="submit" class="btn btn-primary">
+      <i class="fa-solid fa-magnifying-glass"></i> Rechercher
+    </button>
+  </form>
+
+  <div class="cad-results">
+    {% if recherche_effectuee %}
+      {% if resultats %}
+        <p style="color:var(--ink-quiet,#6f6a5e); font-size:13px; margin-bottom:18px;">
+          {{ resultats|length }} résultat(s) pour « {{ q }} ».
+        </p>
+        {% for p in resultats %}
+        <div class="cad-result-card" style="animation-delay: {{ forloop.counter0|add:1 }}0ms;">
+          <div>
+            <div class="cad-result-title">Parcelle {{ p.nicad }}</div>
+            <div class="cad-result-meta">
+              {% if p.adresse_parcelle %}<span><i class="fa-solid fa-map-pin"></i> {{ p.adresse_parcelle }}</span>{% endif %}
+              {% if p.zone %}<span><i class="fa-solid fa-layer-group"></i> {{ p.zone.nom }}</span>{% endif %}
+              <span><i class="fa-solid fa-ruler-combined"></i> {{ p.superficie|floatformat:0 }} m²</span>
+              {% if p.occupation_sol %}<span><i class="fa-solid fa-house"></i> {{ p.occupation_sol }}</span>{% endif %}
+            </div>
+          </div>
+          <a href="{% url 'geoportail' %}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-map-location-dot"></i> Voir sur la carte
+          </a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="cad-empty">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          Aucune parcelle ne correspond à « {{ q }} ».<br>
+          Vérifiez l'orthographe ou essayez un terme plus général.
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="cad-empty">
+        <i class="fa-solid fa-map-location-dot"></i>
+        Entrez un numéro NICAD, une adresse ou une zone pour commencer.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="cad-privacy-note">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>
+      Cette recherche publique n'affiche que des informations générales sur la parcelle
+      (superficie, adresse, zone, occupation du sol). Le nom du propriétaire et la situation
+      fiscale restent confidentiels et ne sont visibles que par le propriétaire concerné,
+      depuis son <a href="{% url 'citoyen_login' %}">espace citoyen</a>.
+    </div>
+  </div>
+
+</section>
+{% endblock %}

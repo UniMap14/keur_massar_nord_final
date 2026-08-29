@@ -1,0 +1,95 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Rôle de {{ agent.username }}{% endblock %}
+{% block header_title %}Rôle de {{ agent.username }}{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ agent.get_full_name|default:agent.username }}{% if agent.email %} · {{ agent.email }}{% endif %}</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .45s ease .05s forwards; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .form-field { margin-bottom: 18px; }
+    .form-field label {
+        display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12.5px;
+        color: var(--ink-quiet, #6f6a5e); text-transform: uppercase; letter-spacing: 0.4px;
+        margin-bottom: 7px;
+    }
+    .form-field select {
+        width: 100%; border: 1.5px solid var(--line-strong, #e6e0d4); border-radius: 8px;
+        padding: 10px 13px; font-family: inherit; font-size: 13.5px; background: #fdfcfa;
+        transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .form-field select:focus {
+        outline: none; border-color: var(--green, #2f7a4f);
+        box-shadow: 0 0 0 3px rgba(47,122,79,0.12); background: #fff;
+    }
+    .form-field .errorlist { list-style: none; margin: 6px 0 0; padding: 0; color: #b3261e; font-size: 12px; }
+
+    .form-actions {
+        display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;
+        padding-top: 20px; border-top: 1px solid var(--line-strong, #e6e0d4);
+    }
+    .form-actions .btn { display: inline-flex; align-items: center; gap: 8px; }
+
+    .role-info {
+        background: rgba(47,122,79,0.06); border: 1px dashed rgba(47,122,79,0.3);
+        border-radius: 10px; padding: 14px 18px; font-size: 12.5px; color: var(--ink-quiet, #55524a);
+        margin-bottom: 22px; display: flex; gap: 12px; align-items: flex-start;
+    }
+    .role-info i { color: var(--green-dark, #3c2a20); margin-top: 2px; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <a href="{% url 'dashboard_agent_list' %}"><i class="fa-solid fa-table-list"></i> Agents</a>
+  <span class="sep">/</span>
+  {{ agent.username }}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+
+    <div class="role-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>
+        Le rôle détermine à quelles sections du dashboard cet agent a accès.
+        <strong>Superviseur</strong> : accès à tout. <strong>Agent fiscal</strong> :
+        contribuables, taxations, paiements, types de taxe, profils citoyens.
+        <strong>Agent technique</strong> : parcelles, propriétaires, zones,
+        infrastructures, catégories, actualités, signalements. Les sections
+        communes (tableau de bord, messages, démarches, inscriptions) restent
+        accessibles à tous, quel que soit le rôle.
+      </div>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="non-field-errors">
+          {% for e in form.non_field_errors %}{{ e }}{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="form-field">
+        <label for="{{ form.role.id_for_label }}">Rôle</label>
+        {{ form.role }}
+        {{ form.role.errors }}
+      </div>
+
+      <div class="form-actions">
+        <a href="{% url 'dashboard_agent_list' %}" class="btn btn-outline"><i class="fa-solid fa-xmark"></i> Annuler</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

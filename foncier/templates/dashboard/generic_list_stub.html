@@ -1,0 +1,260 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}{{ titre }}{% endblock %}
+{% block header_title %}{{ titre }}{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ objets|length }} enregistrement(s)</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ===== BARRE DE RECHERCHE ===== */
+    .generic-search-form {
+        display : flex;
+        gap     : 8px;
+    }
+
+    .search-input-wrap {
+        position: relative;
+    }
+
+    .search-input-wrap i {
+        position      : absolute;
+        left          : 13px;
+        top           : 50%;
+        transform     : translateY(-50%);
+        font-size     : 12.5px;
+        color         : var(--ink-quiet, #9a9284);
+        pointer-events: none;
+        transition    : color .2s ease;
+    }
+
+    .input-search {
+        padding      : 8px 12px 8px 34px !important;
+        border-radius: 8px;
+        border       : 1px solid var(--border, #ddd);
+        font-size    : 13.5px;
+        font-family  : inherit;
+        transition   : border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .input-search:focus {
+        outline     : none;
+        border-color: var(--green, #2f7a4f);
+        box-shadow  : 0 0 0 3px rgba(47,122,79,0.12);
+    }
+
+    .input-search:focus ~ i { color: var(--green, #2f7a4f); }
+
+    .generic-search-form .btn {
+        display    : inline-flex;
+        align-items: center;
+        gap        : 6px;
+    }
+
+    /* ===== PANEL ===== */
+    .panel {
+        opacity  : 0;
+        transform: translateY(10px);
+        animation: panelIn .45s ease forwards;
+    }
+    .panel:nth-of-type(2) { animation-delay: .08s; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .panel-header h2 {
+        display    : flex;
+        align-items: center;
+        gap        : 10px;
+    }
+    .panel-header h2 i {
+        color  : var(--green, #2f7a4f);
+        opacity: 0.85;
+        font-size: 15px;
+    }
+
+    /* ===== TABLEAU ===== */
+    .data-table tbody tr {
+        opacity   : 0;
+        animation : rowIn .3s ease forwards;
+        transition: background .15s ease;
+    }
+    .data-table tbody tr:hover {
+        background: rgba(47,122,79,0.04);
+    }
+    @keyframes rowIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== ÉTAT VIDE ===== */
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+    }
+    .empty-state .icon {
+        width           : 48px;
+        height          : 48px;
+        border-radius   : 50%;
+        background      : rgba(122,114,102,0.1);
+        color           : var(--ink-quiet, #7a7266);
+        display         : flex;
+        align-items     : center;
+        justify-content : center;
+        margin          : 0 auto 14px;
+        font-size       : 18px;
+    }
+
+    /* ===== NOTE DE DÉVELOPPEMENT (affichage générique) ===== */
+    .dev-note-panel {
+        border    : 1.5px dashed rgba(201,152,46,0.5);
+        background: rgba(201,152,46,0.05);
+    }
+    .dev-note-panel .panel-body {
+        display    : flex;
+        align-items: flex-start;
+        gap        : 12px;
+    }
+    .dev-note-panel .dev-note-icon {
+        width           : 32px;
+        height          : 32px;
+        border-radius   : 9px;
+        background      : rgba(201,152,46,0.16);
+        color           : #a3791f;
+        display         : flex;
+        align-items     : center;
+        justify-content : center;
+        flex-shrink     : 0;
+        font-size       : 13px;
+    }
+    .dev-note-panel p {
+        color      : var(--ink-quiet, #6f6a5e);
+        font-size  : 13px;
+        line-height: 1.7;
+        margin     : 0;
+    }
+    .dev-note-panel code {
+        background   : rgba(0,0,0,0.06);
+        padding      : 1px 6px;
+        border-radius: 4px;
+        font-size    : 12px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .panel, .data-table tbody tr {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-table-list"></i> {{ titre }}</h2>
+
+    {% if recherche_active %}
+    <form method="get" class="generic-search-form">
+      <div class="search-input-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input
+          type="text"
+          name="q"
+          value="{{ q|default:'' }}"
+          placeholder="Rechercher…"
+          class="input-search"
+        >
+      </div>
+      <button type="submit" class="btn btn-outline btn-sm"><i class="fa-solid fa-magnifying-glass"></i> Rechercher</button>
+      {% if q %}
+        <a href="{{ request.path }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-rotate-left"></i> Réinitialiser</a>
+      {% endif %}
+    </form>
+    {% endif %}
+
+    {% if create_url_name %}
+      <a href="{% url create_url_name %}" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-plus"></i> {{ create_label|default:"Ajouter" }}
+      </a>
+    {% endif %}
+
+    {% if export_url_name %}
+      <a href="{% url export_url_name %}{% if q %}?q={{ q|urlencode }}{% endif %}" class="btn btn-outline btn-sm">
+        <i class="fa-solid fa-file-csv"></i> Exporter CSV
+      </a>
+    {% endif %}
+  </div>
+
+  <div class="panel-body flush">
+    {% if objets %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          {% if colonnes %}
+            {% for col in colonnes %}<th>{{ col }}</th>{% endfor %}
+          {% else %}
+            <th>Aperçu</th>
+          {% endif %}
+          {% if update_url_name or delete_url_name %}<th></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ligne in objets %}
+        <tr style="animation-delay: {{ forloop.counter0|add:1 }}0ms;">
+          {% if colonnes %}
+            {% for valeur in ligne.cellules %}
+              <td>{{ valeur|default:"—" }}</td>
+            {% endfor %}
+          {% else %}
+            <td>{{ ligne }}</td>
+          {% endif %}
+          {% if update_url_name or delete_url_name %}
+          <td>
+            <div class="row-actions">
+              {% if update_url_name %}
+                <a href="{% url update_url_name ligne.pk %}" class="btn btn-outline btn-sm">
+                  <i class="fa-solid fa-pen"></i>
+                </a>
+              {% endif %}
+              {% if delete_url_name %}
+                <a href="{% url delete_url_name ligne.pk %}" class="btn btn-outline btn-sm">
+                  <i class="fa-solid fa-trash"></i>
+                </a>
+              {% endif %}
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon">
+        {% if q %}<i class="fa-solid fa-magnifying-glass"></i>{% else %}<i class="fa-solid fa-inbox"></i>{% endif %}
+      </div>
+      {% if q %}
+        Aucun résultat pour « {{ q }} ».
+      {% else %}
+        Aucun enregistrement pour le moment.
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if not colonnes %}
+<div class="panel dev-note-panel">
+  <div class="panel-body">
+    <div class="dev-note-icon"><i class="fa-solid fa-code"></i></div>
+    <p>
+      Cette section utilise encore un affichage générique temporaire.
+      Duplique le pattern de <code>dashboard_parcelle_list</code> /
+      <code>parcelle_list.html</code> pour lui donner son propre
+      formulaire et ses colonnes dédiées.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

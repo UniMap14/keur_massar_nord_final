@@ -1,0 +1,15 @@
+Bonjour {{ prenom }},
+
+Votre demande a bien été enregistrée auprès de la commune de Keur Massar Nord.
+
+Démarche : {{ demande.type_demande.libelle }}
+Numéro de dossier : {{ demande.numero_dossier }}
+Déposée le : {{ demande.date_demande|date:"d/m/Y à H:i" }}
+{% if demande.parcelle %}Parcelle concernée : {{ demande.parcelle.nicad }}
+{% endif %}
+Vous serez averti(e) par email à chaque changement de statut de votre dossier. Vous pouvez aussi le suivre à tout moment ici :
+
+{{ suivi_url }}
+
+Cordialement,
+L'administration — Commune de Keur Massar Nord

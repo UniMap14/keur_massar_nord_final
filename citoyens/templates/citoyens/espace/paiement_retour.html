@@ -1,0 +1,136 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statut du paiement · KMS Nord</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+        --green       : #6b4a35;
+        --green-dark  : #3c2a20;
+        --gold        : #c9982e;
+        --gold-dark   : #a67c1f;
+        --white       : #ffffff;
+        --off-white   : #f5efe2;
+        --text        : #2b211a;
+        --text-muted  : #6b5d4f;
+        --border      : rgba(0,0,0,0.08);
+        --shadow-sm   : 0 4px 16px rgba(43,33,26,0.06);
+        --radius      : 16px;
+        --radius-sm   : 10px;
+        --danger      : #b23b2e;
+        --ok          : #2f7a4f;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; font-family: 'DM Sans', Arial, sans-serif; color: var(--text);
+        background: var(--off-white); min-height: 100vh;
+    }
+    .topbar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 32px; background: var(--green-dark); color: var(--white);
+    }
+    .topbar .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; }
+    .topbar .brand i {
+        color: var(--green-dark); background: var(--gold); width: 34px; height: 34px;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+
+    .wrap { max-width: 480px; margin: 0 auto; padding: 50px 20px 60px; }
+
+    .card {
+        background: var(--white); border: 2px solid rgba(47,122,79,0.25); box-shadow: var(--shadow-sm);
+        border-radius: var(--radius); padding: 34px 30px; text-align: center;
+    }
+    .card.attente { border-color: rgba(201,152,46,0.35); }
+    .card.echec { border-color: rgba(178,59,46,0.25); }
+
+    .status-icon {
+        width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 16px;
+        display: flex; align-items: center; justify-content: center; font-size: 24px;
+        background: rgba(47,122,79,0.1); color: var(--ok);
+    }
+    .card.attente .status-icon { background: rgba(201,152,46,0.15); color: var(--gold-dark); }
+    .card.echec .status-icon { background: rgba(178,59,46,0.1); color: var(--danger); }
+
+    .status-title { font-size: 19px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+    .status-sub { font-size: 13.5px; color: var(--text-muted); margin-bottom: 24px; }
+
+    .details {
+        text-align: left; border-top: 1px solid var(--border); padding-top: 20px;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
+    }
+    .details .item .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 4px; font-weight: 700; }
+    .details .item .value { font-size: 14.5px; font-weight: 700; color: var(--text); }
+
+    .btn-gold {
+        background: var(--gold); color: var(--green-dark); font-weight: 700;
+        border: none; padding: 13px 20px; border-radius: 999px;
+        font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 9px;
+        text-decoration: none; transition: all .2s ease;
+    }
+    .btn-gold:hover { background: #d9ad4f; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(201,152,46,0.35); }
+
+    @media (max-width: 480px) {
+      .topbar { padding: 14px 18px; }
+      .wrap { padding: 30px 14px 40px; }
+      .card { padding: 24px 18px; }
+    }
+  </style>
+  {% if paiement.statut_paiement == 'EN_ATTENTE' %}
+  <meta http-equiv="refresh" content="6">
+  {% endif %}
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand"><i class="fa-solid fa-fire"></i> KMS Nord — Espace Citoyen</div>
+  </div>
+
+  <div class="wrap">
+    <div class="card {% if paiement.statut_paiement == 'EN_ATTENTE' %}attente{% elif paiement.statut_paiement == 'ECHEC' %}echec{% endif %}">
+
+      {% if paiement.statut_paiement == 'CONFIRME' %}
+        <div class="status-icon"><i class="fa-solid fa-check"></i></div>
+        <div class="status-title">Paiement confirmé</div>
+        <div class="status-sub">Merci, votre paiement a bien été enregistré.</div>
+      {% elif paiement.statut_paiement == 'EN_ATTENTE' %}
+        <div class="status-icon"><i class="fa-solid fa-clock"></i></div>
+        <div class="status-title">Paiement en attente de confirmation</div>
+        <div class="status-sub">Cette page se met à jour automatiquement. Vous pouvez aussi fermer cette page : le statut sera visible dans votre espace personnel dès confirmation par l'opérateur.</div>
+      {% else %}
+        <div class="status-icon"><i class="fa-solid fa-xmark"></i></div>
+        <div class="status-title">Paiement échoué</div>
+        <div class="status-sub">Le paiement n'a pas abouti. Vous pouvez réessayer depuis votre espace personnel.</div>
+      {% endif %}
+
+      <div class="details">
+        <div class="item">
+          <div class="label">Taxe</div>
+          <div class="value">{{ paiement.taxation.type_taxe.libelle }}</div>
+        </div>
+        <div class="item">
+          <div class="label">Montant</div>
+          <div class="value">{{ paiement.montant|floatformat:0 }} FCFA</div>
+        </div>
+        {% if paiement.statut_paiement == 'CONFIRME' %}
+        <div class="item" style="grid-column: 1 / -1;">
+          <div class="label">N° de reçu</div>
+          <div class="value">{{ paiement.numero_recu }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <a href="{% url 'citoyen_espace' %}" class="btn-gold">
+        <i class="fa-solid fa-arrow-left"></i> Retour à mon espace
+      </a>
+    </div>
+  </div>
+
+</body>
+</html>

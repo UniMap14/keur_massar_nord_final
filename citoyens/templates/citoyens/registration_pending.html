@@ -1,0 +1,24 @@
+{% extends "citoyens/_dark_base.html" %}
+
+{% block title %}Inscription en attente{% endblock %}
+
+{% block content %}
+  <div class="status-icon-big pending">
+    <i class="fa-solid fa-hourglass-half"></i>
+  </div>
+  <h1 class="title-login" style="font-size:26px;">INSCRIPTION ENVOYÉE</h1>
+  <div class="title-sub">
+    Votre demande a bien été enregistrée. L'administration doit vérifier vos
+    identifiants fiscalité et foncier avant d'activer votre espace personnel.
+    Vous pourrez vous connecter dès que votre dossier sera validé.
+  </div>
+
+  <a href="{% url 'citoyen_login' %}" class="btn-login">
+    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+    <span class="btn-label-text">ALLER À LA CONNEXION</span>
+  </a>
+
+  <div class="register-footer">
+    <a href="/" class="btn-home"><i class="fa-solid fa-arrow-left"></i> Retour à l'accueil</a>
+  </div>
+{% endblock %}

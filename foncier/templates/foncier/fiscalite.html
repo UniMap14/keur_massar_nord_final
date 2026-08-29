@@ -1,0 +1,1024 @@
+{% extends 'foncier/base.html' %}{% load static %}
+{% block title %}Fiscalité - KMS Nord Foncier{% endblock %}
+
+{% block extra_head %}
+<style>
+  .faq-list { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  .faq-item {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    overflow: hidden; transition: box-shadow .2s ease;
+  }
+  .faq-item.open { box-shadow: var(--shadow-sm); border-color: rgba(107,74,53,0.25); }
+  .faq-question {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; background: none; border: none; cursor: pointer; text-align: left;
+    padding: 18px 22px; font-size: 14.5px; font-weight: 700; color: var(--text);
+    font-family: inherit;
+  }
+  .faq-question i { color: var(--gold-dark); transition: transform .25s ease; flex-shrink: 0; }
+  .faq-item.open .faq-question i { transform: rotate(180deg); }
+  .faq-answer {
+    max-height: 0; overflow: hidden; transition: max-height .3s ease;
+  }
+  .faq-item.open .faq-answer { max-height: 300px; }
+  .faq-answer p {
+    padding: 0 22px 20px; margin: 0; font-size: 13.5px; color: var(--text-muted); line-height: 1.7;
+  }
+
+  /* Banner en 2 colonnes : texte à gauche, carte des valeurs à droite (même schéma que km-hero-inner / km-stats-panel de l'accueil) */
+  .banner-fiscalite{
+    position: relative;
+    overflow: hidden;
+  }
+  .banner-fiscalite .banner-video-bg{
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    z-index: 0;
+  }
+  .banner-fiscalite .banner-video-overlay{
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(rgba(72, 49, 32, 0.72), rgba(232, 143, 79, 0.58));
+    z-index: 1;
+  }
+  .banner-fiscalite .container.fx-hero-inner{
+    position: relative;
+    z-index: 2;
+    display:grid; grid-template-columns:1.15fr .85fr; gap:40px; align-items:start;
+  }
+  .fx-values-panel{ background:#fff; color:#2a2420; border-radius:16px; box-shadow:0 16px 40px rgba(63,42,28,.18); padding:26px; }
+  .fx-values-panel h3{ font-family:'Playfair Display', serif; font-size:18.5px; font-weight:700; margin:0 0 18px; position:relative; padding-bottom:10px; }
+  .fx-values-panel h3::after{ content:""; position:absolute; left:0; bottom:0; width:44px; height:3px; background:#c9982e; border-radius:2px; }
+  .fx-values-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .fx-value-item{ background:#f1e9d8; border-radius:10px; padding:18px 12px; text-align:center; }
+  .fx-value-item i{ color:#c9982e; font-size:19px; margin-bottom:9px; display:block; }
+  .fx-value-item strong{ font-family:'Playfair Display', serif; font-size:14.5px; display:block; color:#3f2a1c; margin-bottom:5px; }
+  .fx-value-item span{ font-size:11.5px; color:#6f655a; line-height:1.5; display:block; }
+  @media (max-width: 991px){
+    .banner-fiscalite .container.fx-hero-inner{ grid-template-columns:1fr; gap:28px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-banner banner-fiscalite">
+  <video class="banner-video-bg" autoplay muted loop playsinline poster="{% static 'foncier/img/gallery/fiscalite.png' %}">
+    <source src="{% static 'foncier/video/fiscalite.mp4' %}" type="video/mp4">
+  </video>
+  <div class="banner-video-overlay"></div>
+  <div class="container fx-hero-inner">
+    <div>
+      <div class="banner-breadcrumb">
+        <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+        <i class="fa-solid fa-chevron-right"></i>
+        <span>Fiscalité</span>
+      </div>
+      <div class="banner-badge"><span class="badge-dot"></span>Suivi fiscal intégré</div>
+      <h1>Comprenez et pilotez la fiscalité foncière avec transparence.</h1>
+      <p><strong>Un espace clair pour suivre le système fiscal, les obligations des contribuables, les procédures et la performance du recouvrement à Keur Massar Nord.</strong></p>
+      <div class="banner-actions">
+        <a href="#" class="btn-primary" id="btnSimulateur">
+          <i class="fa-solid fa-calculator"></i> Simuler mon impôt
+        </a>
+        <a href="{% url 'geoportail' %}" class="btn-outline-w">
+          <i class="fa-solid fa-map-location-dot"></i> Voir le géoportail
+        </a>
+      </div>
+    </div>
+
+    <div class="fx-values-panel">
+      <h3>Les valeurs de notre fiscalité</h3>
+      <div class="fx-values-grid">
+        <div class="fx-value-item">
+          <i class="fa-solid fa-landmark"></i>
+          <strong>Équité</strong>
+          <span>Garantir une fiscalité juste pour tous.</span>
+        </div>
+        <div class="fx-value-item">
+          <i class="fa-solid fa-file-shield"></i>
+          <strong>Transparence</strong>
+          <span>Assurer une gestion claire et fiable.</span>
+        </div>
+        <div class="fx-value-item">
+          <i class="fa-solid fa-sack-dollar"></i>
+          <strong>Performance</strong>
+          <span>Optimiser le recouvrement des recettes fiscales.</span>
+        </div>
+        <div class="fx-value-item">
+          <i class="fa-solid fa-chart-line"></i>
+          <strong>Développement</strong>
+          <span>Financer les projets et services publics locaux.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="tabs-wrapper">
+  <div class="tabs-inner" role="tablist" aria-label="Sections de la fiscalité">
+    <button class="tab-btn active" data-tab="general" role="tab" id="tab-general" aria-selected="true" aria-controls="panel-general">
+      <i class="fa-solid fa-book-open"></i> Cadre Général
+    </button>
+    <button class="tab-btn" data-tab="particulier" role="tab" id="tab-particulier" aria-selected="false" aria-controls="panel-particulier">
+      <i class="fa-solid fa-user"></i> Particuliers
+    </button>
+    <button class="tab-btn" data-tab="entreprise" role="tab" id="tab-entreprise" aria-selected="false" aria-controls="panel-entreprise">
+      <i class="fa-solid fa-building"></i> Entreprises
+    </button>
+    <button class="tab-btn" data-tab="procedures" role="tab" id="tab-procedures" aria-selected="false" aria-controls="panel-procedures">
+      <i class="fa-solid fa-list-check"></i> Procédures
+    </button>
+    <button class="tab-btn" data-tab="simulateur" role="tab" id="tab-simulateur" aria-selected="false" aria-controls="panel-simulateur">
+      <i class="fa-solid fa-calculator"></i> Simulateur
+    </button>
+    <button class="tab-btn" data-tab="communal" role="tab" id="tab-communal" aria-selected="false" aria-controls="panel-communal">
+      <i class="fa-solid fa-house-user"></i> Mon espace communal
+    </button>
+    <button class="tab-btn" data-tab="faq" role="tab" id="tab-faq" aria-selected="false" aria-controls="panel-faq">
+      <i class="fa-solid fa-circle-question"></i> FAQ
+    </button>
+  </div>
+</div>
+
+<div class="page-body">
+
+  <div class="tab-panel active" id="panel-general" role="tabpanel" aria-labelledby="tab-general">
+
+    <div class="info-band a-animer visible">
+      <i class="fa-solid fa-circle-info"></i>
+      <p><strong>Système fiscal foncier :</strong> La fiscalité foncière de Keur Massar Nord s'appuie sur le Code Général des Impôts (CGI) et vise à garantir l'équité entre contribuables ainsi que la transparence du recouvrement.</p>
+    </div>
+
+    <div class="intro-grid">
+      <div class="intro-card a-animer visible">
+        <div class="intro-card-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+        <h3>Principes fondamentaux</h3>
+        <p>La fiscalité locale repose sur l'équité, la progressivité et la légalité. Tout impôt doit être institué par la loi et appliqué de manière transparente.</p>
+        <ul>
+          <li>Obligation déclarative annuelle pour tout contribuable</li>
+          <li>Principe de l'annualité de l'impôt</li>
+          <li>Droits et garanties du contribuable lors des contrôles</li>
+          <li>Possibilité de recours administratif</li>
+        </ul>
+      </div>
+      <div class="intro-card a-animer visible">
+        <div class="intro-card-icon"><i class="fa-solid fa-sitemap"></i></div>
+        <h3>Rôle du portail KMS Nord</h3>
+        <p>Le portail relie la donnée foncière et fiscale pour offrir une vision intégrée du patrimoine de la collectivité :</p>
+        <ul>
+          <li><strong>Suivi fiscal :</strong> paiements, échéances, retards</li>
+          <li><strong>Géoportail :</strong> cartographie des parcelles</li>
+          <li><strong>Cadastre :</strong> statut et documents propriétaires</li>
+          <li><strong>Administration :</strong> outils dédiés aux agents</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="section-title a-animer visible">Les principaux impôts et taxes</h2>
+    <p class="section-sub a-animer visible">Vue d'ensemble des taxes et impôts suivis dans le cadre de la gestion foncière, aux taux en vigueur du Code Général des Impôts.</p>
+
+    <div class="impots-grid">
+      <div class="impot-card a-animer visible">
+        <div class="impot-card-ic ic-or"><i class="fa-solid fa-user-tie"></i></div>
+        <h4>Impôt sur le Revenu (IR)</h4>
+        <p>Impôt progressif annuel sur les revenus des personnes physiques (salaires, revenus fonciers, BIC...), art. 173 du CGI.</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 0% à 43%</span>
+      </div>
+      <div class="impot-card a-animer visible">
+        <div class="impot-card-ic ic-bl"><i class="fa-solid fa-building"></i></div>
+        <h4>Impôt sur les Sociétés (IS)</h4>
+        <p>Impôt sur les bénéfices des personnes morales (SA, SARL, GIE...) résidentes au Sénégal. Impôt minimum forfaitaire de 0,5% du CA si déficit.</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 30%</span>
+      </div>
+      <div class="impot-card a-animer visible">
+        <div class="impot-card-ic ic-gr"><i class="fa-solid fa-tag"></i></div>
+        <h4>Taxe sur la Valeur Ajoutée (TVA)</h4>
+        <p>Taxe sur la consommation collectée par les assujettis (CA &gt; 50M FCFA) et reversée mensuellement.</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 18%</span>
+      </div>
+      <div class="impot-card a-animer visible">
+        <div class="impot-card-ic ic-pu"><i class="fa-solid fa-store"></i></div>
+        <h4>Patente</h4>
+        <p>Contribution annuelle des commerçants, industriels et prestataires de services relevant du régime réel, non éligibles à la CGU.</p>
+        <span class="taux"><i class="fa-solid fa-info-circle"></i> Barème par profession</span>
+      </div>
+      <div class="impot-card a-animer visible">
+        <div class="impot-card-ic ic-re"><i class="fa-solid fa-house"></i></div>
+        <h4>Contribution Foncière (CFPB)</h4>
+        <p>Impôt annuel sur la valeur locative des propriétés bâties dû par tout propriétaire d'immeuble du territoire.</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 5% à 7,5%</span>
+      </div>
+      <div class="impot-card a-animer visible">
+        <div class="impot-card-ic ic-te"><i class="fa-solid fa-briefcase"></i></div>
+        <h4>Contribution Globale Unique (CGU)</h4>
+        <p>Régime simplifié pour les personnes physiques dont le CA annuel ne dépasse pas 50M FCFA (biens) ou 25M FCFA (services).</p>
+        <span class="taux"><i class="fa-solid fa-percent"></i> 2% (biens) / 5% (services)</span>
+      </div>
+    </div>
+
+    <h2 class="section-title a-animer visible">Barème de l'IR — Personnes physiques (Art. 173 CGI)</h2>
+    <p class="section-sub a-animer visible">Barème progressif à 7 tranches applicable au quotient (revenu net imposable divisé par le nombre de parts du foyer fiscal).</p>
+    <div class="table-wrap a-animer visible">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tranche de revenu annuel (FCFA)</th>
+            <th>Taux marginal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>0 à 630 000</td><td>0%</td></tr>
+          <tr><td>630 001 à 1 500 000</td><td>20%</td></tr>
+          <tr><td>1 500 001 à 4 000 000</td><td>30%</td></tr>
+          <tr><td>4 000 001 à 8 000 000</td><td>35%</td></tr>
+          <tr><td>8 000 001 à 13 500 000</td><td>37%</td></tr>
+          <tr><td>13 500 001 à 50 000 000</td><td>40%</td></tr>
+          <tr><td>Au-delà de 50 000 000</td><td>43%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-band a-animer visible">
+      <i class="fa-solid fa-circle-info"></i>
+      <p><strong>Quotient familial :</strong> 1 part (célibataire), 1,5 part (marié sans enfant), + 0,5 part par enfant à charge, plafonné à 5 parts. L'impôt est calculé sur le quotient (revenu net imposable ÷ nombre de parts) puis multiplié par le nombre de parts.</p>
+    </div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-particulier" role="tabpanel" aria-labelledby="tab-particulier">
+
+    <h2 class="section-title">Vos obligations fiscales en tant que particulier</h2>
+    <p class="section-sub">Découvrez les démarches à effectuer selon votre situation personnelle.</p>
+
+    <div class="info-band">
+      <i class="fa-solid fa-circle-info"></i>
+      <p><strong>Première déclaration ?</strong> Commencez par obtenir votre NIF (Numéro d'Identification Fiscale) auprès du centre des impôts le plus proche.</p>
+    </div>
+
+    <div class="intro-grid" style="margin-bottom:36px;">
+      <div class="intro-card">
+        <div class="intro-card-icon"><i class="fa-solid fa-file-invoice"></i></div>
+        <h3>Revenus imposables</h3>
+        <p>Sont soumis à l'IR :</p>
+        <ul>
+          <li>Traitements et salaires</li>
+          <li>Revenus fonciers (loyers)</li>
+          <li>Bénéfices industriels et commerciaux (BIC)</li>
+          <li>Bénéfices non commerciaux (BNC)</li>
+          <li>Revenus agricoles</li>
+          <li>Revenus de capitaux mobiliers</li>
+        </ul>
+      </div>
+      <div class="intro-card">
+        <div class="intro-card-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <h3>Abattements et déductions (CGI)</h3>
+        <p>Le revenu net imposable est déterminé après :</p>
+        <ul>
+          <li>Déduction des cotisations IPRES (retraite, 8,4% plafonné)</li>
+          <li>Déduction des cotisations CSS (≈1%)</li>
+          <li>Abattement forfaitaire de 30% pour frais professionnels, plafonné à 900 000 FCFA/an</li>
+          <li>Quotient familial : 1 à 5 parts selon situation et enfants à charge</li>
+          <li>Revenus ≤ 630 000 FCFA/an (après abattements) : tranche à 0%</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="section-title">Démarche pas à pas</h2>
+    <p class="section-sub">Comment déclarer votre impôt sur le revenu.</p>
+    <div class="steps-list">
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Obtenez votre NIF</h4>
+          <p>Munissez-vous de votre CNI et rendez-vous au centre des impôts le plus proche. Le NIF est délivré gratuitement.</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Rassemblez vos justificatifs</h4>
+          <p>Fiches de paie, relevés bancaires, contrats de location, factures professionnelles... Conservez tous les documents de l'année écoulée.</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Remplissez votre déclaration</h4>
+          <p>Utilisez le formulaire de déclaration annuelle de revenus disponible auprès du centre des impôts compétent, ou en télédéclaration sur dgid.sn.</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Déposez avant le 30 avril</h4>
+          <p>La déclaration annuelle de revenus doit être soumise avant le <strong>30 avril</strong> de l'année suivant l'exercice, pour les revenus non entièrement couverts par une retenue à la source.</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Payez votre impôt</h4>
+          <p>Réglez en ligne via le portail dgid.sn, au guichet ou par virement bancaire. Conservez votre quittance.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn-band">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <p><strong>Rappel :</strong> Tout salarié dont l'employeur effectue déjà les retenues à la source doit quand même déposer une déclaration annuelle s'il dispose d'autres sources de revenus (loyers, activité secondaire...).</p>
+    </div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-entreprise" role="tabpanel" aria-labelledby="tab-entreprise">
+
+    <h2 class="section-title">Fiscalité des entreprises</h2>
+    <p class="section-sub">Obligations fiscales pour les personnes morales et entrepreneurs individuels.</p>
+
+    <div class="intro-grid" style="margin-bottom:36px;">
+      <div class="intro-card">
+        <div class="intro-card-icon"><i class="fa-solid fa-file-contract"></i></div>
+        <h3>Régimes fiscaux</h3>
+        <ul>
+          <li><strong>Régime du réel :</strong> IS à 30% du bénéfice, comptabilité complète, TVA obligatoire au-delà de 50M FCFA de CA</li>
+          <li><strong>Impôt Minimum Forfaitaire (IMF) :</strong> 0,5% du CA HT si déficit ou IS &lt; IMF (plancher 500 000, plafond 5 000 000 FCFA)</li>
+          <li><strong>Contribution Globale Unique (CGU) :</strong> personnes physiques, CA ≤ 50M (biens) ou 25M FCFA (services)</li>
+        </ul>
+      </div>
+      <div class="intro-card">
+        <div class="intro-card-icon"><i class="fa-solid fa-calendar-check"></i></div>
+        <h3>Calendrier fiscal entreprises</h3>
+        <ul>
+          <li><strong>15 de chaque mois :</strong> Déclaration et paiement TVA</li>
+          <li><strong>15 de chaque mois :</strong> Retenues sur salaires (formulaire RS)</li>
+          <li><strong>1er février :</strong> Déclaration CFPB / CGU</li>
+          <li><strong>15 juin :</strong> Solde de l'IR et de l'IS de l'exercice précédent</li>
+          <li><strong>Trimestriel :</strong> Acomptes provisionnels IS (1/3 de l'IS de l'exercice précédent, art. 216 CGI)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="section-title">Obligations déclaratives</h2>
+    <p class="section-sub">Ce que chaque entreprise doit déclarer et quand.</p>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Déclaration</th><th>Fréquence</th><th>Échéance</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>TVA</td><td>Mensuelle</td><td>15 du mois suivant</td></tr>
+          <tr><td>Retenues sur salaires (RS)</td><td>Mensuelle</td><td>15 du mois suivant</td></tr>
+          <tr><td>IS — Acompte provisionnel</td><td>Trimestrielle</td><td>Selon calendrier DGID (art. 216 CGI)</td></tr>
+          <tr><td>CFPB / CGU</td><td>Annuelle</td><td>1er février</td></tr>
+          <tr><td>IR / IS — Solde de l'exercice précédent</td><td>Annuelle</td><td>15 juin</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="info-band">
+      <i class="fa-solid fa-circle-info"></i>
+      <p><strong>Télédéclaration</strong> disponible sur le portail officiel <strong>dgid.sn</strong> pour le dépôt des formulaires RS, les déclarations annuelles et le télépaiement.</p>
+    </div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-procedures" role="tabpanel" aria-labelledby="tab-procedures">
+
+    <h2 class="section-title">Procédures fiscales</h2>
+    <p class="section-sub">Guides pratiques pour les principales démarches.</p>
+
+    <div class="proc-grid">
+      <div class="proc-card">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-gr"><i class="fa-solid fa-id-card"></i></div>
+          <h3>Obtenir un NIF</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Se munir d'une pièce d'identité valide (CNI ou passeport)</li>
+          <li>Remplir le formulaire de demande de NIF</li>
+          <li>Déposer au centre des impôts compétent</li>
+          <li>Le NIF est délivré gratuitement et valable à vie</li>
+        </ul>
+      </div>
+
+      <div class="proc-card">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-bl"><i class="fa-solid fa-file-circle-check"></i></div>
+          <h3>Attestation de régularité (quitus fiscal)</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Vérifier que tous les impôts dus sont acquittés</li>
+          <li>Déposer une demande écrite au centre des impôts</li>
+          <li>Joindre les dernières quittances de paiement</li>
+          <li>Document délivré par la DGID, durée de validité variable</li>
+        </ul>
+      </div>
+
+      <div class="proc-card">
+        <div class="proc-card-head">
+          <div class="proc-card-icon ic-or"><i class="fa-solid fa-rotate-left"></i></div>
+          <h3>Remboursement de crédit de TVA</h3>
+        </div>
+        <ul class="proc-steps">
+          <li>Constituer le dossier de demande de remboursement</li>
+          <li>Joindre toutes les factures d'achats</li>
+          <li>Déposer à la Direction des Impôts compétente</li>
+          <li>Remboursement par virement bancaire après instruction du dossier</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info-band">
+      <i class="fa-solid fa-circle-info"></i>
+      <p>Pour toute démarche complémentaire, rapprochez-vous du centre des impôts de votre secteur ou contactez l'administration de KMS Nord Foncier.</p>
+    </div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-simulateur" role="tabpanel" aria-labelledby="tab-simulateur">
+
+    <h2 class="section-title">Simulateur fiscal</h2>
+    <p class="section-sub">Calcul effectué côté serveur, à partir du barème réel du Code Général des Impôts (IR, IS, TVA, CGU). Résultat indicatif.</p>
+
+    <div class="sim-layout">
+
+      <form id="simForm" class="sim-form" onsubmit="return false;">
+        {% csrf_token %}
+        <h3><i class="fa-solid fa-calculator" style="color:var(--green);margin-right:10px;"></i>Vos informations</h3>
+        <p>Renseignez vos revenus pour obtenir une estimation réelle.</p>
+
+        <div class="sim-field">
+          <label for="simType">Type d'impôt</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-receipt"></i>
+            <select id="simType" name="type_simulation">
+              <option value="ir">Impôt sur le Revenu (IR) — Particulier</option>
+              <option value="is">Impôt sur les Sociétés (IS) — Entreprise</option>
+              <option value="tva">TVA — 18%</option>
+              <option value="cgu">Contribution Globale Unique (CGU)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sim-field" id="champ-revenu-label">
+          <label for="simRevenu" id="labelRevenu">Revenu net imposable annuel (FCFA)</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-money-bill-wave"></i>
+            <input type="number" id="simRevenu" name="revenu" placeholder="Ex : 5 000 000" min="0" required>
+          </div>
+        </div>
+
+        <div class="sim-field" id="champ-ca-is" style="display:none;">
+          <label for="simCaIs">Chiffre d'affaires HT annuel (pour l'IMF)</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-chart-line"></i>
+            <input type="number" id="simCaIs" name="chiffre_affaires_is" placeholder="Ex : 20 000 000" min="0" required>
+          </div>
+        </div>
+
+        <div class="sim-field" id="champ-situation" style="display:none;">
+          <label for="simSituation">Situation familiale</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-people-roof"></i>
+            <select id="simSituation" name="situation_familiale">
+              <option value="celibataire">Célibataire / divorcé(e) / veuf(ve)</option>
+              <option value="marie">Marié(e)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sim-field" id="champ-enfants" style="display:none;">
+          <label for="simEnfants">Nombre d'enfants à charge</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-children"></i>
+            <select id="simEnfants" name="nombre_enfants">
+              <option value="0">0 enfant</option>
+              <option value="1">1 enfant</option>
+              <option value="2">2 enfants</option>
+              <option value="3">3 enfants</option>
+              <option value="4">4 enfants</option>
+              <option value="5">5 enfants et plus</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sim-field" id="champ-secteur" style="display:none;">
+          <label for="simSecteur">Secteur d'activité</label>
+          <div class="sim-input-wrap">
+            <i class="fa-solid fa-shop"></i>
+            <select id="simSecteur" name="secteur_activite">
+              <option value="bien">Vente / livraison de biens (commerce)</option>
+              <option value="service">Prestation de services</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" class="sim-btn" id="btnCalculer">
+          <i class="fa-solid fa-calculator"></i>
+          Calculer mon impôt
+        </button>
+        <p id="simErreur" style="color:#b33; font-size:13px; margin-top:12px; display:none;" role="alert"></p>
+      </form>
+
+      <div class="sim-result-box">
+        <h3><i class="fa-solid fa-chart-bar" style="color:var(--green);margin-right:10px;"></i>Résultat de simulation</h3>
+        <div id="simEmpty" class="sim-empty">
+          <i class="fa-solid fa-calculator"></i>
+          <p>Renseignez vos informations et cliquez sur <strong>Calculer</strong> pour obtenir votre estimation.</p>
+        </div>
+        <div id="simLoading" class="sim-empty" style="display:none;">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <p>Calcul en cours...</p>
+        </div>
+        <div id="simResult" style="display:none;"></div>
+      </div>
+
+    </div>
+
+    <div class="warn-band" style="margin-top:28px;">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <p><strong>Important :</strong> Ce calcul applique les taux réels du Code Général des Impôts (barème IR art. 173, IS + IMF, TVA, CGU) mais reste indicatif. Il ne prend pas en compte la TRIMF ni certaines déductions spécifiques (pensions alimentaires, assurance-vie, intérêts d'emprunt immobilier). Pour un calcul définitif, consultez un centre des impôts.</p>
+    </div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-communal" role="tabpanel" aria-labelledby="tab-communal">
+
+    <br>
+
+    <h2 class="section-title">Mon espace fiscal communal</h2>
+    <p class="section-sub">Consultez votre situation fiscale personnelle : taxes, paiements, reçus et historique.</p>
+
+    <div class="info-band">
+      <i class="fa-solid fa-circle-info"></i>
+      <p><strong>Espace personnel sécurisé :</strong> pour des raisons de confidentialité, votre situation fiscale (montants dus, paiements, historique) n'est visible qu'après connexion à votre compte citoyen — jamais via une recherche publique par nom.</p>
+    </div>
+
+    <div class="sim-form" style="margin-bottom:36px; text-align:center;">
+      {% if user.is_authenticated %}
+        <a href="{% url 'dashboard' %}" class="sim-btn" style="display:inline-flex;">
+          <i class="fa-solid fa-user"></i> Accéder à mon espace personnel
+        </a>
+      {% else %}
+        <a href="{% url 'connexion' %}?next={% url 'dashboard' %}" class="sim-btn" style="display:inline-flex;">
+          <i class="fa-solid fa-right-to-bracket"></i> Se connecter pour voir ma situation
+        </a>
+      {% endif %}
+    </div>
+
+    <h2 class="section-title">Comment payer vos taxes</h2>
+    <p class="section-sub">Moyens de paiement acceptés par la commune de Keur Massar Nord.</p>
+
+    <div class="impots-grid">
+      <div class="impot-card">
+        <div class="impot-card-ic ic-re"><i class="fa-solid fa-building-columns"></i></div>
+        <h4>Au guichet (espèces)</h4>
+        <p>Paiement direct au guichet fiscal de la mairie, du lundi au vendredi de 8h à 16h. Un reçu vous est remis immédiatement.</p>
+      </div>
+      <div class="impot-card">
+        <div class="impot-card-ic ic-or"><i class="fa-solid fa-mobile-screen-button"></i></div>
+        <h4>Mobile Money</h4>
+        <p>Orange Money, Wave ou Free Money. Indiquez votre identifiant fiscalité en référence du transfert, puis présentez la preuve de transaction au guichet pour obtenir votre reçu officiel.</p>
+      </div>
+      <div class="impot-card">
+        <div class="impot-card-ic ic-bl"><i class="fa-solid fa-money-check-dollar"></i></div>
+        <h4>Virement bancaire</h4>
+        <p>Vers le compte du Trésor Public — Recette communale de Keur Massar Nord. Coordonnées bancaires (RIB) disponibles au guichet fiscal.</p>
+      </div>
+      <div class="impot-card">
+        <div class="impot-card-ic ic-gr"><i class="fa-solid fa-money-check"></i></div>
+        <h4>Chèque</h4>
+        <p>À l'ordre du Trésor Public — Recette de Keur Massar Nord. Dépôt au guichet ou envoi par courrier avec votre identifiant fiscalité.</p>
+      </div>
+    </div>
+
+    <div class="info-band" style="margin-top:8px; margin-bottom:36px;">
+      <i class="fa-solid fa-circle-info"></i>
+      <p>Après tout paiement, conservez précieusement votre reçu. Vous pouvez à tout moment
+        <a href="{% url 'verifier_recu' %}">vérifier son authenticité en ligne</a>.
+      </p>
+    </div>
+
+    <h2 class="section-title">Taxes communales de Keur Massar Nord</h2>
+    <p class="section-sub">Les taxes gérées directement par la mairie, distinctes de la fiscalité nationale présentée dans les autres onglets. Échéances triées de la plus proche à la plus lointaine.</p>
+
+    <div class="impots-grid">
+      {% for t in types_taxe %}
+      <div class="impot-card">
+        <div class="impot-card-ic {{ t.classe_icone }}"><i class="fa-solid {{ t.icone_fa }}"></i></div>
+        <h4>{{ t.libelle }}</h4>
+        <p>{{ t.description_affichee }}</p>
+        {% if t.echeance_calculee %}
+          <div class="echeance-badge {% if t.jours_restants_calcules <= 15 %}echeance-urgent{% endif %}">
+            <i class="fa-solid fa-calendar-days"></i>
+            Échéance : {{ t.echeance_calculee|date:"d F Y" }}
+            <span class="echeance-jours">
+              {% if t.jours_restants_calcules == 0 %}aujourd'hui{% else %}dans {{ t.jours_restants_calcules }} j{% endif %}
+            </span>
+          </div>
+          {% if t.penalite_retard %}
+            <p class="echeance-penalite"><i class="fa-solid fa-triangle-exclamation"></i> {{ t.penalite_retard }}</p>
+          {% endif %}
+        {% else %}
+          <div class="echeance-badge echeance-inconnue">
+            <i class="fa-solid fa-circle-question"></i> Date limite non communiquée
+          </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="info-band" style="margin-top:28px;">
+      <i class="fa-solid fa-circle-info"></i>
+      <p>Une contestation sur un montant affiché ? Rendez-vous au guichet fiscal de la mairie ou déposez une réclamation depuis l'espace Téléservices.</p>
+    </div>
+
+    <div class="sim-form" style="margin-top:24px; text-align:center;">
+      <a href="{% url 'verifier_recu' %}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:8px;">
+        <i class="fa-solid fa-receipt"></i> Vérifier l'authenticité d'un reçu de paiement
+      </a>
+    </div>
+
+    <h2 class="section-title" style="margin-top:46px;">Moyens de paiement acceptés</h2>
+    <p class="section-sub">Comment régler vos taxes communales, au guichet ou à distance.</p>
+
+    <div class="impots-grid">
+      <div class="impot-card">
+        <div class="impot-card-ic ic-re"><i class="fa-solid fa-building-columns"></i></div>
+        <h4>Espèces (guichet)</h4>
+        <p>Paiement direct au guichet fiscal de la mairie, aux heures d'ouverture. Un reçu officiel est délivré immédiatement.</p>
+      </div>
+      <div class="impot-card">
+        <div class="impot-card-ic ic-or"><i class="fa-solid fa-mobile-screen-button"></i></div>
+        <h4>Mobile Money</h4>
+        <p>Orange Money, Wave, Free Money : paiement à distance via le numéro communiqué sur votre avis d'imposition. Conservez la référence de transaction.</p>
+      </div>
+      <div class="impot-card">
+        <div class="impot-card-ic ic-bl"><i class="fa-solid fa-building-columns"></i></div>
+        <h4>Virement bancaire</h4>
+        <p>Virement vers le compte du Trésor Public dédié à la commune, en précisant votre identifiant fiscalité en référence du virement.</p>
+      </div>
+      <div class="impot-card">
+        <div class="impot-card-ic ic-gr"><i class="fa-solid fa-money-check"></i></div>
+        <h4>Chèque</h4>
+        <p>Chèque à l'ordre du Trésor Public, déposé ou envoyé au guichet fiscal de la mairie, avec votre identifiant fiscalité au dos.</p>
+      </div>
+    </div>
+
+    <div class="info-band" style="margin-top:8px;">
+      <i class="fa-solid fa-circle-info"></i>
+      <p>Quel que soit le mode choisi, gardez toujours votre reçu : vous pouvez en vérifier l'authenticité à tout moment ci-dessus.</p>
+    </div>
+
+  </div>
+
+  <div class="tab-panel" id="panel-faq" role="tabpanel" aria-labelledby="tab-faq">
+
+    <h2 class="section-title">Questions fréquentes</h2>
+    <p class="section-sub">Les réponses aux questions les plus posées sur la fiscalité nationale et communale.</p>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <button type="button" class="faq-question">
+          <span>Comment obtenir un NIF (numéro d'identification fiscale) ?</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="faq-answer">
+          <p>Rendez-vous au centre des impôts de votre secteur avec une pièce d'identité valide (CNI ou passeport) et remplissez le formulaire de demande. Le NIF est délivré gratuitement et reste valable à vie. Voir le détail dans l'onglet « Procédures ».</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button type="button" class="faq-question">
+          <span>Puis-je payer mes taxes communales en ligne ?</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="faq-answer">
+          <p>Le paiement s'effectue au guichet fiscal, par Mobile Money, virement bancaire ou chèque (voir « Mon espace communal » → « Moyens de paiement »). Après paiement, votre situation est mise à jour sur votre espace citoyen, et vous pouvez vérifier l'authenticité de votre reçu à tout moment.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button type="button" class="faq-question">
+          <span>Que se passe-t-il si je paie en retard ?</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="faq-answer">
+          <p>Chaque taxe communale a sa propre date limite et sa propre pénalité de retard (voir le calendrier des échéances dans « Mon espace communal »). En cas de difficulté, contactez le guichet fiscal avant la date limite plutôt qu'après.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button type="button" class="faq-question">
+          <span>Comment consulter ma situation fiscale personnelle ?</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="faq-answer">
+          <p>Connectez-vous à votre espace citoyen (bouton « Gestion » en haut de page). Votre situation fiscale n'est jamais visible publiquement ni via une recherche par nom, pour des raisons de confidentialité.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button type="button" class="faq-question">
+          <span>Comment contester un montant qui me semble erroné ?</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="faq-answer">
+          <p>Rendez-vous au guichet fiscal de la mairie avec vos justificatifs, ou déposez une réclamation depuis l'espace Téléservices (rubrique « Démarches en ligne » de votre espace citoyen).</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button type="button" class="faq-question">
+          <span>J'ai perdu mon reçu de paiement, que faire ?</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="faq-answer">
+          <p>Votre historique de paiements reste consultable dans votre espace citoyen. Pour un duplicata officiel, adressez-vous au guichet fiscal de la mairie avec une pièce d'identité.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button type="button" class="faq-question">
+          <span>Quelle différence entre les impôts nationaux et les taxes communales ?</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="faq-answer">
+          <p>Les impôts nationaux (IR, IS, TVA, CGU...) relèvent de la DGID et sont présentés dans les onglets « Particuliers » et « Entreprises ». Les taxes communales (foncière, patente locale, occupation, marchés...) sont gérées directement par la mairie de Keur Massar Nord et présentées dans « Mon espace communal ».</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button type="button" class="faq-question">
+          <span>Qui contacter pour une question fiscale ?</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="faq-answer">
+          <p>Pour les taxes communales : le guichet fiscal de la mairie de Keur Massar Nord (voir la page « Contact »). Pour les impôts nationaux : le centre des impôts de votre secteur.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<section class="page-section">
+  <div class="container">
+    <h2 class="section-title">Guide fiscal et foncier</h2>
+    <p class="text-muted">Informations officielles de la Direction Générale des Impôts et des Domaines (DGID).</p>
+    {% regroup guides_fiscaux by get_categorie_display as guides_par_categorie %}
+    {% for groupe in guides_par_categorie %}
+      <h5 class="mt-4 mb-3">{{ groupe.grouper }}</h5>
+      <div class="row g-3">
+        {% for guide in groupe.list %}
+          <div class="col-md-4">
+            <a href="{% url 'guide_fiscal_detail' code=guide.code %}" class="text-decoration-none">
+              <div class="card border-0 shadow-sm h-100" style="padding:16px;">
+                <div style="font-weight:700; color:var(--green);">
+                  {% if guide.sigle %}{{ guide.sigle }} — {% endif %}{{ guide.titre }}
+                </div>
+                <div style="font-size:13px; color:#6c757d; margin-top:6px;">{{ guide.resume }}</div>
+              </div>
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const voiceTextes = {
+  general: `Cet onglet présente le cadre général de la fiscalité foncière : les principes
+    fondamentaux, le rôle du portail, les principaux impôts comme l'impôt sur le revenu,
+    l'impôt sur les sociétés, la T V A, la contribution globale unique, et la contribution
+    foncière, ainsi que le barème progressif réel de l'impôt sur le revenu.`,
+  particulier: `Cet onglet s'adresse aux particuliers. Vous y trouverez la liste des revenus
+    imposables, les abattements et déductions réels prévus par le Code Général des Impôts,
+    ainsi que la démarche pas à pas pour déclarer votre impôt sur le revenu.`,
+  entreprise: `Cet onglet concerne la fiscalité des entreprises : les différents régimes fiscaux,
+    le calendrier fiscal annuel, et le tableau détaillé des déclarations à effectuer, comme
+    la T V A, les retenues sur salaires, ou l'impôt sur les sociétés et l'impôt minimum
+    forfaitaire.`,
+  procedures: `Cet onglet regroupe les procédures fiscales courantes : comment obtenir un
+    numéro d'identification fiscale, comment demander une attestation de régularité fiscale,
+    et comment demander un remboursement de crédit de T V A.`,
+  simulateur: `Voici le simulateur d'impôt. Choisissez le type d'impôt, entrez votre revenu
+    ou chiffre d'affaires annuel, et cliquez sur calculer pour obtenir une estimation réelle
+    calculée selon le barème du Code Général des Impôts.`,
+  communal: `Cet onglet est votre espace fiscal communal. Vous y trouverez les statistiques
+    globales de la commune, ainsi qu'un accès à votre espace personnel une fois connecté,
+    pour consulter vos propres taxes et paiements.`,
+  faq: `Cet onglet regroupe les questions fréquentes sur la fiscalité nationale et communale :
+    obtenir un numéro d'identification fiscale, payer ses taxes communales, contester un
+    montant, ou retrouver un reçu perdu.`,
+};
+
+function openTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(function (panel) { panel.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.classList.remove('active');
+    btn.setAttribute('aria-selected', 'false');
+  });
+  document.getElementById('panel-' + id).classList.add('active');
+
+  const btn = document.querySelector('.tab-btn[data-tab="' + id + '"]');
+  if (btn) {
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+  }
+
+  document.querySelector('.tabs-wrapper').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  if (typeof VoiceGuide !== 'undefined' && voiceTextes[id]) {
+    VoiceGuide.speakSection(voiceTextes[id]);
+  }
+}
+
+function updateSimForm() {
+  const type = document.getElementById('simType').value;
+  const labelRevenu = document.getElementById('labelRevenu');
+
+  document.getElementById('champ-ca-is').style.display = (type === 'is') ? '' : 'none';
+  document.getElementById('champ-situation').style.display = (type === 'ir') ? '' : 'none';
+  document.getElementById('champ-enfants').style.display = (type === 'ir') ? '' : 'none';
+  document.getElementById('champ-secteur').style.display = (type === 'cgu') ? '' : 'none';
+
+  const labels = {
+    ir: "Revenu net imposable annuel (FCFA)",
+    is: "Bénéfice imposable annuel (FCFA)",
+    tva: "Chiffre d'affaires HT annuel (FCFA)",
+    cgu: "Chiffre d'affaires TTC annuel (FCFA)"
+  };
+  labelRevenu.textContent = labels[type] || "Revenu annuel (FCFA)";
+
+  resetResult();
+}
+
+function resetResult() {
+  document.getElementById('simEmpty').style.display = 'block';
+  document.getElementById('simLoading').style.display = 'none';
+  document.getElementById('simResult').style.display = 'none';
+  document.getElementById('simErreur').style.display = 'none';
+}
+
+function fmtFCFA(v) {
+  return Math.round(v).toLocaleString('fr-FR') + ' FCFA';
+}
+
+async function calculer() {
+  const form = document.getElementById('simForm');
+  const btn = document.getElementById('btnCalculer');
+  const revenu = document.getElementById('simRevenu').value;
+  const erreurBox = document.getElementById('simErreur');
+  erreurBox.style.display = 'none';
+
+  if (!revenu || parseFloat(revenu) <= 0) {
+    erreurBox.textContent = 'Veuillez saisir un revenu ou chiffre d\'affaires valide.';
+    erreurBox.style.display = 'block';
+    return;
+  }
+
+  if (btn.disabled) return;
+  btn.disabled = true;
+
+  document.getElementById('simEmpty').style.display = 'none';
+  document.getElementById('simResult').style.display = 'none';
+  document.getElementById('simLoading').style.display = 'block';
+
+  const formData = new FormData(form);
+  const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+
+  try {
+    const response = await fetch("{% url 'simuler_fiscalite' %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+
+    const data = await response.json();
+
+    document.getElementById('simLoading').style.display = 'none';
+
+    if (!data.ok) {
+      erreurBox.textContent = 'Erreur de calcul : vérifiez les champs saisis.';
+      erreurBox.style.display = 'block';
+      document.getElementById('simEmpty').style.display = 'block';
+      return;
+    }
+
+    afficherResultat(data);
+  } catch (err) {
+    document.getElementById('simLoading').style.display = 'none';
+    document.getElementById('simEmpty').style.display = 'block';
+    erreurBox.textContent = 'Le service de simulation est momentanément indisponible.';
+    erreurBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function ligneResultat(label, valeur, classe) {
+  return '<div class="result-row"><span class="result-label">' + label + '</span>' +
+         '<span class="result-value' + (classe ? ' ' + classe : '') + '">' + valeur + '</span></div>';
+}
+
+function afficherResultat(data) {
+  const box = document.getElementById('simResult');
+  let html = '';
+
+  if (data.type === 'ir') {
+    html += ligneResultat('Revenu net imposable', fmtFCFA(data.revenu_net_imposable));
+    html += ligneResultat('Nombre de parts (quotient familial)', data.parts);
+    html += ligneResultat('Quotient (par part)', fmtFCFA(data.quotient_par_part));
+    html += ligneResultat('<strong>Impôt sur le revenu estimé</strong>', fmtFCFA(data.impot), 'tax');
+    html += ligneResultat('Taux effectif d\'imposition', data.taux_effectif + '%');
+    html += ligneResultat('Revenu net après impôt', fmtFCFA(data.net_apres_impot), 'total');
+
+    if (data.detail_tranches && data.detail_tranches.length) {
+      html += '<div class="bareme-visual"><p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;font-weight:600;">Détail par tranche (sur le quotient)</p>';
+      data.detail_tranches.forEach(function (t) {
+        html += '<div class="bareme-bar-wrap"><div class="bareme-bar-label"><span>' + t.tranche + '</span><span>' + t.taux + '% — ' + fmtFCFA(t.montant) + '</span></div>' +
+                '<div class="bareme-bar-track"><div class="bareme-bar-fill" style="width:100%"></div></div></div>';
+      });
+      html += '</div>';
+    }
+  } else if (data.type === 'is') {
+    html += ligneResultat('Bénéfice imposable', fmtFCFA(data.benefice_imposable));
+    html += ligneResultat('Chiffre d\'affaires HT (base IMF)', fmtFCFA(data.chiffre_affaires_ht));
+    html += ligneResultat('IS calculé (30%)', fmtFCFA(data.is_calcule));
+    html += ligneResultat('IMF calculé (0,5% du CA)', fmtFCFA(data.imf_calcule));
+    html += ligneResultat('Régime appliqué', data.regime_applique);
+    html += ligneResultat('<strong>Impôt final dû</strong>', fmtFCFA(data.impot), 'tax');
+  } else if (data.type === 'tva') {
+    html += ligneResultat('Chiffre d\'affaires HT', fmtFCFA(data.chiffre_affaires_ht));
+    html += ligneResultat('<strong>TVA due (18%)</strong>', fmtFCFA(data.impot), 'tax');
+  } else if (data.type === 'cgu') {
+    html += ligneResultat('Chiffre d\'affaires TTC', fmtFCFA(data.chiffre_affaires_ttc));
+    html += ligneResultat('Taux appliqué', data.taux_applique + '%');
+    html += ligneResultat('<strong>CGU due</strong>', fmtFCFA(data.impot), 'tax');
+    if (data.depasse_seuil_cgu) {
+      html += '<div class="warn-band" style="margin-top:16px;"><i class="fa-solid fa-triangle-exclamation"></i>' +
+              '<p>Votre chiffre d\'affaires dépasse le seuil de ' + fmtFCFA(data.seuil_cgu) + ' autorisé pour la CGU. Vous relevez probablement du régime réel (IS/TVA).</p></div>';
+    }
+  }
+
+  html += '<p style="font-size:12px;color:var(--text-muted);margin-top:20px;padding-top:16px;border-top:1px dashed var(--border);">' + data.reference + '</p>';
+
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { openTab(btn.getAttribute('data-tab')); });
+  });
+
+  document.getElementById('btnSimulateur').addEventListener('click', function (e) { e.preventDefault(); openTab('simulateur'); });
+  document.getElementById('simType').addEventListener('change', updateSimForm);
+  document.getElementById('btnCalculer').addEventListener('click', calculer);
+
+  updateSimForm();
+
+  if (typeof VoiceGuide !== 'undefined') {
+    VoiceGuide.setPageText(`
+      Bienvenue sur la page fiscalité du portail de Keur Massar Nord.
+      ${voiceTextes.general}
+      Vous pouvez naviguer entre plusieurs onglets : cadre général, particuliers, entreprises,
+      procédures, simulateur, et mon espace communal.
+    `.replace(/\s+/g, ' ').trim());
+  }
+
+  // Accordéon FAQ
+  document.querySelectorAll('.faq-question').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const item = btn.closest('.faq-item');
+      const wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item.open').forEach(function (openItem) {
+        openItem.classList.remove('open');
+      });
+      if (!wasOpen) { item.classList.add('open'); }
+    });
+  });
+
+  const obs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.a-animer').forEach(function (el) { obs.observe(el); });
+});
+</script>
+{% endblock %}

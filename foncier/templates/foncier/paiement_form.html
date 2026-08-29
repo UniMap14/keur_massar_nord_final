@@ -1,0 +1,86 @@
+{% extends 'foncier/base.html' %}
+{% block title %}Nouveau paiement - KMS Nord Foncier{% endblock %}
+{% block content %}
+
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Nouveau paiement</span>
+    </div>
+    <h1>Enregistrer un paiement</h1>
+    <p>Saisissez un paiement pour une taxation en cours.</p>
+  </div>
+</section>
+
+<div class="page-body" style="max-width:760px;">
+  <div class="sim-form">
+    <h3><i class="fa-solid fa-money-bill-wave" style="color:var(--green);margin-right:10px;"></i>Détails du paiement</h3>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="warn-band {% if message.tags == 'success' %}warn-band-success{% endif %}" style="margin-bottom:18px;">
+          <i class="fa-solid {% if message.tags == 'success' %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}"></i>
+          <p style="margin:0;">{{ message }}</p>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if form.non_field_errors %}
+      <div class="warn-band" style="margin-bottom:18px;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <p style="margin:0;">{{ form.non_field_errors }}</p>
+      </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="sim-form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:18px 20px;">
+        {% for field in form %}
+          <div class="sim-field {% if field.field.widget.__class__.__name__ == 'Textarea' %}sim-field-full{% endif %}"
+               style="{% if field.field.widget.__class__.__name__ == 'Textarea' %}grid-column:1 / -1;{% endif %}">
+
+            <label for="{{ field.id_for_label }}">
+              {{ field.label }}{% if field.field.required %} <span style="color:var(--red, #c0392b);">*</span>{% endif %}
+            </label>
+
+            {{ field }}
+
+            {% if field.help_text %}
+              <small style="color:var(--text-muted); display:block; margin-top:4px;">{{ field.help_text }}</small>
+            {% endif %}
+
+            {% if field.errors %}
+              <div class="warn-band" style="margin-top:8px; padding:10px 14px;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div style="margin:0;">
+                  {% for error in field.errors %}
+                    <p style="margin:0;">{{ error }}</p>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+
+          </div>
+        {% endfor %}
+      </div>
+
+      <p style="font-size:12.5px; color:var(--text-muted); margin:18px 0 0;">
+        <span style="color:var(--red, #c0392b);">*</span> Champs obligatoires
+      </p>
+
+      <div style="display:flex; gap:12px; margin-top:22px;">
+        <button type="submit" class="sim-btn">
+          <i class="fa-solid fa-check"></i> Enregistrer le paiement
+        </button>
+        <a href="{% url 'home' %}" class="sim-btn sim-btn-outline">
+          Annuler
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

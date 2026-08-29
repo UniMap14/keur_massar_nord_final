@@ -1,0 +1,111 @@
+SAUVEGARDES AUTOMATIQUES DE LA BASE DE DONNÉES
+==================================================
+
+CE QUE ÇA FAIT
+---------------
+Le script sauvegarde_bdd.ps1 exporte toute la base PostgreSQL
+"keur_massar_nord" (40 588 parcelles, comptes citoyens, taxations,
+paiements, signalements...) dans un fichier compressé, une fois par
+jour, dans le dossier "sauvegardes\". Les sauvegardes de plus de
+30 jours sont supprimées automatiquement pour ne pas remplir le
+disque.
+
+⚠️ IMPORTANT : ceci sauvegarde uniquement la BASE DE DONNÉES. Les
+fichiers uploadés par les citoyens (photos de signalements, pièces
+jointes de démarches) sont stockés à part, dans les dossiers
+"media\" et "media_prive\" — voir la section dédiée plus bas.
+
+
+ÉTAPE 1 — TESTER MANUELLEMENT
+-------------------------------
+Placez sauvegarde_bdd.ps1 à la racine du projet (à côté de
+manage.py), puis dans PowerShell :
+
+    powershell -ExecutionPolicy Bypass -File sauvegarde_bdd.ps1
+
+Vous devriez voir "OK : sauvegarde créée -> ..." et un nouveau
+dossier "sauvegardes\" contenant un fichier du type
+"kmsn_2026-08-29_0600.backup".
+
+Si vous obtenez "pg_dump.exe introuvable", ouvrez le script avec
+Notepad et corrigez la ligne :
+
+    $PG_DUMP = "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+
+avec le chemin réel de votre installation (cherchez "pg_dump.exe"
+dans l'Explorateur Windows sous C:\Program Files\PostgreSQL\ si
+besoin — le numéro de version peut différer de 18).
+
+
+ÉTAPE 2 — PLANIFIER L'EXÉCUTION QUOTIDIENNE
+----------------------------------------------
+Windows n'a pas de "cron" : on utilise le Planificateur de tâches.
+
+1. Menu Démarrer → tapez "Planificateur de tâches" → ouvrez-le
+2. Panneau de droite → "Créer une tâche de base..."
+3. Nom : "Sauvegarde KMS Nord"
+4. Déclencheur : Quotidien → choisissez une heure creuse (ex: 3h00
+   du matin, ou une heure où l'ordinateur est généralement allumé)
+5. Action : "Démarrer un programme"
+   - Programme/script :
+       powershell.exe
+   - Ajouter des arguments :
+       -ExecutionPolicy Bypass -File "C:\Users\DELL\Desktop\projet_kmsn\projet_kms\kmsn\sauvegarde_bdd.ps1"
+   - Démarrer dans :
+       C:\Users\DELL\Desktop\projet_kmsn\projet_kms\kmsn
+6. Terminez, puis clic droit sur la tâche créée → "Exécuter" pour la
+   tester immédiatement une première fois.
+7. Vérifiez qu'un nouveau fichier apparaît bien dans "sauvegardes\".
+
+Astuce : dans les propriétés de la tâche, onglet "Conditions",
+décochez "Ne démarrer la tâche que si l'ordinateur est branché sur
+secteur" si c'est un ordinateur portable, sinon la sauvegarde ne se
+lancera jamais sur batterie.
+
+
+ÉTAPE 3 — SAUVEGARDER AUSSI LES FICHIERS UPLOADÉS
+-----------------------------------------------------
+Les photos de signalements (media\) et les pièces jointes privées de
+démarches (media_prive\) ne sont PAS incluses dans pg_dump. La façon
+la plus simple : copiez régulièrement ces deux dossiers vers un
+disque externe ou un cloud (OneDrive, déjà présent sur ce PC d'après
+votre variable ONEDRIVE). Exemple de copie manuelle :
+
+    Copy-Item -Recurse media "$env:OneDrive\Sauvegardes-KMSN\media"
+    Copy-Item -Recurse media_prive "$env:OneDrive\Sauvegardes-KMSN\media_prive"
+
+(Si le dossier de destination OneDrive n'existe pas encore, créez-le
+d'abord avec New-Item -ItemType Directory.)
+
+
+⚠️ RÈGLE D'OR : gardez au moins UNE copie des sauvegardes en dehors
+de ce PC (disque externe, OneDrive, clé USB...). Une sauvegarde qui
+reste sur le même disque que l'original ne protège pas contre une
+panne de disque, un vol, ou un incendie.
+
+
+COMMENT RESTAURER UNE SAUVEGARDE (en cas de problème grave)
+----------------------------------------------------------------
+⚠️ Ceci écrase le contenu actuel de la base — à n'utiliser qu'en cas
+de besoin réel (perte de données, corruption...).
+
+1. Créez d'abord une base vide (si elle n'existe pas déjà) via
+   pgAdmin, ou en ligne de commande :
+
+     & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -U postgres -h localhost keur_massar_nord_restauree
+
+2. Restaurez la sauvegarde dedans :
+
+     $env:PGPASSWORD = "1234"
+     & "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" -h localhost -U postgres -d keur_massar_nord_restauree --clean --if-exists "sauvegardes\kmsn_2026-08-29_0600.backup"
+     Remove-Item Env:\PGPASSWORD
+
+3. Vérifiez dans pgAdmin que les données sont bien là (nombre de
+   lignes dans foncier_parcelle, par exemple).
+
+4. Une fois confirmé, changez DB_NAME dans .env pour pointer vers
+   cette base restaurée (ou renommez les bases dans pgAdmin pour
+   remplacer l'ancienne par la restaurée).
+
+En cas de doute avant de restaurer, n'hésitez pas à redemander de
+l'aide plutôt que d'improviser sur une base de production.
