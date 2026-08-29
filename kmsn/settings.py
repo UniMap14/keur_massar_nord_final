@@ -139,6 +139,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.gzip.GZipMiddleware', 
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -187,6 +188,12 @@ DATABASES = {
     }
 }
 
+_database_url = os.environ.get("DATABASE_URL")
+if _database_url:
+    import dj_database_url
+    DATABASES["default"] = dj_database_url.parse(_database_url, conn_max_age=60)
+    DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -227,6 +234,16 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
 
 # Media files (fichiers uploadés par les utilisateurs : CV, photos de signalement, etc.)
 MEDIA_URL = '/media/'

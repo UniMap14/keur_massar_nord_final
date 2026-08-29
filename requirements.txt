@@ -13,3 +13,8 @@ reportlab==5.0.0
 
 # Nouvellement requis pour charger le fichier .env (voir settings.py)
 python-dotenv==1.2.2
+
+# --- Production (deploiement) ---
+gunicorn==22.0.0
+dj-database-url==2.2.0
+whitenoise==6.7.0
