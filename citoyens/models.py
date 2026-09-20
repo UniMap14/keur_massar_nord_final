@@ -37,6 +37,16 @@ class Citoyen(models.Model):
     )
     motif_rejet = models.TextField("Motif du rejet", blank=True)
 
+    OPERATEURS_PAIEMENT = [
+        ("orange_money", "Orange Money"),
+        ("wave", "Wave"),
+    ]
+    operateur_paiement = models.CharField(
+        "Opérateur de paiement enregistré", max_length=20,
+        choices=OPERATEURS_PAIEMENT, blank=True,
+        help_text="Utilisé pour pré-remplir vos paiements de taxation.",
+    )
+
     class Meta:
         verbose_name = "Citoyen"
         verbose_name_plural = "Citoyens"

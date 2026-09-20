@@ -105,17 +105,17 @@ class Command(BaseCommand):
 
         if jours_restants > 0:
             message = (
-                f"KMS Nord : votre {nom_taxe} ({montant:.0f} FCFA) arrive à échéance "
+                f"KEUR MASSAR NORD : votre {nom_taxe} ({montant:.0f} FCFA) arrive à échéance "
                 f"le {date_echeance:%d/%m/%Y}. Pensez à régulariser."
             )
         elif jours_restants == 0:
             message = (
-                f"KMS Nord : votre {nom_taxe} ({montant:.0f} FCFA) arrive à échéance "
+                f"KEUR MASSAR NORD : votre {nom_taxe} ({montant:.0f} FCFA) arrive à échéance "
                 f"aujourd'hui."
             )
         else:
             message = (
-                f"KMS Nord : votre {nom_taxe} ({montant:.0f} FCFA) est en retard depuis "
+                f"KEUR MASSAR NORD : votre {nom_taxe} ({montant:.0f} FCFA) est en retard depuis "
                 f"le {date_echeance:%d/%m/%Y}."
             )
             if taxation.type_taxe.penalite_retard:
@@ -132,7 +132,7 @@ class Command(BaseCommand):
         if email:
             try:
                 send_mail(
-                    subject=f"[KMS Nord] Échéance fiscale — {nom_taxe} {taxation.annee_fiscale}",
+                    subject=f"[KEUR MASSAR NORD] Échéance fiscale — {nom_taxe} {taxation.annee_fiscale}",
                     message=message,
                     from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                     recipient_list=[email],

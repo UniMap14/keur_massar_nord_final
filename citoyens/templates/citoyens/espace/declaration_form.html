@@ -1,0 +1,111 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}Nouvelle déclaration fiscale{% endblock %}
+{% block header_title %}Nouvelle déclaration fiscale{% endblock %}
+{% block header_subtitle %}Déclarez l'occupation réelle d'une de vos parcelles.{% endblock %}
+
+{% block extra_style %}
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+    .field select, .field input[type="number"], .field input[type="text"], .field textarea, .field input[type="file"] {
+        width: 100%; background: var(--off-white); border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text);
+        font-family: inherit; font-size: 14px; transition: border-color .2s ease, background .2s ease;
+    }
+    .field select:focus, .field input:focus, .field textarea:focus {
+        outline: none; border-color: var(--gold); background: var(--white);
+    }
+    .field .helptext { font-size: 12px; color: var(--text-muted); margin-top: 7px; }
+    .field .errorlist { list-style: none; padding: 0; margin: 7px 0 0; color: var(--danger); font-size: 12px; }
+
+    .info-note {
+        background: rgba(201,152,46,0.08); border: 1px dashed rgba(201,152,46,0.4);
+        border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13px; color: var(--text-muted);
+        margin-bottom: 24px; line-height: 1.6; display: flex; gap: 10px; align-items: flex-start;
+    }
+    .info-note i { color: var(--gold-dark); margin-top: 1px; }
+
+    .btn-gold {
+        background: var(--gold); color: var(--green-dark); font-weight: 700;
+        border: none; padding: 13px 20px; border-radius: 999px;
+        font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 9px;
+        transition: all .2s ease; width: 100%; justify-content: center;
+    }
+    .btn-gold:hover { background: #d9ad4f; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(201,152,46,0.35); }
+
+    .messages { margin-bottom: 20px; }
+    .messages .msg {
+        padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 10px;
+        background: rgba(178,59,46,0.08); color: var(--danger); border: 1px solid rgba(178,59,46,0.25);
+    }
+{% endblock %}
+
+{% block content %}
+
+<div class="info-note">
+  <i class="fa-solid fa-circle-info"></i>
+  <div>Votre déclaration sera examinée par un agent de la commune, qui calculera et émettra votre taxation sur cette base. Vous serez notifié de sa décision.</div>
+</div>
+
+<div class="card">
+  {% if form.non_field_errors %}
+    <div class="messages">
+      {% for e in form.non_field_errors %}<div class="msg">{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    <div class="field">
+      <label for="{{ form.parcelle.id_for_label }}">Parcelle concernée</label>
+      {{ form.parcelle }}
+      {{ form.parcelle.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.type_taxe.id_for_label }}">Type de taxe</label>
+      {{ form.type_taxe }}
+      {{ form.type_taxe.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.annee_fiscale.id_for_label }}">Année fiscale</label>
+      {{ form.annee_fiscale }}
+      {{ form.annee_fiscale.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.occupation_declaree.id_for_label }}">Occupation du sol déclarée</label>
+      {{ form.occupation_declaree }}
+      {{ form.occupation_declaree.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.superficie_declaree.id_for_label }}">Superficie déclarée (m²)</label>
+      {{ form.superficie_declaree }}
+      <div class="helptext">Laissez vide pour reprendre la superficie cadastrale connue.</div>
+      {{ form.superficie_declaree.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.commentaire_citoyen.id_for_label }}">Précisions</label>
+      {{ form.commentaire_citoyen }}
+      {{ form.commentaire_citoyen.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.piece_jointe.id_for_label }}">Pièce jointe (facultatif)</label>
+      {{ form.piece_jointe }}
+      <div class="helptext">Un justificatif d'occupation (photo, bail, attestation...) si vous en avez un.</div>
+      {{ form.piece_jointe.errors }}
+    </div>
+
+    <button type="submit" class="btn-gold">
+      <i class="fa-solid fa-paper-plane"></i> Soumettre ma déclaration
+    </button>
+  </form>
+</div>
+
+{% endblock %}

@@ -42,8 +42,8 @@ class FoncierAdminSite(UnfoldAdminSite):
     # SITE_TITLE dans le dict UNFOLD de settings.py — les deux mécanismes
     # coexistent, on les garde synchronisés plutôt que de parier sur lequel
     # des deux l'emporte.
-    site_header = "KMS Nord — Foncier & Fiscal"
-    site_title = "KMS Nord Admin"
+    site_header = "KEUR MASSAR NORD — Foncier & Fiscal"
+    site_title = "KEUR MASSAR NORD Admin"
     index_title = "Tableau de Bord Analytique"
 
     def index(self, request, extra_context=None):

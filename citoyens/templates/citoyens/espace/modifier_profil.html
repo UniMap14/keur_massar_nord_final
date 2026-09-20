@@ -1,64 +1,11 @@
+{% extends "citoyens/base_citoyen.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Modifier mon profil · KMS Nord</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <style>
-    :root {
-        --green       : #6b4a35;
-        --green-dark  : #3c2a20;
-        --gold        : #c9982e;
-        --gold-dark   : #a67c1f;
-        --white       : #ffffff;
-        --off-white   : #f5efe2;
-        --text        : #2b211a;
-        --text-muted  : #6b5d4f;
-        --border      : rgba(0,0,0,0.08);
-        --shadow-sm   : 0 4px 16px rgba(43,33,26,0.06);
-        --radius      : 16px;
-        --radius-sm   : 10px;
-        --danger      : #b23b2e;
-        --ok          : #2f7a4f;
-    }
-    * { box-sizing: border-box; }
-    body {
-        margin: 0; font-family: 'DM Sans', Arial, sans-serif; color: var(--text);
-        background: var(--off-white); min-height: 100vh;
-    }
-    .topbar {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 32px; background: var(--green-dark); color: var(--white);
-    }
-    .topbar .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; }
-    .topbar .brand i {
-        color: var(--green-dark); background: var(--gold); width: 34px; height: 34px;
-        border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px;
-    }
-    .topbar a.back {
-        color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; font-weight: 500;
-        display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.25); transition: all .2s ease;
-    }
-    .topbar a.back:hover { color: var(--white); border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.06); }
 
-    .wrap { max-width: 620px; margin: 0 auto; padding: 40px 20px 60px; }
-    .wrap h1 {
-        font-family: 'Playfair Display', serif; font-size: 26px; margin: 0 0 8px; font-weight: 700; color: var(--text);
-    }
-    .wrap h1 i { color: var(--gold-dark); margin-right: 10px; }
-    .wrap .sub { color: var(--text-muted); font-size: 13.5px; margin-bottom: 26px; }
+{% block page_title %}Modifier mon profil{% endblock %}
+{% block header_title %}Modifier mon profil{% endblock %}
+{% block header_subtitle %}Mettez à jour vos informations de contact.{% endblock %}
 
-    .card {
-        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
-        border-radius: var(--radius); padding: 30px 28px; margin-bottom: 22px;
-    }
-
+{% block extra_style %}
     .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .field { margin-bottom: 20px; }
     .field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
@@ -83,9 +30,6 @@
         padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 10px;
         background: rgba(178,59,46,0.08); color: var(--danger); border: 1px solid rgba(178,59,46,0.25);
     }
-    .messages .msg.success {
-        background: rgba(47,122,79,0.08); color: var(--ok); border-color: rgba(47,122,79,0.25);
-    }
 
     .locked-note {
         display: flex; align-items: flex-start; gap: 12px; color: var(--text-muted);
@@ -103,90 +47,77 @@
     .secondary-link i.arrow { color: var(--gold-dark); }
 
     @media (max-width: 480px) {
-      .topbar { padding: 14px 18px; }
-      .wrap { padding: 28px 14px 40px; }
-      .card { padding: 22px 18px; }
       .field-row { grid-template-columns: 1fr; gap: 0; }
     }
-  </style>
-</head>
-<body>
+{% endblock %}
 
-  <div class="topbar">
-    <div class="brand"><i class="fa-solid fa-fire"></i> KMS Nord — Espace Citoyen</div>
-    <a class="back" href="{% url 'citoyen_espace' %}"><i class="fa-solid fa-arrow-left"></i> Mon espace</a>
-  </div>
+{% block content %}
 
-  <div class="wrap">
-    <h1><i class="fa-solid fa-user-pen"></i>Modifier mon profil</h1>
-    <div class="sub">Mettez à jour vos informations de contact.</div>
+<div class="card">
+  {% if form.non_field_errors %}
+    <div class="messages">
+      {% for e in form.non_field_errors %}<div class="msg">{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
 
-    {% if messages %}
-      <div class="messages">
-        {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="field-row">
+      <div class="field">
+        <label for="{{ form.first_name.id_for_label }}">Prénom</label>
+        {{ form.first_name }}
+        {{ form.first_name.errors }}
       </div>
-    {% endif %}
-
-    <div class="card">
-      {% if form.non_field_errors %}
-        <div class="messages">
-          {% for e in form.non_field_errors %}<div class="msg">{{ e }}</div>{% endfor %}
-        </div>
-      {% endif %}
-
-      <form method="post" novalidate>
-        {% csrf_token %}
-
-        <div class="field-row">
-          <div class="field">
-            <label for="{{ form.first_name.id_for_label }}">Prénom</label>
-            {{ form.first_name }}
-            {{ form.first_name.errors }}
-          </div>
-          <div class="field">
-            <label for="{{ form.last_name.id_for_label }}">Nom</label>
-            {{ form.last_name }}
-            {{ form.last_name.errors }}
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="{{ form.email.id_for_label }}">Email</label>
-          {{ form.email }}
-          {{ form.email.errors }}
-        </div>
-
-        <div class="field">
-          <label for="{{ form.telephone.id_for_label }}">Téléphone</label>
-          {{ form.telephone }}
-          {{ form.telephone.errors }}
-        </div>
-
-        <div class="locked-note" style="margin-bottom: 24px;">
-          <i class="fa-solid fa-lock"></i>
-          <div>
-            Votre identifiant fiscalité (<strong>{{ citoyen.numero_fiscal }}</strong>) et votre identifiant
-            foncier (<strong>{{ citoyen.numero_foncier }}</strong>) sont des identifiants officiels :
-            seule l'administration peut les corriger. Contactez la mairie en cas d'erreur.
-          </div>
-        </div>
-
-        <button type="submit" class="btn-gold">
-          <i class="fa-solid fa-floppy-disk"></i> Enregistrer les modifications
-        </button>
-      </form>
+      <div class="field">
+        <label for="{{ form.last_name.id_for_label }}">Nom</label>
+        {{ form.last_name }}
+        {{ form.last_name.errors }}
+      </div>
     </div>
 
-    <div class="card">
-      <a class="secondary-link" href="{% url 'citoyen_password_change' %}">
-        <div class="txt">
-          <strong><i class="fa-solid fa-key" style="color:var(--gold-dark); margin-right:8px;"></i>Changer mon mot de passe</strong>
-          <span>Modifiez votre mot de passe de connexion.</span>
-        </div>
-        <i class="fa-solid fa-chevron-right arrow"></i>
-      </a>
+    <div class="field">
+      <label for="{{ form.email.id_for_label }}">Email</label>
+      {{ form.email }}
+      {{ form.email.errors }}
     </div>
-  </div>
 
-</body>
-</html>
+    <div class="field">
+      <label for="{{ form.telephone.id_for_label }}">Téléphone</label>
+      {{ form.telephone }}
+      {{ form.telephone.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.operateur_paiement.id_for_label }}">Opérateur de paiement enregistré</label>
+      {{ form.operateur_paiement }}
+      <div class="helptext">Pré-rempli automatiquement lors du paiement de vos taxations.</div>
+      {{ form.operateur_paiement.errors }}
+    </div>
+
+    <div class="locked-note" style="margin-bottom: 24px;">
+      <i class="fa-solid fa-lock"></i>
+      <div>
+        Votre identifiant fiscalité (<strong>{{ citoyen.numero_fiscal }}</strong>) et votre identifiant
+        foncier (<strong>{{ citoyen.numero_foncier }}</strong>) sont des identifiants officiels :
+        seule l'administration peut les corriger. Contactez la mairie en cas d'erreur.
+      </div>
+    </div>
+
+    <button type="submit" class="btn-gold">
+      <i class="fa-solid fa-floppy-disk"></i> Enregistrer les modifications
+    </button>
+  </form>
+</div>
+
+<div class="card">
+  <a class="secondary-link" href="{% url 'citoyen_password_change' %}">
+    <div class="txt">
+      <strong><i class="fa-solid fa-key" style="color:var(--gold-dark); margin-right:8px;"></i>Changer mon mot de passe</strong>
+      <span>Modifiez votre mot de passe de connexion.</span>
+    </div>
+    <i class="fa-solid fa-chevron-right arrow"></i>
+  </a>
+</div>
+
+{% endblock %}

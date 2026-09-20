@@ -1,0 +1,75 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vérification · KEUR MASSAR NORD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: 'DM Sans', Arial, sans-serif; min-height: 100vh;
+      background: #1a1210 url('https://images.unsplash.com/photo-1489493887464-892be6d1daae?auto=format&fit=crop&w=1600&q=60') center/cover no-repeat;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0; background: rgba(26, 18, 16, 0.72);
+    }
+    .card {
+      position: relative; z-index: 1; background: #1e1512; border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4); max-width: 420px; width: 100%;
+      padding: 40px 36px; color: #fff; text-align: center;
+    }
+    .icon {
+      width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 20px;
+      display: flex; align-items: center; justify-content: center; font-size: 22px;
+      background: rgba(201,152,46,0.18); color: #c9982e;
+    }
+    h1 { font-family: 'Playfair Display', serif; font-size: 22px; margin: 0 0 10px; }
+    p.sub { color: rgba(255,255,255,0.65); font-size: 13.5px; margin: 0 0 28px; line-height: 1.6; }
+    .erreur {
+      background: rgba(178,59,46,0.15); color: #e2857a; border: 1px solid rgba(178,59,46,0.35);
+      border-radius: 10px; padding: 12px 14px; font-size: 13px; margin-bottom: 20px;
+    }
+    input[name="code"] {
+      width: 100%; text-align: center; font-size: 26px; letter-spacing: 10px; font-weight: 700;
+      padding: 16px; border-radius: 12px; border: 1.5px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06); color: #fff; margin-bottom: 20px;
+    }
+    input[name="code"]:focus { outline: none; border-color: #c9982e; }
+    button {
+      width: 100%; background: #c9982e; color: #1a1210; font-weight: 700; font-size: 14.5px;
+      border: none; padding: 14px; border-radius: 999px; cursor: pointer; transition: all .2s ease;
+    }
+    button:hover { background: #d9ad4f; transform: translateY(-1px); }
+    .resend {
+      display: block; margin-top: 18px; color: rgba(255,255,255,0.6); font-size: 12.5px;
+      text-decoration: none;
+    }
+    .resend:hover { color: #c9982e; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon"><i class="fa-solid fa-shield-halved"></i></div>
+    <h1>Vérification de connexion</h1>
+    <p class="sub">Un code à 6 chiffres vous a été envoyé par SMS et email. Il est valable 5 minutes.</p>
+
+    {% if erreur %}
+      <div class="erreur">{{ erreur }}</div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="text" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" autofocus placeholder="------">
+      <button type="submit"><i class="fa-solid fa-check"></i> Vérifier</button>
+    </form>
+
+    <a href="{% url 'citoyen_otp_resend' %}" class="resend">Je n'ai pas reçu de code — renvoyer</a>
+  </div>
+</body>
+</html>

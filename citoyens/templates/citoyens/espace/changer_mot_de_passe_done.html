@@ -1,61 +1,32 @@
+{% extends "citoyens/base_citoyen.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mot de passe modifié · KMS Nord</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <style>
-    :root {
-        --green-dark  : #3c2a20;
-        --gold        : #c9982e;
-        --gold-dark   : #a67c1f;
-        --white       : #ffffff;
-        --off-white   : #f5efe2;
-        --text        : #2b211a;
-        --text-muted  : #6b5d4f;
-        --border      : rgba(0,0,0,0.08);
-        --shadow-sm   : 0 4px 16px rgba(43,33,26,0.06);
-        --radius      : 16px;
-        --ok          : #2f7a4f;
-    }
-    * { box-sizing: border-box; }
-    body {
-        margin: 0; font-family: 'DM Sans', Arial, sans-serif; color: var(--text);
-        background: var(--off-white); min-height: 100vh;
-        display: flex; align-items: center; justify-content: center; padding: 20px;
-    }
-    .card {
-        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
-        border-radius: var(--radius); padding: 44px 36px; max-width: 420px; text-align: center;
-    }
-    .icon {
+
+{% block page_title %}Mot de passe modifié{% endblock %}
+{% block header_title %}Mot de passe modifié{% endblock %}
+{% block header_subtitle %}Votre mot de passe a bien été mis à jour.{% endblock %}
+
+{% block extra_style %}
+    .cmdpd-wrap { max-width: 420px; margin: 40px auto 0; text-align: center; }
+    .cmdpd-icon {
         width: 60px; height: 60px; border-radius: 50%; background: rgba(47,122,79,0.10);
         color: var(--ok); display: flex; align-items: center; justify-content: center;
         font-size: 24px; margin: 0 auto 20px;
     }
-    h1 { font-family: 'Playfair Display', serif; font-size: 22px; margin: 0 0 10px; }
-    p { color: var(--text-muted); font-size: 14px; margin: 0 0 26px; line-height: 1.6; }
+    .cmdpd-wrap p { color: var(--text-muted); font-size: 14px; margin: 0 0 26px; line-height: 1.6; }
     a.btn-gold {
         background: var(--gold); color: var(--green-dark); font-weight: 700;
         text-decoration: none; padding: 12px 24px; border-radius: 999px; font-size: 14px;
         display: inline-flex; align-items: center; gap: 9px; transition: all .2s ease;
     }
     a.btn-gold:hover { background: #d9ad4f; transform: translateY(-1px); }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="icon"><i class="fa-solid fa-check"></i></div>
-    <h1>Mot de passe modifié</h1>
-    <p>Votre mot de passe a bien été changé. Utilisez-le dès votre prochaine connexion.</p>
-    <a class="btn-gold" href="{% url 'citoyen_espace' %}">
-      <i class="fa-solid fa-arrow-right"></i> Retour à mon espace
-    </a>
-  </div>
-</body>
-</html>
+{% endblock %}
+
+{% block content %}
+<div class="card cmdpd-wrap">
+  <div class="cmdpd-icon"><i class="fa-solid fa-check"></i></div>
+  <p>Votre mot de passe a bien été changé. Utilisez-le dès votre prochaine connexion.</p>
+  <a class="btn-gold" href="{% url 'citoyen_espace' %}">
+    <i class="fa-solid fa-arrow-right"></i> Retour à mon espace
+  </a>
+</div>
+{% endblock %}

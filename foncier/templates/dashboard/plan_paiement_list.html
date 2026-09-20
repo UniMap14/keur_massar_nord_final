@@ -1,0 +1,82 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Plans de paiement{% endblock %}
+{% block header_title %}Plans de paiement{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">Demandes d'échelonnement déposées par les citoyens</div>{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-filter"></i> Filtrer par statut</h2>
+  </div>
+  <div class="panel-body" style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a href="{% url 'dashboard_plan_paiement_list' %}" class="btn {% if not statut_filtre %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Tous</a>
+    <a href="{% url 'dashboard_plan_paiement_list' %}?statut=SOUMIS" class="btn {% if statut_filtre == 'SOUMIS' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Soumis</a>
+    <a href="{% url 'dashboard_plan_paiement_list' %}?statut=EN_EXAMEN" class="btn {% if statut_filtre == 'EN_EXAMEN' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">En examen</a>
+    <a href="{% url 'dashboard_plan_paiement_list' %}?statut=VALIDE" class="btn {% if statut_filtre == 'VALIDE' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Validés</a>
+    <a href="{% url 'dashboard_plan_paiement_list' %}?statut=TERMINE" class="btn {% if statut_filtre == 'TERMINE' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Terminés</a>
+    <a href="{% url 'dashboard_plan_paiement_list' %}?statut=REJETE" class="btn {% if statut_filtre == 'REJETE' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Rejetés</a>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-calendar-days"></i> Demandes</h2>
+  </div>
+  <div class="panel-body flush">
+    {% if plans %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Contribuable</th>
+          <th>Parcelle</th>
+          <th>Taxe</th>
+          <th class="num">Solde</th>
+          <th>Échéances</th>
+          <th>Déposé le</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in plans %}
+        <tr>
+          <td>{{ p.contribuable }}</td>
+          <td>{{ p.taxation.parcelle.nicad|default:"—" }}</td>
+          <td>{{ p.taxation.type_taxe }} ({{ p.taxation.annee_fiscale }})</td>
+          <td class="num">{{ p.taxation.solde|floatformat:0 }} FCFA</td>
+          <td>{{ p.nombre_echeances }}</td>
+          <td>{{ p.date_soumission|date:"d/m/Y" }}</td>
+          <td>
+            {% if p.statut == 'SOUMIS' %}
+              <span class="badge" style="background:rgba(52,104,168,0.10); color:#3468a8;">Soumis</span>
+            {% elif p.statut == 'EN_EXAMEN' %}
+              <span class="badge" style="background:rgba(185,116,11,0.10); color:#b9740b;">En examen</span>
+            {% elif p.statut == 'VALIDE' %}
+              <span class="badge" style="background:rgba(47,122,79,0.10); color:#2f7a4f;">Validé</span>
+            {% elif p.statut == 'TERMINE' %}
+              <span class="badge" style="background:rgba(47,122,79,0.10); color:#2f7a4f;">Terminé</span>
+            {% else %}
+              <span class="badge badge-danger">Rejeté</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'dashboard_plan_paiement_traiter' p.pk %}" class="btn btn-outline btn-sm">
+              <i class="fa-solid fa-eye"></i> {% if p.statut == 'SOUMIS' or p.statut == 'EN_EXAMEN' %}Traiter{% else %}Voir{% endif %}
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon icon-success"><i class="fa-solid fa-check"></i></div>
+      Aucune demande {% if statut_filtre %}avec ce statut{% else %}pour le moment{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

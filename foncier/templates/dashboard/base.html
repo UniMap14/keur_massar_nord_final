@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block page_title %}Tableau de bord{% endblock %} · KMS Nord Admin</title>
+  <title>{% block page_title %}Tableau de bord{% endblock %} · KEUR MASSAR NORD Admin</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -272,6 +272,34 @@
     }
   </style>
 
+
+  <style>
+    /* ===== En-tete personnalise agent (topbar) ===== */
+    .topbar-user-chip {
+      display: flex; align-items: center; gap: 10px; margin-left: auto;
+      padding: 6px 10px 6px 6px; border-radius: 100px;
+      background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.06);
+    }
+    .tuc-avatar {
+      width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    }
+    .tuc-avatar-fallback {
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, var(--green-light, #4a9c6d) 0%, var(--green, #2f7a4f) 100%);
+      color: #fff; font-weight: 700; font-size: 13px;
+    }
+    .tuc-text { line-height: 1.25; }
+    .tuc-name { font-size: 12.5px; font-weight: 700; }
+    .tuc-role { font-size: 10.5px; opacity: 0.6; }
+    .tuc-edit {
+      color: inherit; opacity: 0.4; margin-left: 4px; font-size: 11px;
+      transition: opacity .2s ease;
+    }
+    .tuc-edit:hover { opacity: 0.9; }
+    @media (max-width: 640px) { .tuc-text { display: none; } }
+
+  </style>
+
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -282,7 +310,7 @@
     <div class="sidebar-brand">
       <div class="mark">K</div>
       <div class="sidebar-brand-text">
-        <div class="name">KMS Nord</div>
+        <div class="name">KEUR MASSAR NORD</div>
         <div class="sub">Foncier &amp; Fiscal</div>
       </div>
       <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Fermer le menu">
@@ -319,6 +347,24 @@
     {% if peut_fiscal %}
     <div class="sidebar-section-label">Fiscalité</div>
     <ul class="sidebar-nav">
+      <li><a href="{% url 'dashboard_declaration_list' %}" class="sidebar-link {% if active_section == 'declarations' %}active{% endif %}">
+        <i class="fa-solid fa-file-signature nav-icon"></i> Déclarations fiscales
+      </a></li>
+      <li><a href="{% url 'dashboard_recours_list' %}" class="sidebar-link {% if active_section == 'recours' %}active{% endif %}">
+        <i class="fa-solid fa-scale-balanced nav-icon"></i> Recours fiscaux
+      </a></li>
+      <li><a href="{% url 'dashboard_immatriculation_list' %}" class="sidebar-link {% if active_section == 'immatriculations' %}active{% endif %}">
+        <i class="fa-solid fa-user-plus nav-icon"></i> Premières immatriculations
+      </a></li>
+      <li><a href="{% url 'dashboard_exoneration_list' %}" class="sidebar-link {% if active_section == 'exonerations' %}active{% endif %}">
+        <i class="fa-solid fa-house-circle-check nav-icon"></i> Exonérations fiscales
+      </a></li>
+      <li><a href="{% url 'dashboard_plan_paiement_list' %}" class="sidebar-link {% if active_section == 'plans_paiement' %}active{% endif %}">
+        <i class="fa-solid fa-calendar-days nav-icon"></i> Plans de paiement
+      </a></li>
+      <li><a href="{% url 'dashboard_mutation_list' %}" class="sidebar-link {% if active_section == 'mutations' %}active{% endif %}">
+        <i class="fa-solid fa-right-left nav-icon"></i> Mutations fiscales
+      </a></li>
       <li><a href="{% url 'dashboard_contribuable_list' %}" class="sidebar-link {% if active_section == 'contribuables' %}active{% endif %}">
         <i class="fa-solid fa-id-card nav-icon"></i> Contribuables
       </a></li>
@@ -397,10 +443,14 @@
 
     <div class="sidebar-footer">
       <div class="sidebar-user">
-        <div class="avatar">{{ request.user.username|slice:":1"|upper }}</div>
+        {% if mon_profil_agent.photo %}
+          <img src="{{ mon_profil_agent.photo.url }}" alt="" class="avatar" style="object-fit:cover;">
+        {% else %}
+          <div class="avatar">{{ request.user.username|slice:":1"|upper }}</div>
+        {% endif %}
         <div class="who">
           {{ request.user.get_full_name|default:request.user.username }}
-          <div class="role">{{ libelle_role_utilisateur }}</div>
+          <div class="role">{{ mon_profil_agent.fonction|default:libelle_role_utilisateur }}</div>
         </div>
       </div>
       <form action="{% url 'dashboard_logout' %}" method="post">
@@ -423,6 +473,18 @@
         {% block header_subtitle %}<div class="topbar-subtitle">Vue d'ensemble de l'activité foncière et fiscale</div>{% endblock %}
       </div>
       {% block topbar_extra %}{% endblock %}
+      <div class="topbar-user-chip">
+        {% if mon_profil_agent.photo %}
+          <img src="{{ mon_profil_agent.photo.url }}" alt="" class="tuc-avatar" style="object-fit:cover;">
+        {% else %}
+          <div class="tuc-avatar tuc-avatar-fallback">{{ request.user.username|slice:":1"|upper }}</div>
+        {% endif %}
+        <div class="tuc-text">
+          <div class="tuc-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+          <div class="tuc-role">{{ mon_profil_agent.fonction|default:libelle_role_utilisateur }}</div>
+        </div>
+        <a href="{% url 'dashboard_mon_profil' %}" class="tuc-edit" title="Mon profil"><i class="fa-solid fa-pen"></i></a>
+      </div>
     </header>
 
     <main class="content">

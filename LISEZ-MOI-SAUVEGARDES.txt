@@ -43,7 +43,7 @@ Windows n'a pas de "cron" : on utilise le Planificateur de tâches.
 
 1. Menu Démarrer → tapez "Planificateur de tâches" → ouvrez-le
 2. Panneau de droite → "Créer une tâche de base..."
-3. Nom : "Sauvegarde KMS Nord"
+3. Nom : "Sauvegarde KEUR MASSAR NORD"
 4. Déclencheur : Quotidien → choisissez une heure creuse (ex: 3h00
    du matin, ou une heure où l'ordinateur est généralement allumé)
 5. Action : "Démarrer un programme"

@@ -1,64 +1,12 @@
+{% extends "citoyens/base_citoyen.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mes démarches · KMS Nord</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <style>
-    :root {
-        --green       : #6b4a35;
-        --green-dark  : #3c2a20;
-        --gold        : #c9982e;
-        --gold-dark   : #a67c1f;
-        --white       : #ffffff;
-        --off-white   : #f5efe2;
-        --text        : #2b211a;
-        --text-muted  : #6b5d4f;
-        --border      : rgba(0,0,0,0.08);
-        --shadow-sm   : 0 4px 16px rgba(43,33,26,0.06);
-        --radius      : 16px;
-        --radius-sm   : 10px;
-        --ok          : #2f7a4f; --ok-bg: rgba(47,122,79,0.10);
-        --warn        : #b9740b; --warn-bg: rgba(185,116,11,0.10);
-        --danger      : #b23b2e; --danger-bg: rgba(178,59,46,0.09);
-        --muted-badge : #766c5d; --muted-badge-bg: rgba(118,108,93,0.10);
-    }
-    * { box-sizing: border-box; }
-    body {
-        margin: 0; font-family: 'DM Sans', Arial, sans-serif; color: var(--text);
-        background: var(--off-white); min-height: 100vh;
-    }
-    .topbar {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 32px; background: var(--green-dark); color: var(--white);
-    }
-    .topbar .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; }
-    .topbar .brand i {
-        color: var(--green-dark); background: var(--gold); width: 34px; height: 34px;
-        border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px;
-    }
-    .topbar a.back {
-        color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; font-weight: 500;
-        display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.25); transition: all .2s ease;
-    }
-    .topbar a.back:hover { color: var(--white); border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.06); }
 
-    .wrap { max-width: 900px; margin: 0 auto; padding: 40px 20px 60px; }
+{% block page_title %}Mes démarches{% endblock %}
+{% block header_title %}Mes démarches{% endblock %}
+{% block header_subtitle %}Suivez vos dossiers en cours auprès de la commune.{% endblock %}
 
-    .page-head {
-        display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 28px; gap: 14px; flex-wrap: wrap;
-    }
-    .page-head h1 {
-        font-family: 'Playfair Display', serif; font-size: 28px; margin: 0; font-weight: 700; color: var(--text);
-    }
-    .page-head h1 i { color: var(--gold-dark); font-size: 22px; margin-right: 10px; }
+{% block extra_style %}
+    .page-head-actions { display: flex; justify-content: flex-end; margin-bottom: 20px; }
 
     .btn-gold {
         background: var(--gold); color: var(--green-dark); font-weight: 700;
@@ -73,10 +21,8 @@
         border-radius: var(--radius); padding: 20px 24px; margin-bottom: 14px;
         text-decoration: none; color: var(--text); display: block;
         transition: transform .18s ease, box-shadow .18s ease;
-        opacity: 0; transform: translateY(10px); animation: cardIn .45s ease forwards;
     }
     .demande-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(43,33,26,0.10); }
-    @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
 
     .demande-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
     .demande-top .titre { font-weight: 700; font-size: 15.5px; }
@@ -89,10 +35,10 @@
         font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap;
     }
     .badge.recue { background: rgba(52,104,168,0.10); color: #3468a8; }
-    .badge.en-cours { background: var(--warn-bg); color: var(--warn); }
+    .badge.en-cours { background: rgba(185,116,11,0.10); color: #b9740b; }
     .badge.prete { background: var(--ok-bg); color: var(--ok); }
     .badge.rejetee { background: var(--danger-bg); color: var(--danger); }
-    .badge.cloturee { background: var(--muted-badge-bg); color: var(--muted-badge); }
+    .badge.cloturee { background: rgba(118,108,93,0.10); color: #766c5d; }
 
     .empty-state {
         text-align: center; padding: 60px 20px; color: var(--text-muted);
@@ -101,53 +47,42 @@
     .empty-state i { font-size: 28px; color: var(--gold-dark); margin-bottom: 12px; display: block; }
 
     @media (max-width: 480px) {
-      .topbar { padding: 14px 18px; }
-      .wrap { padding: 28px 14px 40px; }
       .demande-top { flex-direction: column; align-items: flex-start; }
     }
-  </style>
-</head>
-<body>
+{% endblock %}
 
-  <div class="topbar">
-    <div class="brand"><i class="fa-solid fa-fire"></i> KMS Nord — Espace Citoyen</div>
-    <a class="back" href="{% url 'citoyen_espace' %}"><i class="fa-solid fa-arrow-left"></i> Mon espace</a>
-  </div>
+{% block content %}
 
-  <div class="wrap">
-    <div class="page-head">
-      <h1><i class="fa-solid fa-folder-open"></i>Mes démarches</h1>
-      <a class="btn-gold" href="{% url 'citoyen_demande_creer' %}">
-        <i class="fa-solid fa-plus"></i> Nouvelle démarche
-      </a>
+<div class="page-head-actions">
+  <a class="btn-gold" href="{% url 'citoyen_demande_creer' %}">
+    <i class="fa-solid fa-plus"></i> Nouvelle démarche
+  </a>
+</div>
+
+{% if demandes %}
+  {% for d in demandes %}
+  <a class="demande-card" href="{% url 'citoyen_demande_detail' d.pk %}">
+    <div class="demande-top">
+      <div class="titre">{{ d.type_demande.libelle }}</div>
+      <span class="badge {% if d.statut == 'RECUE' %}recue{% elif d.statut == 'EN_COURS' %}en-cours{% elif d.statut == 'PRETE' %}prete{% elif d.statut == 'REJETEE' %}rejetee{% else %}cloturee{% endif %}">
+        {{ d.get_statut_display }}
+      </span>
     </div>
-
-    {% if demandes %}
-      {% for d in demandes %}
-      <a class="demande-card" style="animation-delay: {{ forloop.counter0|add:1 }}0ms;" href="{% url 'citoyen_demande_detail' d.pk %}">
-        <div class="demande-top">
-          <div class="titre">{{ d.type_demande.libelle }}</div>
-          <span class="badge {% if d.statut == 'RECUE' %}recue{% elif d.statut == 'EN_COURS' %}en-cours{% elif d.statut == 'PRETE' %}prete{% elif d.statut == 'REJETEE' %}rejetee{% else %}cloturee{% endif %}">
-            {{ d.get_statut_display }}
-          </span>
-        </div>
-        <div class="demande-meta">
-          <span><i class="fa-solid fa-hashtag"></i> {{ d.numero_dossier }}</span>
-          <span><i class="fa-solid fa-calendar"></i> Déposée le {{ d.date_demande|date:"d/m/Y" }}</span>
-          {% if d.parcelle %}<span><i class="fa-solid fa-map-pin"></i> {{ d.parcelle.nicad }}</span>{% endif %}
-        </div>
-      </a>
-      {% endfor %}
-    {% else %}
-      <div class="empty-state">
-        <i class="fa-solid fa-inbox"></i>
-        Vous n'avez encore déposé aucune démarche.<br><br>
-        <a class="btn-gold" href="{% url 'citoyen_demande_creer' %}">
-          <i class="fa-solid fa-plus"></i> Déposer ma première démarche
-        </a>
-      </div>
-    {% endif %}
+    <div class="demande-meta">
+      <span><i class="fa-solid fa-hashtag"></i> {{ d.numero_dossier }}</span>
+      <span><i class="fa-solid fa-calendar"></i> Déposée le {{ d.date_demande|date:"d/m/Y" }}</span>
+      {% if d.parcelle %}<span><i class="fa-solid fa-map-pin"></i> {{ d.parcelle.nicad }}</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-inbox"></i>
+    Vous n'avez encore déposé aucune démarche.<br><br>
+    <a class="btn-gold" href="{% url 'citoyen_demande_creer' %}">
+      <i class="fa-solid fa-plus"></i> Déposer ma première démarche
+    </a>
   </div>
+{% endif %}
 
-</body>
-</html>
+{% endblock %}

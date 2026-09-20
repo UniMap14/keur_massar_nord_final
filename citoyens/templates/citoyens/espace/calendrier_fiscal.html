@@ -1,0 +1,87 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}Calendrier fiscal{% endblock %}
+{% block header_title %}Calendrier fiscal{% endblock %}
+{% block header_subtitle %}Vos échéances de paiement, à jour avec les rappels envoyés par SMS/email.{% endblock %}
+
+{% block extra_style %}
+    .cal-item {
+        display: flex; align-items: center; gap: 18px;
+        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        border-radius: var(--radius); padding: 18px 22px; margin-bottom: 12px;
+    }
+    .cal-date {
+        flex-shrink: 0; width: 64px; text-align: center; border-radius: var(--radius-sm);
+        padding: 8px 4px; background: var(--off-white);
+    }
+    .cal-date .jour { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1; }
+    .cal-date .mois { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-top: 3px; }
+
+    .cal-info { flex: 1; min-width: 0; }
+    .cal-info .titre { font-weight: 700; font-size: 14.5px; margin-bottom: 4px; }
+    .cal-info .meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap; }
+    .cal-info .meta i { color: var(--gold-dark); margin-right: 4px; }
+
+    .cal-badge {
+        flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 14px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+    }
+    .cal-badge.payee { background: var(--ok-bg); color: var(--ok); }
+    .cal-badge.en_retard { background: var(--danger-bg); color: var(--danger); }
+    .cal-badge.proche { background: rgba(201,152,46,0.14); color: var(--gold-dark); }
+    .cal-badge.a_venir { background: var(--info-bg); color: var(--info); }
+
+    .cal-item.en_retard { border-left: 4px solid var(--danger); }
+    .cal-item.proche { border-left: 4px solid var(--gold); }
+    .cal-item.payee { opacity: 0.7; }
+
+    .empty-state {
+        text-align: center; padding: 60px 20px; color: var(--text-muted);
+        background: var(--white); border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+    .empty-state i { font-size: 28px; color: var(--gold-dark); margin-bottom: 12px; display: block; }
+
+    @media (max-width: 480px) {
+      .cal-item { flex-wrap: wrap; }
+    }
+{% endblock %}
+
+{% block content %}
+
+{% if echeances %}
+  {% for e in echeances %}
+  <div class="cal-item {{ e.statut_calendrier }}">
+    <div class="cal-date">
+      <div class="jour">{{ e.date_echeance|date:"d" }}</div>
+      <div class="mois">{{ e.date_echeance|date:"M Y" }}</div>
+    </div>
+    <div class="cal-info">
+      <div class="titre">{{ e.taxation.type_taxe.libelle }} — {{ e.taxation.annee_fiscale }}</div>
+      <div class="meta">
+        <span><i class="fa-solid fa-map-pin"></i>{{ e.taxation.parcelle.nicad|default:"—" }}</span>
+        <span><i class="fa-solid fa-sack-dollar"></i>{{ e.taxation.solde|floatformat:0 }} FCFA restant{% if e.statut_calendrier != 'payee' %} à payer{% endif %}</span>
+      </div>
+    </div>
+    <span class="cal-badge {{ e.statut_calendrier }}">
+      {% if e.statut_calendrier == 'payee' %}
+        <i class="fa-solid fa-check"></i> Payée
+      {% elif e.statut_calendrier == 'en_retard' %}
+        <i class="fa-solid fa-triangle-exclamation"></i> En retard de {{ e.jours_restants|stringformat:"d"|slice:"1:" }} j
+      {% elif e.statut_calendrier == 'proche' %}
+        <i class="fa-solid fa-clock"></i> Dans {{ e.jours_restants }} j
+      {% else %}
+        <i class="fa-solid fa-calendar"></i> Dans {{ e.jours_restants }} j
+      {% endif %}
+    </span>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-calendar-check"></i>
+    Aucune échéance à afficher pour le moment.<br>
+    Vos taxations apparaîtront ici dès que leur type de taxe aura une échéance configurée.
+  </div>
+{% endif %}
+
+{% endblock %}

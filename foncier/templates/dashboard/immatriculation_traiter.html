@@ -1,0 +1,140 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Traiter la demande{% endblock %}
+{% block header_title %}{{ demande.nom }} {{ demande.prenom }}{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">Parcelle {{ demande.parcelle.nicad }}</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+  .immat-view-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0ebe0;
+    font-size: 14px;
+  }
+  .immat-view-row:last-of-type { border-bottom: none; }
+  .immat-view-row .label {
+    color: #766c5d; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em; flex-shrink: 0;
+  }
+  .immat-view-row .value { text-align: right; font-weight: 600; color: #24201a; }
+
+  .immat-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .immat-actions form { flex: 1; min-width: 240px; }
+
+  .btn-block { width: 100%; }
+  textarea.form-control {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-family: inherit; font-size: 13px; resize: vertical;
+  }
+
+  .alerte-verif {
+    background: rgba(185,116,11,0.10); color: #b9740b; border-radius: 8px;
+    padding: 12px 14px; font-size: 13px; margin-bottom: 16px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if demande.parcelle.proprietaire %}
+<div class="alerte-verif">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  Attention : cette parcelle a déjà un propriétaire enregistré ({{ demande.parcelle.proprietaire }}).
+  Vérifiez la pièce jointe avant de valider — il peut s'agir d'une vente récente à confirmer, ou d'une erreur.
+</div>
+{% endif %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-user-plus"></i> Détail de la demande</h2>
+  </div>
+  <div class="panel-body">
+    <div class="immat-view-row">
+      <span class="label">Nom complet</span>
+      <span class="value">{{ demande.nom }} {{ demande.prenom }}</span>
+    </div>
+    <div class="immat-view-row">
+      <span class="label">Numéro CNI</span>
+      <span class="value">{{ demande.ni_cni }}</span>
+    </div>
+    <div class="immat-view-row">
+      <span class="label">Téléphone</span>
+      <span class="value">{{ demande.telephone }}</span>
+    </div>
+    <div class="immat-view-row">
+      <span class="label">Email</span>
+      <span class="value">{{ demande.email|default:"—" }}</span>
+    </div>
+    <div class="immat-view-row">
+      <span class="label">Parcelle (NICAD)</span>
+      <span class="value">{{ demande.parcelle.nicad }} — {{ demande.parcelle.superficie|floatformat:0 }} m²</span>
+    </div>
+    <div class="immat-view-row">
+      <span class="label">Occupation déclarée</span>
+      <span class="value">{{ demande.occupation_declaree }}</span>
+    </div>
+    <div class="immat-view-row">
+      <span class="label">Pièce justificative</span>
+      <span class="value"><a href="{{ demande.piece_jointe.url }}" target="_blank" rel="noopener">Voir le fichier</a></span>
+    </div>
+    <div class="immat-view-row">
+      <span class="label">Déposée le</span>
+      <span class="value">{{ demande.date_soumission|date:"d/m/Y à H:i" }}</span>
+    </div>
+    <div class="immat-view-row">
+      <span class="label">Statut</span>
+      <span class="value">{{ demande.get_statut_display }}</span>
+    </div>
+
+    {% if demande.statut == 'VALIDEE' and demande.contribuable_cree %}
+      <div class="immat-view-row">
+        <span class="label">Numéro fiscal attribué</span>
+        <span class="value">{{ demande.contribuable_cree.numero_fiscal }}</span>
+      </div>
+    {% endif %}
+    {% if demande.statut == 'REJETEE' %}
+      <div class="immat-view-row">
+        <span class="label">Motif du rejet</span>
+        <span class="value" style="font-weight:400;">{{ demande.motif_rejet }}</span>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if demande.statut == 'SOUMISE' or demande.statut == 'EN_EXAMEN' %}
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-gavel"></i> Décision</h2>
+  </div>
+  <div class="panel-body">
+    <div class="immat-actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="valider">
+        <p style="font-size:13px; color:#766c5d; margin-bottom:12px;">
+          Un numéro fiscal sera généré automatiquement et le propriétaire/contribuable créé.
+        </p>
+        <button type="submit" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-check"></i> Valider et créer le contribuable
+        </button>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rejeter">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Motif du rejet</label>
+        <textarea name="motif_rejet" class="form-control" rows="3" placeholder="Expliquez pourquoi cette demande est rejetée…" required></textarea>
+        <button type="submit" class="btn btn-outline btn-block" style="margin-top:10px; border-color:#b3261e; color:#b3261e;">
+          <i class="fa-solid fa-xmark"></i> Rejeter
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<a href="{% url 'dashboard_immatriculation_list' %}" class="btn btn-outline btn-sm">
+  <i class="fa-solid fa-arrow-left"></i> Retour à la liste
+</a>
+
+{% endblock %}

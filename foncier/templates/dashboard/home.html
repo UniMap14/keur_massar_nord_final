@@ -225,6 +225,7 @@
 {% block content %}
 
 <div class="kpi-grid">
+{% if peut_fiscal %}
   <div class="kpi-card tone-green">
     <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
     <div class="label">Recouvrement total</div>
@@ -239,11 +240,21 @@
     <div class="delta">Montant encore dû</div>
   </div>
 
+{% endif %}
+{% if peut_fiscal %}
   <div class="kpi-card tone-gold">
     <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
     <div class="label">Contentieux fonciers</div>
     <div class="value">{{ parcelles_en_retard }}</div>
     <div class="delta">Parcelles en retard de paiement</div>
+  </div>
+
+{% endif %}
+{% if peut_technique %}
+  <div class="kpi-card tone-blue">
+    <div class="kpi-icon"><i class="fa-solid fa-map"></i></div>
+    <div class="label">Total parcelles cadastrees</div>
+    <div class="value">{{ nb_parcelles }}</div>
   </div>
 
   <div class="kpi-card tone-blue">
@@ -253,6 +264,7 @@
     <div class="delta">Citoyens dans la base SIG</div>
   </div>
 
+{% endif %}
   <a href="{% url 'dashboard_message_list' %}" class="kpi-card tone-gold" style="text-decoration:none; color:inherit; display:block;">
     <div class="kpi-icon"><i class="fa-solid fa-envelope-open-text"></i></div>
     <div class="label">Messages non traités</div>
@@ -261,6 +273,7 @@
   </a>
 </div>
 
+{% if peut_fiscal %}
 <!-- ============ TAUX DE RECOUVREMENT ============ -->
 <div class="panel">
   <div class="panel-header">
@@ -279,6 +292,8 @@
   </div>
 </div>
 
+{% endif %}
+{% if peut_fiscal %}
 <!-- ============ GRAPHIQUES ============ -->
 <div class="panel">
   <div class="panel-header">
@@ -321,18 +336,22 @@
   </div>
 </div>
 
+{% endif %}
 <!-- ============ ACTIONS RAPIDES ============ -->
 <div class="panel">
   <div class="panel-header">
     <h2><i class="fa-solid fa-bolt"></i> Actions rapides</h2>
   </div>
   <div class="panel-body" style="display:flex; gap:12px; flex-wrap:wrap;">
-    <a href="{% url 'dashboard_parcelle_create' %}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i>Nouvelle parcelle</a>
-    <a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="btn btn-outline btn-sm"><i class="fa-solid fa-clock-rotate-left"></i>Voir les retardataires</a>
+    {% if peut_technique %}<a href="{% url 'dashboard_parcelle_create' %}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i>Nouvelle parcelle</a>{% endif %}
+    {% if peut_fiscal %}
+<a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="btn btn-outline btn-sm"><i class="fa-solid fa-clock-rotate-left"></i>Voir les retardataires</a>
     <a href="{% url 'dashboard_message_list' %}?statut=non_traite" class="btn btn-outline btn-sm"><i class="fa-solid fa-envelope"></i>Traiter les messages</a>
+{% endif %}
   </div>
 </div>
 
+{% if peut_fiscal %}
 <div class="panel">
   <div class="panel-header">
     <h2><i class="fa-solid fa-receipt"></i> Derniers paiements</h2>
@@ -371,6 +390,8 @@
   </div>
 </div>
 
+{% endif %}
+{% if peut_fiscal %}
 <div class="panel">
   <div class="panel-header">
     <h2><i class="fa-solid fa-scale-unbalanced"></i> Parcelles en retard — les plus élevées</h2>
@@ -411,6 +432,7 @@
   </div>
 </div>
 
+{% endif %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Anime la barre de recouvrement de 0 jusqu'à sa valeur réelle

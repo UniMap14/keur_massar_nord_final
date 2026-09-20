@@ -62,7 +62,7 @@ class ManuelBackend:
             taxation=taxation,
             montant=montant,
             mode_paiement='MOBILE',
-            statut_paiement='CONFIRME',
+            statut_paiement='EN_ATTENTE',
             reference_transaction=f"DEMO-{uuid.uuid4().hex[:10].upper()}",
         )
         return {"ok": True, "redirect_url": None, "paiement": paiement, "erreur": None}
@@ -242,7 +242,14 @@ BACKENDS = {
 
 
 def get_backend(nom=None):
-    nom = nom or getattr(settings, "PAIEMENT_BACKEND", "manuel")
+    backend_global = getattr(settings, "PAIEMENT_BACKEND", "manuel")
+    if backend_global == "manuel":
+        # Mode demo : simule TOUJOURS un paiement confirme, quel que soit
+        # l'operateur choisi par le citoyen (Orange Money/Wave), pour ne
+        # jamais exiger de vraies cles API tant que le projet est en
+        # developpement/demonstration.
+        return ManuelBackend()
+    nom = nom or backend_global
     return BACKENDS.get(nom, ManuelBackend)()
 
 

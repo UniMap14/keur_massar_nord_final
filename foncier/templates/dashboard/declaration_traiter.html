@@ -1,0 +1,135 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Traiter la déclaration{% endblock %}
+{% block header_title %}Déclaration {{ declaration.parcelle.nicad }}{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ declaration.type_taxe }} — {{ declaration.annee_fiscale }}</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+  .decl-view-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0ebe0;
+    font-size: 14px;
+  }
+  .decl-view-row:last-of-type { border-bottom: none; }
+  .decl-view-row .label {
+    color: #766c5d; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em; flex-shrink: 0;
+  }
+  .decl-view-row .value { text-align: right; font-weight: 600; color: #24201a; }
+
+  .decl-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .decl-actions form { flex: 1; min-width: 220px; }
+
+  .btn-block { width: 100%; }
+
+  textarea.form-control {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-family: inherit; font-size: 13px; resize: vertical;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-file-signature"></i> Détail de la déclaration</h2>
+  </div>
+  <div class="panel-body">
+    <div class="decl-view-row">
+      <span class="label">Contribuable</span>
+      <span class="value">{{ declaration.contribuable }} ({{ declaration.contribuable.numero_fiscal }})</span>
+    </div>
+    <div class="decl-view-row">
+      <span class="label">Parcelle</span>
+      <span class="value">{{ declaration.parcelle.nicad }} — {{ declaration.parcelle.superficie|floatformat:0 }} m² (cadastrale)</span>
+    </div>
+    <div class="decl-view-row">
+      <span class="label">Type de taxe</span>
+      <span class="value">{{ declaration.type_taxe }}</span>
+    </div>
+    <div class="decl-view-row">
+      <span class="label">Année fiscale</span>
+      <span class="value">{{ declaration.annee_fiscale }}</span>
+    </div>
+    <div class="decl-view-row">
+      <span class="label">Occupation déclarée</span>
+      <span class="value">{{ declaration.occupation_declaree }}</span>
+    </div>
+    <div class="decl-view-row">
+      <span class="label">Superficie déclarée</span>
+      <span class="value">{% if declaration.superficie_declaree %}{{ declaration.superficie_declaree|floatformat:0 }} m²{% else %}— (superficie cadastrale utilisée){% endif %}</span>
+    </div>
+    {% if declaration.commentaire_citoyen %}
+    <div class="decl-view-row">
+      <span class="label">Précisions du citoyen</span>
+      <span class="value" style="font-weight:400;">{{ declaration.commentaire_citoyen }}</span>
+    </div>
+    {% endif %}
+    {% if declaration.piece_jointe %}
+    <div class="decl-view-row">
+      <span class="label">Pièce jointe</span>
+      <span class="value"><a href="{{ declaration.piece_jointe.url }}" target="_blank" rel="noopener">Voir le fichier</a></span>
+    </div>
+    {% endif %}
+    <div class="decl-view-row">
+      <span class="label">Déposée le</span>
+      <span class="value">{{ declaration.date_declaration|date:"d/m/Y à H:i" }}</span>
+    </div>
+    <div class="decl-view-row">
+      <span class="label">Statut</span>
+      <span class="value">{{ declaration.get_statut_display }}</span>
+    </div>
+
+    {% if declaration.statut == 'VALIDEE' and declaration.taxation_generee %}
+      <div class="decl-view-row">
+        <span class="label">Taxation émise</span>
+        <span class="value">{{ declaration.taxation_generee.montant_du|floatformat:0 }} FCFA</span>
+      </div>
+    {% endif %}
+    {% if declaration.statut == 'REJETEE' %}
+      <div class="decl-view-row">
+        <span class="label">Motif du rejet</span>
+        <span class="value" style="font-weight:400;">{{ declaration.motif_rejet }}</span>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if declaration.statut == 'SOUMISE' or declaration.statut == 'EN_EXAMEN' %}
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-gavel"></i> Décision</h2>
+  </div>
+  <div class="panel-body">
+    <div class="decl-actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="valider">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Commentaire (facultatif)</label>
+        <textarea name="commentaire_agent" class="form-control" rows="2" placeholder="Note interne (facultatif)…"></textarea>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:10px;">
+          <i class="fa-solid fa-check"></i> Valider et émettre la taxation
+        </button>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rejeter">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Motif du rejet</label>
+        <textarea name="motif_rejet" class="form-control" rows="2" placeholder="Expliquez pourquoi cette déclaration est rejetée…" required></textarea>
+        <button type="submit" class="btn btn-outline btn-block" style="margin-top:10px; border-color:#b3261e; color:#b3261e;">
+          <i class="fa-solid fa-xmark"></i> Rejeter
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<a href="{% url 'dashboard_declaration_list' %}" class="btn btn-outline btn-sm">
+  <i class="fa-solid fa-arrow-left"></i> Retour à la liste
+</a>
+
+{% endblock %}

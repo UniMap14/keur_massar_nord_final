@@ -1,0 +1,149 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Traiter le recours{% endblock %}
+{% block header_title %}{{ recours.get_niveau_display }}{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ recours.taxation.type_taxe }} — {{ recours.taxation.annee_fiscale }}</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+  .recours-view-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0ebe0;
+    font-size: 14px;
+  }
+  .recours-view-row:last-of-type { border-bottom: none; }
+  .recours-view-row .label {
+    color: #766c5d; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em; flex-shrink: 0;
+  }
+  .recours-view-row .value { text-align: right; font-weight: 600; color: #24201a; }
+
+  .recours-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .recours-actions form { flex: 1; min-width: 240px; }
+
+  .btn-block { width: 100%; }
+
+  textarea.form-control, input.form-control {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-family: inherit; font-size: 13px; resize: vertical;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if recours.recours_precedent %}
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-clock-rotate-left"></i> Recours initial (rejeté)</h2>
+  </div>
+  <div class="panel-body">
+    <div class="recours-view-row">
+      <span class="label">Motif initial</span>
+      <span class="value" style="font-weight:400;">{{ recours.recours_precedent.motif }}</span>
+    </div>
+    <div class="recours-view-row">
+      <span class="label">Motif du rejet</span>
+      <span class="value" style="font-weight:400;">{{ recours.recours_precedent.decision_commentaire }}</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-scale-balanced"></i> Détail du recours</h2>
+  </div>
+  <div class="panel-body">
+    <div class="recours-view-row">
+      <span class="label">Contribuable</span>
+      <span class="value">{{ recours.contribuable }} ({{ recours.contribuable.numero_fiscal }})</span>
+    </div>
+    <div class="recours-view-row">
+      <span class="label">Parcelle</span>
+      <span class="value">{{ recours.taxation.parcelle.nicad|default:"—" }}</span>
+    </div>
+    <div class="recours-view-row">
+      <span class="label">Taxe / Année</span>
+      <span class="value">{{ recours.taxation.type_taxe }} — {{ recours.taxation.annee_fiscale }}</span>
+    </div>
+    <div class="recours-view-row">
+      <span class="label">Montant actuel de la taxation</span>
+      <span class="value">{{ recours.taxation.montant_du|floatformat:0 }} FCFA</span>
+    </div>
+    <div class="recours-view-row">
+      <span class="label">{% if recours.niveau == 2 %}Précisions pour la vérification{% else %}Motif de la contestation{% endif %}</span>
+      <span class="value" style="font-weight:400;">{{ recours.motif }}</span>
+    </div>
+    {% if recours.piece_jointe %}
+    <div class="recours-view-row">
+      <span class="label">Pièce jointe</span>
+      <span class="value"><a href="{{ recours.piece_jointe.url }}" target="_blank" rel="noopener">Voir le fichier</a></span>
+    </div>
+    {% endif %}
+    <div class="recours-view-row">
+      <span class="label">Déposé le</span>
+      <span class="value">{{ recours.date_soumission|date:"d/m/Y à H:i" }}</span>
+    </div>
+    <div class="recours-view-row">
+      <span class="label">Statut</span>
+      <span class="value">{{ recours.get_statut_display }}</span>
+    </div>
+
+    {% if recours.statut == 'ACCEPTE' %}
+      <div class="recours-view-row">
+        <span class="label">Ancien montant</span>
+        <span class="value">{{ recours.ancien_montant|floatformat:0 }} FCFA</span>
+      </div>
+      <div class="recours-view-row">
+        <span class="label">Nouveau montant</span>
+        <span class="value">{{ recours.nouveau_montant|floatformat:0 }} FCFA</span>
+      </div>
+    {% endif %}
+    {% if recours.decision_commentaire and recours.statut != 'SOUMIS' and recours.statut != 'EN_EXAMEN' %}
+      <div class="recours-view-row">
+        <span class="label">Commentaire de décision</span>
+        <span class="value" style="font-weight:400;">{{ recours.decision_commentaire }}</span>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if recours.statut == 'SOUMIS' or recours.statut == 'EN_EXAMEN' %}
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-gavel"></i> Décision</h2>
+  </div>
+  <div class="panel-body">
+    <div class="recours-actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="accepter">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Nouveau montant (FCFA)</label>
+        <input type="number" step="1" name="nouveau_montant" class="form-control" value="{{ recours.taxation.montant_du|floatformat:0 }}" required>
+        <label style="font-size:12px; font-weight:600; display:block; margin:10px 0 6px;">Commentaire (facultatif)</label>
+        <textarea name="decision_commentaire" class="form-control" rows="2" placeholder="Note interne (facultatif)…"></textarea>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:10px;">
+          <i class="fa-solid fa-check"></i> Accepter et corriger le montant
+        </button>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rejeter">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Explication du rejet</label>
+        <textarea name="decision_commentaire" class="form-control" rows="4" placeholder="Expliquez pourquoi ce recours est rejeté…" required></textarea>
+        <button type="submit" class="btn btn-outline btn-block" style="margin-top:10px; border-color:#b3261e; color:#b3261e;">
+          <i class="fa-solid fa-xmark"></i> Rejeter
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<a href="{% url 'dashboard_recours_list' %}" class="btn btn-outline btn-sm">
+  <i class="fa-solid fa-arrow-left"></i> Retour à la liste
+</a>
+
+{% endblock %}

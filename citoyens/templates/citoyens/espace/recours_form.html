@@ -1,0 +1,104 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}{% if est_redressement %}Demande de redressement{% else %}Contester une taxation{% endif %}{% endblock %}
+{% block header_title %}{% if est_redressement %}Demande de redressement{% else %}Contester une taxation{% endif %}{% endblock %}
+{% block header_subtitle %}{{ taxation.type_taxe.libelle }} — {{ taxation.annee_fiscale }}{% endblock %}
+
+{% block extra_style %}
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+    .field textarea, .field input[type="file"] {
+        width: 100%; background: var(--off-white); border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text);
+        font-family: inherit; font-size: 14px; transition: border-color .2s ease, background .2s ease;
+    }
+    .field textarea:focus { outline: none; border-color: var(--gold); background: var(--white); }
+    .field .errorlist { list-style: none; padding: 0; margin: 7px 0 0; color: var(--danger); font-size: 12px; }
+
+    .info-note {
+        background: rgba(201,152,46,0.08); border: 1px dashed rgba(201,152,46,0.4);
+        border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13px; color: var(--text-muted);
+        margin-bottom: 24px; line-height: 1.6; display: flex; gap: 10px; align-items: flex-start;
+    }
+    .info-note i { color: var(--gold-dark); margin-top: 1px; }
+
+    .taxation-recap {
+        background: var(--off-white); border: 1px solid var(--border); border-radius: var(--radius-sm);
+        padding: 14px 16px; margin-bottom: 22px; font-size: 13.5px;
+    }
+    .taxation-recap div { display: flex; justify-content: space-between; padding: 4px 0; }
+    .taxation-recap .label { color: var(--text-muted); }
+    .taxation-recap .value { font-weight: 700; color: var(--text); }
+
+    .btn-gold {
+        background: var(--gold); color: var(--green-dark); font-weight: 700;
+        border: none; padding: 13px 20px; border-radius: 999px;
+        font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 9px;
+        transition: all .2s ease; width: 100%; justify-content: center;
+    }
+    .btn-gold:hover { background: #d9ad4f; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(201,152,46,0.35); }
+
+    .messages { margin-bottom: 20px; }
+    .messages .msg {
+        padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 10px;
+        background: rgba(178,59,46,0.08); color: var(--danger); border: 1px solid rgba(178,59,46,0.25);
+    }
+{% endblock %}
+
+{% block content %}
+
+{% if est_redressement %}
+<div class="info-note">
+  <i class="fa-solid fa-circle-info"></i>
+  <div>Votre recours initial a été rejeté. Cette demande de redressement sera examinée par le Chef Fiscalité, qui vérifiera spécifiquement l'historique de vos paiements des années précédentes.</div>
+</div>
+{% if recours_precedent.decision_commentaire %}
+<div class="taxation-recap">
+  <div><span class="label">Motif du rejet initial</span></div>
+  <div style="display:block; margin-top:4px; color:var(--text);">{{ recours_precedent.decision_commentaire }}</div>
+</div>
+{% endif %}
+{% else %}
+<div class="info-note">
+  <i class="fa-solid fa-circle-info"></i>
+  <div>Votre contestation sera examinée par un agent des services fiscaux. Si elle est rejetée, vous pourrez demander une vérification approfondie (redressement).</div>
+</div>
+{% endif %}
+
+<div class="taxation-recap">
+  <div><span class="label">Parcelle</span><span class="value">{{ taxation.parcelle.nicad|default:"—" }}</span></div>
+  <div><span class="label">Montant dû</span><span class="value">{{ taxation.montant_du|floatformat:0 }} FCFA</span></div>
+  <div><span class="label">Année fiscale</span><span class="value">{{ taxation.annee_fiscale }}</span></div>
+</div>
+
+<div class="card">
+  {% if form.non_field_errors %}
+    <div class="messages">
+      {% for e in form.non_field_errors %}<div class="msg">{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    <div class="field">
+      <label for="{{ form.motif.id_for_label }}">{% if est_redressement %}Précisions sur les paiements à vérifier{% else %}Motif de la contestation{% endif %}</label>
+      {{ form.motif }}
+      {{ form.motif.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.piece_jointe.id_for_label }}">Pièce jointe (facultatif)</label>
+      {{ form.piece_jointe }}
+      <div class="helptext" style="font-size:12px; color:var(--text-muted); margin-top:7px;">Un justificatif (reçu, capture, document) si vous en avez un.</div>
+      {{ form.piece_jointe.errors }}
+    </div>
+
+    <button type="submit" class="btn-gold">
+      <i class="fa-solid fa-paper-plane"></i> {% if est_redressement %}Soumettre ma demande de redressement{% else %}Soumettre ma contestation{% endif %}
+    </button>
+  </form>
+</div>
+
+{% endblock %}

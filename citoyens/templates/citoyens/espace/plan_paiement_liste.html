@@ -1,0 +1,112 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}Mes plans de paiement{% endblock %}
+{% block header_title %}Mes plans de paiement{% endblock %}
+{% block header_subtitle %}Suivez vos échelonnements de paiement et réglez vos échéances.{% endblock %}
+
+{% block extra_style %}
+    .plan-card {
+        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px;
+    }
+    .plan-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .plan-top .titre { font-weight: 700; font-size: 15.5px; }
+
+    .badge {
+        display: inline-block; padding: 4px 12px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap;
+    }
+    .badge.soumis { background: rgba(52,104,168,0.10); color: #3468a8; }
+    .badge.en-examen { background: rgba(185,116,11,0.10); color: #b9740b; }
+    .badge.valide { background: var(--ok-bg); color: var(--ok); }
+    .badge.rejete { background: var(--danger-bg); color: var(--danger); }
+    .badge.termine { background: var(--ok-bg); color: var(--ok); }
+
+    .echeances-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+    .echeances-table th { text-align: left; color: var(--text-muted); font-weight: 700; font-size: 10.5px; text-transform: uppercase; padding: 8px 10px; border-bottom: 2px solid var(--off-white); }
+    .echeances-table td { padding: 10px; border-bottom: 1px solid var(--border); }
+    .echeances-table tr:last-child td { border-bottom: none; }
+
+    .echeance-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+    .echeance-badge.attente { background: rgba(185,116,11,0.10); color: #b9740b; }
+    .echeance-badge.payee { background: var(--ok-bg); color: var(--ok); }
+
+    .btn-pay {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--gold); color: var(--green-dark); font-weight: 700; font-size: 11.5px;
+        padding: 5px 12px; border-radius: 999px; text-decoration: none;
+    }
+
+    .rejet-note { margin-top: 10px; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 12.5px; background: var(--danger-bg); color: var(--danger); }
+
+    .empty-state {
+        text-align: center; padding: 60px 20px; color: var(--text-muted);
+        background: var(--white); border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+    .empty-state i { font-size: 28px; color: var(--gold-dark); margin-bottom: 12px; display: block; }
+{% endblock %}
+
+{% block content %}
+
+{% if plans %}
+  {% for plan in plans %}
+  <div class="plan-card">
+    <div class="plan-top">
+      <div class="titre">{{ plan.taxation.type_taxe.libelle }} ({{ plan.taxation.annee_fiscale }}) — {{ plan.nombre_echeances }} échéances</div>
+      <span class="badge {% if plan.statut == 'SOUMIS' %}soumis{% elif plan.statut == 'EN_EXAMEN' %}en-examen{% elif plan.statut == 'VALIDE' %}valide{% elif plan.statut == 'TERMINE' %}termine{% else %}rejete{% endif %}">
+        {{ plan.get_statut_display }}
+      </span>
+    </div>
+
+    {% if plan.statut == 'REJETE' and plan.motif_rejet %}
+      <div class="rejet-note"><strong>Motif du rejet :</strong> {{ plan.motif_rejet }}</div>
+    {% endif %}
+
+    {% if plan.statut == 'VALIDE' or plan.statut == 'TERMINE' %}
+    <table class="echeances-table">
+      <thead>
+        <tr>
+          <th>N°</th>
+          <th>Montant</th>
+          <th>Date prévue</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in plan.echeances.all %}
+        <tr>
+          <td>{{ e.numero }}</td>
+          <td>{{ e.montant|floatformat:0 }} FCFA</td>
+          <td>{{ e.date_prevue|date:"d/m/Y" }}</td>
+          <td>
+            {% if e.statut == 'PAYEE' %}
+              <span class="echeance-badge payee">Payée</span>
+            {% else %}
+              <span class="echeance-badge attente">{% if e.paiement %}En cours de validation{% else %}En attente{% endif %}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if e.statut != 'PAYEE' and not e.paiement %}
+              <a href="{% url 'citoyen_echeance_payer' e.pk %}" class="btn-pay">
+                <i class="fa-solid fa-mobile-screen-button"></i> Payer
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-calendar-days"></i>
+    Vous n'avez aucun plan de paiement pour le moment.<br><br>
+    Vous pouvez en demander un depuis « Ma fiscalité », sur une taxation en retard.
+  </div>
+{% endif %}
+
+{% endblock %}

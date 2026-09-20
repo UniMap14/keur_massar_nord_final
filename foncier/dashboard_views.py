@@ -44,9 +44,17 @@ from .models import (
     DemandeService,
     TypeDemande,
     Signalement,
+    DeclarationFiscale,
+    RecoursFiscal,
+    DemandeImmatriculation,
+    DemandeExoneration,
+    PlanPaiement,
+    EcheancePlanPaiement,
+    DemandeMutation,
 )
 
 from django.conf import settings
+from django.utils import timezone
 from django.core.mail import send_mail
 
 
@@ -638,6 +646,19 @@ def dashboard_paiement_list(request):
 
     paiements = Paiement.objects.select_related("taxation", "taxation__contribuable").order_by("-date_paiement")
 
+    def _cellule_statut(p):
+        if p.statut_paiement == "CONFIRME":
+            return format_html('<span class="badge" style="background:rgba(47,122,79,0.10); color:#2f7a4f;">Confirmé</span>')
+        elif p.statut_paiement == "EN_ATTENTE":
+            return format_html(
+                '<span class="badge" style="background:rgba(185,116,11,0.10); color:#b9740b;">En attente</span> '
+                '<a href="{}" style="margin-left:8px; color:var(--green); font-weight:700; font-size:12px; text-decoration:none;">'
+                '<i class="fa-solid fa-check"></i> Valider</a>',
+                reverse("dashboard_paiement_valider", args=[p.pk]),
+            )
+        else:
+            return format_html('<span class="badge badge-danger">Échoué</span>')
+
     lignes = [
         {
             "pk": p.pk,
@@ -651,6 +672,7 @@ def dashboard_paiement_list(request):
                 _fcfa(p.montant),
                 p.date_paiement,
                 p.get_mode_paiement_display(),
+                _cellule_statut(p),
             ]
         }
         for p in paiements
@@ -659,7 +681,7 @@ def dashboard_paiement_list(request):
     return render(request, "dashboard/generic_list_stub.html", {
         "active_section": "paiements",
         "titre": "Paiements",
-        "colonnes": ["N° reçu", "Contribuable", "Montant", "Date", "Mode"],
+        "colonnes": ["N° reçu", "Contribuable", "Montant", "Date", "Mode", "Statut"],
         "objets": lignes,
         "create_url_name": "dashboard_paiement_create",
         "create_label": "Nouveau paiement",
@@ -1220,7 +1242,7 @@ def _envoyer_sms_demande_statut_maj(demande):
     if telephone:
         envoyer_sms(
             telephone,
-            f"KMS Nord : votre dossier {demande.numero_dossier} est maintenant "
+            f"KEUR MASSAR NORD : votre dossier {demande.numero_dossier} est maintenant "
             f"\"{demande.get_statut_display()}\".",
         )
 
@@ -1347,7 +1369,7 @@ def dashboard_signalement_detail(request, pk):
             ):
                 envoyer_sms(
                     signalement.telephone,
-                    f"KMS Nord : votre signalement \"{signalement.titre}\" a été marqué "
+                    f"KEUR MASSAR NORD : votre signalement \"{signalement.titre}\" a été marqué "
                     f"comme résolu. Merci pour votre contribution.",
                 )
 
@@ -1483,4 +1505,716 @@ def dashboard_journal_audit_list(request):
         "modele_filtre": modele_filtre,
         "action_filtre": action_filtre,
         "utilisateur_filtre": utilisateur_filtre,
+    })
+# ============================================================
+# mon_profil_view.py — À AJOUTER dans foncier/dashboard_views.py
+#
+# Permet à un agent/admin connecté de modifier lui-même son propre
+# profil : nom d'utilisateur, mot de passe, nom/prénom, fonction,
+# téléphone, photo de profil.
+#
+# Copiez le contenu ci-dessous (à partir de "@login_required") et
+# collez-le dans foncier/dashboard_views.py, n'importe où après les
+# imports (par exemple juste après la fonction dashboard_home).
+# ============================================================
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_mon_profil(request):
+    """
+    Chaque agent ne peut modifier QUE son propre profil (aucun
+    paramètre d'ID dans l'URL : toujours request.user). Le changement
+    de mot de passe exige l'ancien mot de passe, et la session est
+    maintenue active après changement (sinon l'agent serait déconnecté
+    en pleine modification de son propre profil).
+    """
+    from django.contrib.auth import update_session_auth_hash
+    from django.contrib.auth.forms import PasswordChangeForm
+    from foncier.models import ProfilAgent
+
+    profil, _ = ProfilAgent.objects.get_or_create(user=request.user)
+
+    if request.method == "POST":
+        erreurs = []
+
+        # --- Nom d'utilisateur ---
+        nouveau_username = request.POST.get("username", "").strip()
+        if nouveau_username and nouveau_username != request.user.username:
+            deja_pris = User.objects.filter(username=nouveau_username).exclude(pk=request.user.pk).exists()
+            if deja_pris:
+                erreurs.append(f"Le nom d'utilisateur « {nouveau_username} » est déjà pris.")
+            else:
+                request.user.username = nouveau_username
+
+        # --- Nom / prénom ---
+        request.user.first_name = request.POST.get("first_name", "").strip()
+        request.user.last_name = request.POST.get("last_name", "").strip()
+
+        # --- Fonction / téléphone ---
+        profil.fonction = request.POST.get("fonction", "").strip()
+        profil.telephone = request.POST.get("telephone", "").strip()
+
+        # --- Photo de profil (facultative) ---
+        if request.FILES.get("photo"):
+            profil.photo = request.FILES["photo"]
+
+        # --- Mot de passe (facultatif : rempli seulement si l'agent veut le changer) ---
+        mdp_actuel = request.POST.get("mdp_actuel", "")
+        mdp_nouveau = request.POST.get("mdp_nouveau", "")
+        mdp_confirmation = request.POST.get("mdp_confirmation", "")
+        changement_mdp_demande = bool(mdp_actuel or mdp_nouveau or mdp_confirmation)
+
+        if changement_mdp_demande:
+            if not request.user.check_password(mdp_actuel):
+                erreurs.append("Le mot de passe actuel saisi est incorrect.")
+            elif mdp_nouveau != mdp_confirmation:
+                erreurs.append("Le nouveau mot de passe et sa confirmation ne correspondent pas.")
+            elif len(mdp_nouveau) < 8:
+                erreurs.append("Le nouveau mot de passe doit contenir au moins 8 caractères.")
+            else:
+                request.user.set_password(mdp_nouveau)
+
+        if erreurs:
+            for e in erreurs:
+                messages.error(request, e)
+        else:
+            request.user.save()
+            profil.save()
+            if changement_mdp_demande:
+                update_session_auth_hash(request, request.user)
+            messages.success(request, "Profil mis à jour avec succès.")
+            return redirect("dashboard_mon_profil")
+
+    return render(request, "dashboard/mon_profil.html", {
+        "profil": profil,
+        "active_section": "mon_profil",
+    })
+
+# ============================================================
+# DECLARATIONS FISCALES (cote agent) — examen et validation des
+# declarations deposees par les citoyens (voir citoyens/views.py pour
+# le depot cote citoyen). Reprend le meme bareme que
+# simuler_fiscalite_fonciere.py, pour rester coherent avec les
+# montants deja simules sur les parcelles.
+# ============================================================
+
+from decimal import Decimal, ROUND_HALF_UP
+
+_TAUX_CFPB = Decimal("0.05")
+_TAUX_CFPNB = Decimal("0.05")
+_TAUX_SURTAXE_NON_BATI = Decimal("0.02")
+_ABATTEMENT_RESIDENCE_PRINCIPALE = Decimal("1500000")
+
+_VALEUR_M2_DECLARATION = {
+    "Bâti": Decimal("14000"),
+    "Terrain Nu": Decimal("100000"),
+    "Zone de culture": Decimal("35000"),
+}
+
+
+def _calculer_montant_declaration(occupation, superficie):
+    """Meme methode que simuler_fiscalite_fonciere.py (CFPB 5% avec
+    abattement RP pour le bati, CFPNB 5%+2% de surtaxe pour le terrain
+    nu, 5% sans surtaxe pour une zone de culture)."""
+    superficie = Decimal(str(superficie or 0))
+    if occupation == "Bâti":
+        valeur_locative = superficie * _VALEUR_M2_DECLARATION["Bâti"]
+        base = max(Decimal("0"), valeur_locative - _ABATTEMENT_RESIDENCE_PRINCIPALE)
+        montant = base * _TAUX_CFPB
+    else:
+        valeur_venale = superficie * _VALEUR_M2_DECLARATION.get(occupation, Decimal("0"))
+        taux = _TAUX_CFPNB + (_TAUX_SURTAXE_NON_BATI if occupation == "Terrain Nu" else Decimal("0"))
+        montant = valeur_venale * taux
+    return montant.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_declaration_list(request):
+    """Liste des declarations fiscales, filtrable par statut (par
+    defaut : celles encore a traiter)."""
+    statut_filtre = request.GET.get("statut", "")
+    qs = (
+        DeclarationFiscale.objects
+        .select_related("contribuable", "parcelle", "type_taxe")
+        .order_by("-date_declaration")
+    )
+    if statut_filtre:
+        qs = qs.filter(statut=statut_filtre)
+
+    return render(request, "dashboard/declaration_list.html", {
+        "active_section": "declarations",
+        "declarations": qs,
+        "statut_filtre": statut_filtre,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_declaration_traiter(request, pk):
+    """Examen d'une declaration : validation (calcule et emet la
+    taxation correspondante) ou rejet (avec motif)."""
+    declaration = get_object_or_404(
+        DeclarationFiscale.objects.select_related("contribuable", "parcelle", "type_taxe"),
+        pk=pk,
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "valider":
+            superficie = declaration.superficie_declaree or declaration.parcelle.superficie
+            montant = _calculer_montant_declaration(declaration.occupation_declaree, superficie)
+
+            taxation = Taxation.objects.create(
+                contribuable=declaration.contribuable,
+                type_taxe=declaration.type_taxe,
+                parcelle=declaration.parcelle,
+                annee_fiscale=declaration.annee_fiscale,
+                montant_du=montant,
+            )
+
+            declaration.statut = DeclarationFiscale.STATUT_VALIDEE
+            declaration.taxation_generee = taxation
+            declaration.traite_par = request.user
+            declaration.date_traitement = timezone.now()
+            declaration.commentaire_agent = request.POST.get("commentaire_agent", "").strip()
+            declaration.save()
+
+            messages.success(request, f"Déclaration validée — taxation de {montant:,.0f} FCFA émise.".replace(",", " "))
+            return redirect("dashboard_declaration_list")
+
+        elif action == "rejeter":
+            motif = request.POST.get("motif_rejet", "").strip()
+            if not motif:
+                messages.error(request, "Merci d'indiquer un motif de rejet.")
+            else:
+                declaration.statut = DeclarationFiscale.STATUT_REJETEE
+                declaration.motif_rejet = motif
+                declaration.traite_par = request.user
+                declaration.date_traitement = timezone.now()
+                declaration.save()
+                messages.info(request, "Déclaration rejetée.")
+                return redirect("dashboard_declaration_list")
+
+    return render(request, "dashboard/declaration_traiter.html", {
+        "active_section": "declarations",
+        "declaration": declaration,
+    })
+
+
+# ============================================================
+# RECOURS FISCAUX (cote agent) — examen des contestations de taxation
+# et des demandes de redressement deposees par les citoyens.
+# ============================================================
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_recours_list(request):
+    """Liste des recours/redressements fiscaux, filtrable par statut."""
+    statut_filtre = request.GET.get("statut", "")
+    qs = (
+        RecoursFiscal.objects
+        .select_related("contribuable", "taxation", "taxation__type_taxe", "taxation__parcelle")
+        .order_by("-date_soumission")
+    )
+    if statut_filtre:
+        qs = qs.filter(statut=statut_filtre)
+
+    return render(request, "dashboard/recours_list.html", {
+        "active_section": "recours",
+        "recours_liste": qs,
+        "statut_filtre": statut_filtre,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_recours_traiter(request, pk):
+    """Examen d'un recours/redressement : acceptation (corrige le
+    montant de la taxation) ou rejet (avec explication)."""
+    recours = get_object_or_404(
+        RecoursFiscal.objects.select_related(
+            "contribuable", "taxation", "taxation__type_taxe", "taxation__parcelle", "recours_precedent"
+        ),
+        pk=pk,
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "accepter":
+            nouveau_montant_str = request.POST.get("nouveau_montant", "").strip()
+            try:
+                nouveau_montant = Decimal(nouveau_montant_str)
+            except Exception:
+                messages.error(request, "Montant invalide.")
+                return redirect("dashboard_recours_traiter", pk=pk)
+
+            recours.ancien_montant = recours.taxation.montant_du
+            recours.nouveau_montant = nouveau_montant
+            recours.taxation.montant_du = nouveau_montant
+            recours.taxation.save(update_fields=["montant_du"])
+
+            recours.statut = RecoursFiscal.STATUT_ACCEPTE
+            recours.traite_par = request.user
+            recours.date_traitement = timezone.now()
+            recours.decision_commentaire = request.POST.get("decision_commentaire", "").strip()
+            recours.save()
+
+            messages.success(request, f"Recours accepté — nouveau montant : {nouveau_montant:,.0f} FCFA.".replace(",", " "))
+            return redirect("dashboard_recours_list")
+
+        elif action == "rejeter":
+            commentaire = request.POST.get("decision_commentaire", "").strip()
+            if not commentaire:
+                messages.error(request, "Merci d'indiquer une explication pour le rejet.")
+            else:
+                recours.statut = RecoursFiscal.STATUT_REJETE
+                recours.traite_par = request.user
+                recours.date_traitement = timezone.now()
+                recours.decision_commentaire = commentaire
+                recours.save()
+                messages.info(request, "Recours rejeté.")
+                return redirect("dashboard_recours_list")
+
+    return render(request, "dashboard/recours_traiter.html", {
+        "active_section": "recours",
+        "recours": recours,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_paiement_valider(request, pk):
+    """Valide un paiement encore 'En attente' (typiquement issu du
+    backend de demonstration 'manuel') : le passe a 'Confirme', ce qui
+    rend alors son recu PDF telechargeable par le citoyen."""
+    paiement = get_object_or_404(Paiement, pk=pk)
+
+    if paiement.statut_paiement == "EN_ATTENTE":
+        paiement.statut_paiement = "CONFIRME"
+        paiement.save(update_fields=["statut_paiement"])
+
+        # Si ce paiement correspond a une echeance de plan de paiement,
+        # la marque payee et termine le plan si c'etait la derniere.
+        echeance = getattr(paiement, "echeance_origine", None)
+        if echeance is not None:
+            echeance.statut = "PAYEE"
+            echeance.save(update_fields=["statut"])
+
+            plan = echeance.plan
+            if not plan.echeances.exclude(statut="PAYEE").exists():
+                plan.statut = "TERMINE"
+                plan.save(update_fields=["statut"])
+
+        messages.success(request, f"Paiement {paiement.numero_recu} validé — le reçu est maintenant disponible.")
+    else:
+        messages.info(request, "Ce paiement n'était pas en attente de validation.")
+
+    return redirect("dashboard_paiement_list")
+
+
+# ============================================================
+# PREMIERE IMMATRICULATION FISCALE (cote agent) — examen des demandes
+# publiques deposees par des personnes qui n'ont jamais ete
+# contribuables (voir foncier/views.py:immatriculation_demande_view
+# pour le depot public).
+# ============================================================
+
+def _generer_numero_fiscal():
+    """Genere un numero fiscal KMN-XXXXXX sequentiel et unique, pour
+    distinguer les vraies immatriculations des comptes simules
+    (prefixe SIMU-)."""
+    dernier = (
+        Contribuable.objects
+        .filter(numero_fiscal__startswith="KMN-")
+        .order_by("-numero_fiscal")
+        .first()
+    )
+    if dernier:
+        try:
+            dernier_num = int(dernier.numero_fiscal.split("-")[1])
+        except (IndexError, ValueError):
+            dernier_num = 0
+    else:
+        dernier_num = 0
+    return f"KMN-{dernier_num + 1:06d}"
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_immatriculation_list(request):
+    """Liste des demandes de premiere immatriculation fiscale, filtrable par statut."""
+    statut_filtre = request.GET.get("statut", "")
+    qs = (
+        DemandeImmatriculation.objects
+        .select_related("parcelle")
+        .order_by("-date_soumission")
+    )
+    if statut_filtre:
+        qs = qs.filter(statut=statut_filtre)
+
+    return render(request, "dashboard/immatriculation_list.html", {
+        "active_section": "immatriculations",
+        "demandes": qs,
+        "statut_filtre": statut_filtre,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_immatriculation_traiter(request, pk):
+    """Examen d'une demande d'immatriculation : validation (cree le
+    proprietaire, rattache la parcelle, cree le contribuable avec un
+    nouveau numero fiscal, notifie par email) ou rejet (avec motif)."""
+    demande = get_object_or_404(
+        DemandeImmatriculation.objects.select_related("parcelle"), pk=pk
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "valider":
+            proprietaire, _ = Propriétaire.objects.get_or_create(
+                ni_cni=demande.ni_cni,
+                defaults={
+                    "nom": demande.nom,
+                    "prenom": demande.prenom,
+                    "telephone": demande.telephone,
+                },
+            )
+
+            demande.parcelle.proprietaire = proprietaire
+            demande.parcelle.occupation_sol = demande.occupation_declaree
+            demande.parcelle.save(update_fields=["proprietaire", "occupation_sol"])
+
+            numero_fiscal = _generer_numero_fiscal()
+            contribuable = Contribuable.objects.create(
+                proprietaire=proprietaire,
+                numero_fiscal=numero_fiscal,
+                nom=demande.nom,
+                prenom=demande.prenom,
+                telephone=demande.telephone,
+            )
+
+            demande.statut = DemandeImmatriculation.STATUT_VALIDEE
+            demande.contribuable_cree = contribuable
+            demande.traite_par = request.user
+            demande.date_traitement = timezone.now()
+            demande.save()
+
+            if demande.email:
+                try:
+                    send_mail(
+                        subject="[KEUR MASSAR NORD] Votre immatriculation fiscale",
+                        message=(
+                            f"Bonjour {demande.prenom},\n\n"
+                            f"Votre demande d'immatriculation fiscale a été validée.\n"
+                            f"Votre numéro fiscal est : {numero_fiscal}\n"
+                            f"Votre numéro foncier (NICAD) est : {demande.parcelle.nicad}\n\n"
+                            f"Vous pouvez désormais créer votre compte dans l'espace citoyen "
+                            f"en utilisant ces deux identifiants."
+                        ),
+                        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                        recipient_list=[demande.email],
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+
+            messages.success(request, f"Immatriculation validée — numéro fiscal {numero_fiscal} attribué.")
+            return redirect("dashboard_immatriculation_list")
+
+        elif action == "rejeter":
+            motif = request.POST.get("motif_rejet", "").strip()
+            if not motif:
+                messages.error(request, "Merci d'indiquer un motif de rejet.")
+            else:
+                demande.statut = DemandeImmatriculation.STATUT_REJETEE
+                demande.motif_rejet = motif
+                demande.traite_par = request.user
+                demande.date_traitement = timezone.now()
+                demande.save()
+                messages.info(request, "Demande rejetée.")
+                return redirect("dashboard_immatriculation_list")
+
+    return render(request, "dashboard/immatriculation_traiter.html", {
+        "active_section": "immatriculations",
+        "demande": demande,
+    })
+
+
+# ============================================================
+# EXONERATIONS FISCALES (cote agent) — examen des demandes citoyennes.
+# ============================================================
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_exoneration_list(request):
+    """Liste des demandes d'exoneration fiscale, filtrable par statut."""
+    statut_filtre = request.GET.get("statut", "")
+    qs = (
+        DemandeExoneration.objects
+        .select_related("contribuable", "parcelle")
+        .order_by("-date_soumission")
+    )
+    if statut_filtre:
+        qs = qs.filter(statut=statut_filtre)
+
+    return render(request, "dashboard/exoneration_list.html", {
+        "active_section": "exonerations",
+        "demandes": qs,
+        "statut_filtre": statut_filtre,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_exoneration_traiter(request, pk):
+    """Examen d'une demande d'exoneration : validation (passe la
+    parcelle au statut fiscal EXONERE) ou rejet (avec motif)."""
+    demande = get_object_or_404(
+        DemandeExoneration.objects.select_related("contribuable", "parcelle"), pk=pk
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "valider":
+            demande.parcelle.statut_fiscal = "EXONERE"
+            demande.parcelle.save(update_fields=["statut_fiscal"])
+
+            demande.statut = DemandeExoneration.STATUT_VALIDEE
+            demande.traite_par = request.user
+            demande.date_traitement = timezone.now()
+            demande.save()
+
+            messages.success(request, f"Exonération validée — la parcelle {demande.parcelle.nicad} est désormais exonérée.")
+            return redirect("dashboard_exoneration_list")
+
+        elif action == "rejeter":
+            motif = request.POST.get("motif_rejet", "").strip()
+            if not motif:
+                messages.error(request, "Merci d'indiquer un motif de rejet.")
+            else:
+                demande.statut = DemandeExoneration.STATUT_REJETEE
+                demande.motif_rejet = motif
+                demande.traite_par = request.user
+                demande.date_traitement = timezone.now()
+                demande.save()
+                messages.info(request, "Demande rejetée.")
+                return redirect("dashboard_exoneration_list")
+
+    return render(request, "dashboard/exoneration_traiter.html", {
+        "active_section": "exonerations",
+        "demande": demande,
+    })
+
+
+# ============================================================
+# PLANS DE PAIEMENT (cote agent) — examen des demandes
+# d'echelonnement, generation automatique des echeances a la
+# validation.
+# ============================================================
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_plan_paiement_list(request):
+    """Liste des demandes de plan de paiement, filtrable par statut."""
+    statut_filtre = request.GET.get("statut", "")
+    qs = (
+        PlanPaiement.objects
+        .select_related("contribuable", "taxation", "taxation__type_taxe", "taxation__parcelle")
+        .order_by("-date_soumission")
+    )
+    if statut_filtre:
+        qs = qs.filter(statut=statut_filtre)
+
+    return render(request, "dashboard/plan_paiement_list.html", {
+        "active_section": "plans_paiement",
+        "plans": qs,
+        "statut_filtre": statut_filtre,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_plan_paiement_traiter(request, pk):
+    """Examen d'une demande de plan de paiement : validation (genere
+    les echeances, montants egaux, une par mois) ou rejet (avec motif)."""
+    import datetime
+    from decimal import ROUND_HALF_UP
+
+    plan = get_object_or_404(
+        PlanPaiement.objects.select_related("contribuable", "taxation"), pk=pk
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "valider":
+            solde = plan.taxation.solde
+            n = plan.nombre_echeances
+            montant_par_echeance = (solde / n).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+            aujourdhui = datetime.date.today()
+            total_reparti = Decimal("0")
+            for i in range(1, n + 1):
+                mois_a_ajouter = i
+                annee = aujourdhui.year + (aujourdhui.month - 1 + mois_a_ajouter) // 12
+                mois = (aujourdhui.month - 1 + mois_a_ajouter) % 12 + 1
+                date_prevue = datetime.date(annee, mois, min(aujourdhui.day, 28))
+
+                montant_echeance = montant_par_echeance
+                if i == n:
+                    montant_echeance = solde - total_reparti
+                total_reparti += montant_echeance
+
+                EcheancePlanPaiement.objects.create(
+                    plan=plan,
+                    numero=i,
+                    montant=montant_echeance,
+                    date_prevue=date_prevue,
+                )
+
+            plan.statut = PlanPaiement.STATUT_VALIDE
+            plan.traite_par = request.user
+            plan.date_traitement = timezone.now()
+            plan.save()
+
+            messages.success(request, f"Plan de paiement validé — {n} échéance(s) générée(s).")
+            return redirect("dashboard_plan_paiement_list")
+
+        elif action == "rejeter":
+            motif = request.POST.get("motif_rejet", "").strip()
+            if not motif:
+                messages.error(request, "Merci d'indiquer un motif de rejet.")
+            else:
+                plan.statut = PlanPaiement.STATUT_REJETE
+                plan.motif_rejet = motif
+                plan.traite_par = request.user
+                plan.date_traitement = timezone.now()
+                plan.save()
+                messages.info(request, "Demande rejetée.")
+                return redirect("dashboard_plan_paiement_list")
+
+    return render(request, "dashboard/plan_paiement_traiter.html", {
+        "active_section": "plans_paiement",
+        "plan": plan,
+    })
+
+
+# ============================================================
+# MUTATIONS FISCALES (cote agent) — examen des demandes de transfert
+# de dossier fiscal suite a une revente.
+# ============================================================
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_mutation_list(request):
+    """Liste des demandes de mutation fiscale, filtrable par statut."""
+    statut_filtre = request.GET.get("statut", "")
+    qs = (
+        DemandeMutation.objects
+        .select_related("parcelle", "parcelle__proprietaire")
+        .order_by("-date_soumission")
+    )
+    if statut_filtre:
+        qs = qs.filter(statut=statut_filtre)
+
+    return render(request, "dashboard/mutation_list.html", {
+        "active_section": "mutations",
+        "demandes": qs,
+        "statut_filtre": statut_filtre,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('fiscal')
+def dashboard_mutation_traiter(request, pk):
+    """
+    Examen d'une demande de mutation : validation (cree le nouveau
+    proprietaire/contribuable, rattache la parcelle, notifie par
+    email) ou rejet (avec motif).
+    """
+    demande = get_object_or_404(
+        DemandeMutation.objects.select_related("parcelle", "parcelle__proprietaire"), pk=pk
+    )
+
+    ancien_contribuable = None
+    if demande.parcelle.proprietaire_id:
+        ancien_contribuable = Contribuable.objects.filter(
+            proprietaire_id=demande.parcelle.proprietaire_id
+        ).first()
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "valider":
+            nouveau_proprietaire, _ = Propriétaire.objects.get_or_create(
+                ni_cni=demande.nouveau_cni,
+                defaults={
+                    "nom": demande.nouveau_nom,
+                    "prenom": demande.nouveau_prenom,
+                    "telephone": demande.nouveau_telephone,
+                },
+            )
+
+            demande.parcelle.proprietaire = nouveau_proprietaire
+            demande.parcelle.save(update_fields=["proprietaire"])
+
+            numero_fiscal = _generer_numero_fiscal()
+            nouveau_contribuable = Contribuable.objects.create(
+                proprietaire=nouveau_proprietaire,
+                numero_fiscal=numero_fiscal,
+                nom=demande.nouveau_nom,
+                prenom=demande.nouveau_prenom,
+                telephone=demande.nouveau_telephone,
+            )
+
+            demande.statut = DemandeMutation.STATUT_VALIDEE
+            demande.nouveau_contribuable_cree = nouveau_contribuable
+            demande.traite_par = request.user
+            demande.date_traitement = timezone.now()
+            demande.save()
+
+            if demande.nouveau_email:
+                try:
+                    send_mail(
+                        subject="[KEUR MASSAR NORD] Votre mutation fiscale",
+                        message=(
+                            f"Bonjour {demande.nouveau_prenom},\n\n"
+                            f"Votre demande de mutation fiscale a été validée.\n"
+                            f"Votre numéro fiscal est : {numero_fiscal}\n"
+                            f"Votre numéro foncier (NICAD) est : {demande.parcelle.nicad}\n\n"
+                            f"Vous pouvez désormais créer votre compte dans l'espace citoyen "
+                            f"en utilisant ces deux identifiants."
+                        ),
+                        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                        recipient_list=[demande.nouveau_email],
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+
+            messages.success(request, f"Mutation validée — numéro fiscal {numero_fiscal} attribué au nouveau propriétaire.")
+            return redirect("dashboard_mutation_list")
+
+        elif action == "rejeter":
+            motif = request.POST.get("motif_rejet", "").strip()
+            if not motif:
+                messages.error(request, "Merci d'indiquer un motif de rejet.")
+            else:
+                demande.statut = DemandeMutation.STATUT_REJETEE
+                demande.motif_rejet = motif
+                demande.traite_par = request.user
+                demande.date_traitement = timezone.now()
+                demande.save()
+                messages.info(request, "Demande rejetée.")
+                return redirect("dashboard_mutation_list")
+
+    return render(request, "dashboard/mutation_traiter.html", {
+        "active_section": "mutations",
+        "demande": demande,
+        "ancien_contribuable": ancien_contribuable,
     })

@@ -1,0 +1,98 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}Mes recours fiscaux{% endblock %}
+{% block header_title %}Mes recours fiscaux{% endblock %}
+{% block header_subtitle %}Suivez vos contestations de taxations et vos demandes de redressement.{% endblock %}
+
+{% block extra_style %}
+    .recours-card {
+        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        border-radius: var(--radius); padding: 20px 24px; margin-bottom: 14px;
+    }
+
+    .recours-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+    .recours-top .titre { font-weight: 700; font-size: 15.5px; }
+    .recours-meta { font-size: 12.5px; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap; }
+    .recours-meta span { display: inline-flex; align-items: center; gap: 6px; }
+    .recours-meta i { color: var(--gold-dark); }
+
+    .badge {
+        display: inline-block; padding: 4px 12px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap;
+    }
+    .badge.soumis { background: rgba(52,104,168,0.10); color: #3468a8; }
+    .badge.en-examen { background: rgba(185,116,11,0.10); color: #b9740b; }
+    .badge.accepte { background: var(--ok-bg); color: var(--ok); }
+    .badge.rejete { background: var(--danger-bg); color: var(--danger); }
+
+    .badge-niveau {
+        display: inline-block; padding: 3px 10px; border-radius: 999px;
+        font-size: 10.5px; font-weight: 700; background: rgba(201,152,46,0.14); color: var(--gold-dark);
+        margin-left: 8px;
+    }
+
+    .recours-decision {
+        margin-top: 10px; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 12.5px;
+    }
+    .recours-decision.rejet { background: var(--danger-bg); color: var(--danger); }
+    .recours-decision.accepte { background: var(--ok-bg); color: var(--ok); }
+
+    .btn-gold-sm {
+        display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+        background: var(--gold); color: var(--green-dark); font-weight: 700;
+        text-decoration: none; padding: 8px 16px; border-radius: 999px; font-size: 12px;
+    }
+
+    .empty-state {
+        text-align: center; padding: 60px 20px; color: var(--text-muted);
+        background: var(--white); border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+    .empty-state i { font-size: 28px; color: var(--gold-dark); margin-bottom: 12px; display: block; }
+{% endblock %}
+
+{% block content %}
+
+{% if recours_liste %}
+  {% for r in recours_liste %}
+  <div class="recours-card">
+    <div class="recours-top">
+      <div class="titre">
+        {{ r.taxation.type_taxe.libelle }} ({{ r.taxation.annee_fiscale }})
+        {% if r.niveau == 2 %}<span class="badge-niveau">Redressement</span>{% endif %}
+      </div>
+      <span class="badge {% if r.statut == 'SOUMIS' %}soumis{% elif r.statut == 'EN_EXAMEN' %}en-examen{% elif r.statut == 'ACCEPTE' %}accepte{% else %}rejete{% endif %}">
+        {{ r.get_statut_display }}
+      </span>
+    </div>
+    <div class="recours-meta">
+      <span><i class="fa-solid fa-calendar"></i> Soumis le {{ r.date_soumission|date:"d/m/Y" }}</span>
+      {% if r.taxation.parcelle %}<span><i class="fa-solid fa-map-pin"></i> {{ r.taxation.parcelle.nicad }}</span>{% endif %}
+    </div>
+
+    {% if r.statut == 'REJETE' %}
+      <div class="recours-decision rejet">
+        <strong>Motif du rejet :</strong> {{ r.decision_commentaire|default:"—" }}
+      </div>
+      {% if r.niveau == 1 %}
+        <a href="{% url 'citoyen_recours_redressement' r.pk %}" class="btn-gold-sm">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Demander un redressement
+        </a>
+      {% endif %}
+    {% elif r.statut == 'ACCEPTE' %}
+      <div class="recours-decision accepte">
+        <strong>Contestation acceptée</strong> — nouveau montant : {{ r.nouveau_montant|floatformat:0 }} FCFA
+        {% if r.decision_commentaire %}<br>{{ r.decision_commentaire }}{% endif %}
+      </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-scale-balanced"></i>
+    Vous n'avez déposé aucun recours pour le moment.<br><br>
+    Vous pouvez contester une taxation directement depuis "Vue d'ensemble", dans la section "Ma fiscalité".
+  </div>
+{% endif %}
+
+{% endblock %}

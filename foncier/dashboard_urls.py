@@ -85,6 +85,23 @@ urlpatterns = [
     path("contribuables/<int:pk>/supprimer/", views.dashboard_contribuable_delete, name="dashboard_contribuable_delete"),
 
     # --- Taxations (CRUD complet) ---
+    path("declarations/", views.dashboard_declaration_list, name="dashboard_declaration_list"),
+        # --- Recours fiscaux (contestations et redressements) ---
+    path("recours/", views.dashboard_recours_list, name="dashboard_recours_list"),
+        # --- Premières immatriculations fiscales ---
+    path("immatriculations/", views.dashboard_immatriculation_list, name="dashboard_immatriculation_list"),
+        # --- Exonérations fiscales ---
+    path("exonerations/", views.dashboard_exoneration_list, name="dashboard_exoneration_list"),
+        # --- Plans de paiement ---
+    path("plans-paiement/", views.dashboard_plan_paiement_list, name="dashboard_plan_paiement_list"),
+        # --- Mutations fiscales ---
+    path("mutations/", views.dashboard_mutation_list, name="dashboard_mutation_list"),
+    path("mutations/<int:pk>/traiter/", views.dashboard_mutation_traiter, name="dashboard_mutation_traiter"),
+    path("plans-paiement/<int:pk>/traiter/", views.dashboard_plan_paiement_traiter, name="dashboard_plan_paiement_traiter"),
+    path("exonerations/<int:pk>/traiter/", views.dashboard_exoneration_traiter, name="dashboard_exoneration_traiter"),
+    path("immatriculations/<int:pk>/traiter/", views.dashboard_immatriculation_traiter, name="dashboard_immatriculation_traiter"),
+    path("recours/<int:pk>/traiter/", views.dashboard_recours_traiter, name="dashboard_recours_traiter"),
+    path("declarations/<int:pk>/traiter/", views.dashboard_declaration_traiter, name="dashboard_declaration_traiter"),
     path("taxations/", views.dashboard_taxation_list, name="dashboard_taxation_list"),
     path("taxations/export.csv", views.dashboard_taxation_export_csv, name="dashboard_taxation_export_csv"),
     path("taxations/nouvelle/", views.dashboard_taxation_create, name="dashboard_taxation_create"),
@@ -97,6 +114,7 @@ urlpatterns = [
     path("paiements/nouveau/", views.dashboard_paiement_create, name="dashboard_paiement_create"),
     path("paiements/<int:pk>/modifier/", views.dashboard_paiement_update, name="dashboard_paiement_update"),
     path("paiements/<int:pk>/supprimer/", views.dashboard_paiement_delete, name="dashboard_paiement_delete"),
+    path("paiements/<int:pk>/valider/", views.dashboard_paiement_valider, name="dashboard_paiement_valider"),
 
     # --- Types de taxe (CRUD complet) ---
     path("types-taxe/", views.dashboard_typetaxe_list, name="dashboard_typetaxe_list"),
@@ -123,6 +141,7 @@ urlpatterns = [
 
     # --- Agents (rôles / permissions, réservé aux superviseurs) ---
     path("agents/", views.dashboard_agent_list, name="dashboard_agent_list"),
+    path("mon-profil/", views.dashboard_mon_profil, name="dashboard_mon_profil"),
     path("agents/<int:pk>/modifier/", views.dashboard_agent_update, name="dashboard_agent_update"),
 
     # --- Journal d'audit (réservé aux superviseurs) ---

@@ -1,62 +1,11 @@
+{% extends "citoyens/base_citoyen.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nouvelle démarche · KMS Nord</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <style>
-    :root {
-        --green       : #6b4a35;
-        --green-dark  : #3c2a20;
-        --gold        : #c9982e;
-        --gold-dark   : #a67c1f;
-        --white       : #ffffff;
-        --off-white   : #f5efe2;
-        --text        : #2b211a;
-        --text-muted  : #6b5d4f;
-        --border      : rgba(0,0,0,0.08);
-        --shadow-sm   : 0 4px 16px rgba(43,33,26,0.06);
-        --radius      : 16px;
-        --radius-sm   : 10px;
-        --danger      : #b23b2e;
-    }
-    * { box-sizing: border-box; }
-    body {
-        margin: 0; font-family: 'DM Sans', Arial, sans-serif; color: var(--text);
-        background: var(--off-white); min-height: 100vh;
-    }
-    .topbar {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 32px; background: var(--green-dark); color: var(--white);
-    }
-    .topbar .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; }
-    .topbar .brand i {
-        color: var(--green-dark); background: var(--gold); width: 34px; height: 34px;
-        border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px;
-    }
-    .topbar a.back {
-        color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; font-weight: 500;
-        display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.25); transition: all .2s ease;
-    }
-    .topbar a.back:hover { color: var(--white); border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.06); }
 
-    .wrap { max-width: 640px; margin: 0 auto; padding: 40px 20px 60px; }
-    .wrap h1 {
-        font-family: 'Playfair Display', serif; font-size: 26px; margin: 0 0 26px; font-weight: 700; color: var(--text);
-    }
-    .wrap h1 i { color: var(--gold-dark); margin-right: 10px; }
+{% block page_title %}Nouvelle démarche{% endblock %}
+{% block header_title %}Nouvelle démarche{% endblock %}
+{% block header_subtitle %}Déposez une demande auprès des services de la commune.{% endblock %}
 
-    .card {
-        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
-        border-radius: var(--radius); padding: 30px 28px;
-    }
-
+{% block extra_style %}
     .field { margin-bottom: 20px; }
     .field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
     .field select, .field textarea, .field input[type="file"] {
@@ -91,113 +40,100 @@
         padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 10px;
         background: rgba(178,59,46,0.08); color: var(--danger); border: 1px solid rgba(178,59,46,0.25);
     }
+{% endblock %}
 
-    @media (max-width: 480px) {
-      .topbar { padding: 14px 18px; }
-      .wrap { padding: 28px 14px 40px; }
-      .card { padding: 22px 18px; }
-    }
-  </style>
-</head>
-<body>
+{% block content %}
 
-  <div class="topbar">
-    <div class="brand"><i class="fa-solid fa-fire"></i> KMS Nord — Espace Citoyen</div>
-    <a class="back" href="{% url 'citoyen_demandes' %}"><i class="fa-solid fa-arrow-left"></i> Mes démarches</a>
-  </div>
-
-  <div class="wrap">
-    <h1><i class="fa-solid fa-file-circle-plus"></i>Nouvelle démarche</h1>
-
-    <div class="card">
-      {% if form.non_field_errors %}
-        <div class="messages">
-          {% for e in form.non_field_errors %}<div class="msg">{{ e }}</div>{% endfor %}
-        </div>
-      {% endif %}
-
-      <form method="post" enctype="multipart/form-data" novalidate>
-        {% csrf_token %}
-
-        <div class="field">
-          <label for="{{ form.type_demande.id_for_label }}">Type de démarche</label>
-          {{ form.type_demande }}
-          {{ form.type_demande.errors }}
-        </div>
-
-        <div id="type-info-box" class="type-info"></div>
-
-        <div class="field" id="parcelle-field">
-          <label for="{{ form.parcelle.id_for_label }}">Parcelle concernée</label>
-          {{ form.parcelle }}
-          <div class="helptext">Uniquement vos parcelles liées à votre dossier fiscal.</div>
-          {{ form.parcelle.errors }}
-        </div>
-
-        <div class="field">
-          <label for="{{ form.objet.id_for_label }}">Précisions</label>
-          {{ form.objet }}
-          {{ form.objet.errors }}
-        </div>
-
-        <div class="field">
-          <label for="{{ form.piece_jointe.id_for_label }}">Pièce jointe (facultatif)</label>
-          {{ form.piece_jointe }}
-          <div class="helptext">Une pièce d'identité, un plan, ou tout document utile au traitement.</div>
-          {{ form.piece_jointe.errors }}
-        </div>
-
-        <button type="submit" class="btn-gold">
-          <i class="fa-solid fa-paper-plane"></i> Déposer ma demande
-        </button>
-      </form>
+<div class="card">
+  {% if form.non_field_errors %}
+    <div class="messages">
+      {% for e in form.non_field_errors %}<div class="msg">{{ e }}</div>{% endfor %}
     </div>
-  </div>
+  {% endif %}
 
-  <script>
-    // Infos indicatives sur la démarche choisie (délai, pièces requises).
-    var typeInfos = {
-      {% for t in form.type_demande.field.queryset %}
-        "{{ t.pk }}": {
-          delai: {{ t.delai_indicatif_jours }},
-          pieces: "{{ t.pieces_requises|escapejs }}"
-        }{% if not forloop.last %},{% endif %}
-      {% endfor %}
-    };
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
 
-    var select = document.getElementById("{{ form.type_demande.id_for_label }}");
-    var infoBox = document.getElementById("type-info-box");
+    <div class="field">
+      <label for="{{ form.type_demande.id_for_label }}">Type de démarche</label>
+      {{ form.type_demande }}
+      {{ form.type_demande.errors }}
+    </div>
 
-    function escHtml(s) {
-      var d = document.createElement("div");
-      d.textContent = s;
-      return d.innerHTML;
+    <div id="type-info-box" class="type-info"></div>
+
+    <div class="field" id="parcelle-field">
+      <label for="{{ form.parcelle.id_for_label }}">Parcelle concernée</label>
+      {{ form.parcelle }}
+      <div class="helptext">Uniquement vos parcelles liées à votre dossier fiscal.</div>
+      {{ form.parcelle.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.objet.id_for_label }}">Précisions</label>
+      {{ form.objet }}
+      {{ form.objet.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.piece_jointe.id_for_label }}">Pièce jointe (facultatif)</label>
+      {{ form.piece_jointe }}
+      <div class="helptext">Une pièce d'identité, un plan, ou tout document utile au traitement.</div>
+      {{ form.piece_jointe.errors }}
+    </div>
+
+    <button type="submit" class="btn-gold">
+      <i class="fa-solid fa-paper-plane"></i> Déposer ma demande
+    </button>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Infos indicatives sur la démarche choisie (délai, pièces requises).
+  var typeInfos = {
+    {% for t in form.type_demande.field.queryset %}
+      "{{ t.pk }}": {
+        delai: {{ t.delai_indicatif_jours }},
+        pieces: "{{ t.pieces_requises|escapejs }}"
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  };
+
+  var select = document.getElementById("{{ form.type_demande.id_for_label }}");
+  var infoBox = document.getElementById("type-info-box");
+
+  function escHtml(s) {
+    var d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function updateInfo() {
+    var info = typeInfos[select.value];
+    if (!info) {
+      infoBox.classList.remove("visible");
+      infoBox.innerHTML = "";
+      return;
     }
-
-    function updateInfo() {
-      var info = typeInfos[select.value];
-      if (!info) {
-        infoBox.classList.remove("visible");
-        infoBox.innerHTML = "";
-        return;
+    var html = "<strong>Délai indicatif :</strong> " + info.delai + " jour(s).";
+    if (info.pieces) {
+      var lignes = info.pieces.split("\n").filter(function (l) { return l.trim().length; });
+      if (lignes.length) {
+        html += "<br><strong>Pièces à fournir :</strong><ul style='margin:6px 0 0 18px;padding:0;'>";
+        lignes.forEach(function (l) { html += "<li>" + escHtml(l) + "</li>"; });
+        html += "</ul>";
       }
-      var html = "<strong>Délai indicatif :</strong> " + info.delai + " jour(s).";
-      if (info.pieces) {
-        var lignes = info.pieces.split("\n").filter(function (l) { return l.trim().length; });
-        if (lignes.length) {
-          html += "<br><strong>Pièces à fournir :</strong><ul style='margin:6px 0 0 18px;padding:0;'>";
-          lignes.forEach(function (l) { html += "<li>" + escHtml(l) + "</li>"; });
-          html += "</ul>";
-        }
-      }
-      infoBox.innerHTML = html;
-      infoBox.classList.add("visible");
     }
+    infoBox.innerHTML = html;
+    infoBox.classList.add("visible");
+  }
 
-    if (select) {
-      select.addEventListener("change", updateInfo);
-      updateInfo();
-    }
-  </script>
-</body>
-</html>
+  if (select) {
+    select.addEventListener("change", updateInfo);
+    updateInfo();
+  }
+</script>
+{% endblock %}

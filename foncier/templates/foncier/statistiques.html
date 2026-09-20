@@ -67,13 +67,23 @@
   <div class="stat-page-grid">
     <div class="stat-page-card">
       <div class="stat-page-icon"><i class="fa-solid fa-people-group"></i></div>
-      <strong>{{ population|default:"380 000" }}</strong>
+      <strong>{{ population|default:"224 765" }}</strong>
       <span>Population {% if annee_population %}(est. {{ annee_population }}){% else %}(estimation){% endif %}</span>
     </div>
     <div class="stat-page-card">
       <div class="stat-page-icon"><i class="fa-solid fa-vector-square"></i></div>
-      <strong>{{ superficie|default:"15,4" }} km&sup2;</strong>
+      <strong>{{ superficie|default:"13,18" }} km&sup2;</strong>
       <span>Superficie</span>
+    </div>
+    <div class="stat-page-card">
+      <div class="stat-page-icon"><i class="fa-solid fa-layer-group"></i></div>
+      <strong>{{ densite|default:"17 058" }}</strong>
+      <span>Habitants / km&sup2;</span>
+    </div>
+    <div class="stat-page-card">
+      <div class="stat-page-icon"><i class="fa-solid fa-venus-mars"></i></div>
+      <strong>{{ pop_hommes_pct|default:"50,7" }}% / {{ pop_femmes_pct|default:"49,3" }}%</strong>
+      <span>Hommes / Femmes</span>
     </div>
     <div class="stat-page-card">
       <div class="stat-page-icon"><i class="fa-solid fa-city"></i></div>
@@ -89,7 +99,7 @@
 
   <div class="stat-source-note">
     <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-    <span>Données de population : ANSD{% if annee_population %}, {{ annee_population }}{% endif %}. Pour des chiffres officiels, contactez la mairie de Keur Massar Nord.</span>
+    <span>Données de population : RGPH-5 (2023), ANSD{% if annee_population %} — {{ annee_population }}{% endif %}. Pour des chiffres officiels, contactez la mairie de Keur Massar Nord.</span>
   </div>
 
   {% if nb_parcelles %}

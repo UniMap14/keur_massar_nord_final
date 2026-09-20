@@ -1,0 +1,114 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Traiter la demande{% endblock %}
+{% block header_title %}{{ demande.contribuable }}{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">Parcelle {{ demande.parcelle.nicad }}</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+  .exo-view-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0ebe0;
+    font-size: 14px;
+  }
+  .exo-view-row:last-of-type { border-bottom: none; }
+  .exo-view-row .label {
+    color: #766c5d; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em; flex-shrink: 0;
+  }
+  .exo-view-row .value { text-align: right; font-weight: 600; color: #24201a; }
+
+  .exo-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .exo-actions form { flex: 1; min-width: 240px; }
+
+  .btn-block { width: 100%; }
+  textarea.form-control {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-family: inherit; font-size: 13px; resize: vertical;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-house-circle-check"></i> Détail de la demande</h2>
+  </div>
+  <div class="panel-body">
+    <div class="exo-view-row">
+      <span class="label">Contribuable</span>
+      <span class="value">{{ demande.contribuable }} ({{ demande.contribuable.numero_fiscal }})</span>
+    </div>
+    <div class="exo-view-row">
+      <span class="label">Parcelle</span>
+      <span class="value">{{ demande.parcelle.nicad }} — statut actuel : {{ demande.parcelle.get_statut_fiscal_display }}</span>
+    </div>
+    <div class="exo-view-row">
+      <span class="label">Motif</span>
+      <span class="value">{{ demande.get_motif_display }}</span>
+    </div>
+    {% if demande.description %}
+    <div class="exo-view-row">
+      <span class="label">Précisions</span>
+      <span class="value" style="font-weight:400;">{{ demande.description }}</span>
+    </div>
+    {% endif %}
+    <div class="exo-view-row">
+      <span class="label">Pièce justificative</span>
+      <span class="value"><a href="{{ demande.piece_jointe.url }}" target="_blank" rel="noopener">Voir le fichier</a></span>
+    </div>
+    <div class="exo-view-row">
+      <span class="label">Déposée le</span>
+      <span class="value">{{ demande.date_soumission|date:"d/m/Y à H:i" }}</span>
+    </div>
+    <div class="exo-view-row">
+      <span class="label">Statut</span>
+      <span class="value">{{ demande.get_statut_display }}</span>
+    </div>
+    {% if demande.statut == 'REJETEE' %}
+      <div class="exo-view-row">
+        <span class="label">Motif du rejet</span>
+        <span class="value" style="font-weight:400;">{{ demande.motif_rejet }}</span>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if demande.statut == 'SOUMISE' or demande.statut == 'EN_EXAMEN' %}
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-gavel"></i> Décision</h2>
+  </div>
+  <div class="panel-body">
+    <div class="exo-actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="valider">
+        <p style="font-size:13px; color:#766c5d; margin-bottom:12px;">
+          La parcelle passera au statut fiscal « Exonéré » — plus aucune taxation ne lui sera émise à l'avenir.
+        </p>
+        <button type="submit" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-check"></i> Valider l'exonération
+        </button>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rejeter">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Motif du rejet</label>
+        <textarea name="motif_rejet" class="form-control" rows="3" placeholder="Expliquez pourquoi cette demande est rejetée…" required></textarea>
+        <button type="submit" class="btn btn-outline btn-block" style="margin-top:10px; border-color:#b3261e; color:#b3261e;">
+          <i class="fa-solid fa-xmark"></i> Rejeter
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<a href="{% url 'dashboard_exoneration_list' %}" class="btn btn-outline btn-sm">
+  <i class="fa-solid fa-arrow-left"></i> Retour à la liste
+</a>
+
+{% endblock %}

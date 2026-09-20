@@ -1,0 +1,139 @@
+{% extends 'foncier/base.html' %}
+{% block title %}Mutation fiscale - KMS Nord Foncier{% endblock %}
+{% block extra_head %}
+<style>
+  .immat-wrap { max-width: 640px; margin: 0 auto; }
+
+  .info-note {
+    background: rgba(201,152,46,0.08); border: 1px dashed rgba(201,152,46,0.4);
+    border-radius: 10px; padding: 16px 18px; font-size: 13.5px; color: var(--text-muted);
+    margin-bottom: 26px; line-height: 1.65; display: flex; gap: 10px; align-items: flex-start;
+  }
+  .info-note i { color: #c9982e; margin-top: 2px; }
+
+  .field { margin-bottom: 20px; }
+  .field label { display: block; font-size: 12.5px; color: var(--text-muted); margin-bottom: 7px; font-weight: 600; }
+  .field input[type="text"], .field input[type="email"], .field select, .field input[type="file"] {
+    width: 100%; background: #f5efe2; border: 1.5px solid #e6e0d4; border-radius: 8px;
+    padding: 11px 13px; font-family: inherit; font-size: 14px; transition: border-color .2s ease;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: #c9982e; }
+  .field .errorlist { list-style: none; padding: 0; margin: 6px 0 0; color: #b23b2e; font-size: 12.5px; }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+
+  .btn-submit {
+    width: 100%; background: #c9982e; color: #3c2a20; font-weight: 700; font-size: 14.5px;
+    border: none; padding: 14px; border-radius: 999px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    transition: all .2s ease;
+  }
+  .btn-submit:hover { background: #d9ad4f; transform: translateY(-1px); }
+
+  .messages { margin-bottom: 20px; }
+  .messages .msg-success {
+    padding: 14px 16px; border-radius: 10px; font-size: 13.5px; margin-bottom: 10px;
+    background: rgba(47,122,79,0.10); color: #2f7a4f; border: 1px solid rgba(47,122,79,0.25);
+  }
+  .messages .msg-error {
+    padding: 14px 16px; border-radius: 10px; font-size: 13.5px; margin-bottom: 10px;
+    background: rgba(178,59,46,0.08); color: #b23b2e; border: 1px solid rgba(178,59,46,0.25);
+  }
+</style>
+{% endblock %}
+{% block content %}
+<section class="page-banner">
+  <div class="container">
+    <div class="banner-breadcrumb">
+      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <a href="{% url 'fiscalite' %}">Fiscalité</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Mutation fiscale</span>
+    </div>
+    <div class="banner-badge"><span class="badge-dot"></span>Changement de propriétaire</div>
+    <h1>Transférer le dossier fiscal d'une parcelle achetée</h1>
+    <p>Vous venez d'acheter un bien déjà immatriculé à Keur Massar Nord ? Demandez le transfert du dossier fiscal à votre nom.</p>
+  </div>
+</section>
+
+<section class="container page-section">
+  <div class="immat-wrap">
+
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="msg-{% if message.tags == 'error' or message.tags == 'danger' %}error{% else %}success{% endif %}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="info-note">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>
+        Cette démarche concerne uniquement les parcelles <strong>déjà immatriculées</strong>
+        (ayant déjà un propriétaire enregistré). Si votre parcelle n'a jamais eu de propriétaire
+        fiscal, utilisez plutôt « Devenir contribuable ». Votre dossier sera examiné par un agent
+        avant validation — vous recevrez alors votre numéro fiscal par email.
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm" style="padding: 28px 26px;">
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <div class="field">
+          <label for="{{ form.nicad_parcelle.id_for_label }}">{{ form.nicad_parcelle.label }}</label>
+          {{ form.nicad_parcelle }}
+          {{ form.nicad_parcelle.errors }}
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="{{ form.nouveau_nom.id_for_label }}">Nom</label>
+            {{ form.nouveau_nom }}
+            {{ form.nouveau_nom.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.nouveau_prenom.id_for_label }}">Prénom</label>
+            {{ form.nouveau_prenom }}
+            {{ form.nouveau_prenom.errors }}
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="{{ form.nouveau_cni.id_for_label }}">Numéro CNI</label>
+          {{ form.nouveau_cni }}
+          {{ form.nouveau_cni.errors }}
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="{{ form.nouveau_telephone.id_for_label }}">Téléphone</label>
+            {{ form.nouveau_telephone }}
+            {{ form.nouveau_telephone.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.nouveau_email.id_for_label }}">Email (facultatif)</label>
+            {{ form.nouveau_email }}
+            {{ form.nouveau_email.errors }}
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="{{ form.piece_jointe.id_for_label }}">{{ form.piece_jointe.label }}</label>
+          {{ form.piece_jointe }}
+          <div class="helptext" style="font-size:12px; color:var(--text-muted); margin-top:6px;">Formats acceptés : PDF, JPG, PNG. 10 Mo maximum.</div>
+          {{ form.piece_jointe.errors }}
+        </div>
+
+        <button type="submit" class="btn-submit">
+          <i class="fa-solid fa-paper-plane"></i> Soumettre ma demande
+        </button>
+      </form>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends 'foncier/base.html' %}{% load static %}
-{% block title %}Fiscalité - KMS Nord Foncier{% endblock %}
+{% block title %}Fiscalité - KEUR MASSAR NORD Foncier{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -86,6 +86,12 @@
         <a href="{% url 'geoportail' %}" class="btn-outline-w">
           <i class="fa-solid fa-map-location-dot"></i> Voir le géoportail
         </a>
+        <a href="{% url 'immatriculation_demande' %}" class="btn-outline-w">
+          <i class="fa-solid fa-user-plus"></i> Devenir contribuable
+        </a>
+        <a href="{% url 'mutation_demande' %}" class="btn-outline-w">
+          <i class="fa-solid fa-right-left"></i> Mutation fiscale
+        </a>
       </div>
     </div>
 
@@ -134,9 +140,9 @@
     <button class="tab-btn" data-tab="simulateur" role="tab" id="tab-simulateur" aria-selected="false" aria-controls="panel-simulateur">
       <i class="fa-solid fa-calculator"></i> Simulateur
     </button>
-    <button class="tab-btn" data-tab="communal" role="tab" id="tab-communal" aria-selected="false" aria-controls="panel-communal">
+    <a href="{% url 'citoyen_espace' %}" class="tab-btn" style="text-decoration:none;">
       <i class="fa-solid fa-house-user"></i> Mon espace communal
-    </button>
+    </a>
     <button class="tab-btn" data-tab="faq" role="tab" id="tab-faq" aria-selected="false" aria-controls="panel-faq">
       <i class="fa-solid fa-circle-question"></i> FAQ
     </button>
@@ -166,7 +172,7 @@
       </div>
       <div class="intro-card a-animer visible">
         <div class="intro-card-icon"><i class="fa-solid fa-sitemap"></i></div>
-        <h3>Rôle du portail KMS Nord</h3>
+        <h3>Rôle du portail KEUR MASSAR NORD</h3>
         <p>Le portail relie la donnée foncière et fiscale pour offrir une vision intégrée du patrimoine de la collectivité :</p>
         <ul>
           <li><strong>Suivi fiscal :</strong> paiements, échéances, retards</li>
@@ -434,7 +440,7 @@
 
     <div class="info-band">
       <i class="fa-solid fa-circle-info"></i>
-      <p>Pour toute démarche complémentaire, rapprochez-vous du centre des impôts de votre secteur ou contactez l'administration de KMS Nord Foncier.</p>
+      <p>Pour toute démarche complémentaire, rapprochez-vous du centre des impôts de votre secteur ou contactez l'administration de KEUR MASSAR NORD Foncier.</p>
     </div>
 
   </div>

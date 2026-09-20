@@ -1,0 +1,141 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Traiter la demande{% endblock %}
+{% block header_title %}{{ plan.contribuable }}{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ plan.taxation.type_taxe }} — {{ plan.taxation.annee_fiscale }}</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+  .plan-view-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0ebe0;
+    font-size: 14px;
+  }
+  .plan-view-row:last-of-type { border-bottom: none; }
+  .plan-view-row .label {
+    color: #766c5d; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em; flex-shrink: 0;
+  }
+  .plan-view-row .value { text-align: right; font-weight: 600; color: #24201a; }
+
+  .plan-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .plan-actions form { flex: 1; min-width: 240px; }
+
+  .btn-block { width: 100%; }
+  textarea.form-control {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-family: inherit; font-size: 13px; resize: vertical;
+  }
+
+  .echeances-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+  .echeances-table th { text-align: left; color: #766c5d; font-weight: 700; font-size: 11px; text-transform: uppercase; padding: 8px 10px; border-bottom: 2px solid #f0ebe0; }
+  .echeances-table td { padding: 10px; border-bottom: 1px solid #f0ebe0; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-calendar-days"></i> Détail de la demande</h2>
+  </div>
+  <div class="panel-body">
+    <div class="plan-view-row">
+      <span class="label">Contribuable</span>
+      <span class="value">{{ plan.contribuable }} ({{ plan.contribuable.numero_fiscal }})</span>
+    </div>
+    <div class="plan-view-row">
+      <span class="label">Parcelle</span>
+      <span class="value">{{ plan.taxation.parcelle.nicad|default:"—" }}</span>
+    </div>
+    <div class="plan-view-row">
+      <span class="label">Solde à échelonner</span>
+      <span class="value">{{ plan.taxation.solde|floatformat:0 }} FCFA</span>
+    </div>
+    <div class="plan-view-row">
+      <span class="label">Nombre d'échéances demandé</span>
+      <span class="value">{{ plan.nombre_echeances }}</span>
+    </div>
+    <div class="plan-view-row">
+      <span class="label">Motif</span>
+      <span class="value" style="font-weight:400;">{{ plan.motif }}</span>
+    </div>
+    <div class="plan-view-row">
+      <span class="label">Déposée le</span>
+      <span class="value">{{ plan.date_soumission|date:"d/m/Y à H:i" }}</span>
+    </div>
+    <div class="plan-view-row">
+      <span class="label">Statut</span>
+      <span class="value">{{ plan.get_statut_display }}</span>
+    </div>
+    {% if plan.statut == 'REJETE' %}
+      <div class="plan-view-row">
+        <span class="label">Motif du rejet</span>
+        <span class="value" style="font-weight:400;">{{ plan.motif_rejet }}</span>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if plan.statut == 'VALIDE' or plan.statut == 'TERMINE' %}
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-list-check"></i> Échéances générées</h2>
+  </div>
+  <div class="panel-body flush">
+    <table class="echeances-table">
+      <thead>
+        <tr><th>N°</th><th>Montant</th><th>Date prévue</th><th>Statut</th></tr>
+      </thead>
+      <tbody>
+        {% for e in plan.echeances.all %}
+        <tr>
+          <td>{{ e.numero }}</td>
+          <td>{{ e.montant|floatformat:0 }} FCFA</td>
+          <td>{{ e.date_prevue|date:"d/m/Y" }}</td>
+          <td>{{ e.get_statut_display }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if plan.statut == 'SOUMIS' or plan.statut == 'EN_EXAMEN' %}
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-gavel"></i> Décision</h2>
+  </div>
+  <div class="panel-body">
+    <div class="plan-actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="valider">
+        <p style="font-size:13px; color:#766c5d; margin-bottom:12px;">
+          {{ plan.nombre_echeances }} échéances mensuelles égales seront générées automatiquement.
+        </p>
+        <button type="submit" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-check"></i> Valider et générer les échéances
+        </button>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rejeter">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Motif du rejet</label>
+        <textarea name="motif_rejet" class="form-control" rows="3" placeholder="Expliquez pourquoi cette demande est rejetée…" required></textarea>
+        <button type="submit" class="btn btn-outline btn-block" style="margin-top:10px; border-color:#b3261e; color:#b3261e;">
+          <i class="fa-solid fa-xmark"></i> Rejeter
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<a href="{% url 'dashboard_plan_paiement_list' %}" class="btn btn-outline btn-sm">
+  <i class="fa-solid fa-arrow-left"></i> Retour à la liste
+</a>
+
+{% endblock %}

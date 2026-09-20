@@ -61,6 +61,17 @@ class Parcelle(models.Model):
 
     # --- Ajoutés pour l'import du shapefile arrete_kms_008_003_014_final ---
     reference_arrete = models.CharField(max_length=100, blank=True, verbose_name="Référence de l'arrêté")
+    section_cadastrale = models.CharField(max_length=10, blank=True, verbose_name="Section cadastrale")
+    numero_parcelle = models.CharField(max_length=50, blank=True, verbose_name="Numéro de parcelle")
+    numero_lot = models.CharField(max_length=50, blank=True, verbose_name="Numéro de lot")
+    numero_titre_foncier = models.CharField(max_length=100, blank=True, verbose_name="Numéro du titre foncier")
+    simulation_fiscale = models.BooleanField(
+        default=False, verbose_name="Montant fiscal simulé",
+        help_text=(
+            "Coché si le montant de taxe/valeur locative provient d'une simulation "
+            "académique, et non d'une déclaration ou d'un calcul réel."
+        ),
+    )
     occupation_sol = models.CharField(max_length=150, blank=True, verbose_name="Occupation du sol")
 
     # --- SECTION FISCALE ---
@@ -225,6 +236,13 @@ class Taxation(models.Model):
         blank=True, null=True,
         verbose_name="Dernier rappel d'échéance envoyé",
         help_text="Rempli automatiquement par la commande envoyer_rappels_echeances, pour ne jamais envoyer deux fois le même rappel.",
+    )
+    simulation_fiscale = models.BooleanField(
+        default=False, verbose_name="Taxation simulée",
+        help_text=(
+            "Coché si cette taxation provient d'une simulation académique, "
+            "et non d'une émission réelle par les services de la commune."
+        ),
     )
 
     class Meta:
@@ -493,6 +511,11 @@ class Infrastructure(models.Model):
         CategorieInfrastructure, on_delete=models.CASCADE,
         related_name='infrastructures'
     )
+    id_shp = models.CharField(
+        max_length=20, unique=True, blank=True, null=True,
+        verbose_name="ID unique (import shapefile)",
+        help_text="Identifiant du point source, pour éviter les doublons lors d'un ré-import.",
+    )
     nom = models.CharField(max_length=200)
     quartier = models.CharField(max_length=150, blank=True)
     statut = models.CharField(max_length=20, choices=STATUTS, default='FONCTIONNEL')
@@ -701,3 +724,414 @@ class JournalAudit(models.Model):
 
     def __str__(self):
         return f"{self.get_action_display()} — {self.modele} #{self.objet_id} par {self.utilisateur or 'système'}"
+
+class ProfilAgent(models.Model):
+    """Informations de profil pour un compte agent/admin (Maire, chef de
+    service...), en complement du compte utilisateur Django standard."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profil_agent")
+    fonction = models.CharField(
+        max_length=150, blank=True, verbose_name="Fonction",
+        help_text="Ex : Maire, Chef du Service Cadastre, Chef du Service Fiscalite",
+    )
+    telephone = models.CharField(max_length=20, blank=True, verbose_name="Telephone")
+    photo = models.ImageField(
+        upload_to="profils_agents/", blank=True, null=True,
+        verbose_name="Photo de profil",
+    )
+
+    class Meta:
+        verbose_name = "Profil agent"
+        verbose_name_plural = "Profils agents"
+
+    def __str__(self):
+        return self.fonction or self.user.get_full_name() or self.user.username
+
+class DeclarationFiscale(models.Model):
+    """
+    Declaration faite par un citoyen pour une parcelle et une annee
+    fiscale donnee : il declare l'occupation reelle du terrain (Terrain
+    Nu, Bati, Zone de culture...), sur laquelle l'administration s'appuie
+    pour calculer et emettre la taxation correspondante. Reprend le
+    principe de la teledeclaration SenTax (le contribuable declare,
+    un agent valide ou rejette), applique a la fiscalite fonciere locale.
+    """
+    STATUT_SOUMISE = "SOUMISE"
+    STATUT_EN_EXAMEN = "EN_EXAMEN"
+    STATUT_VALIDEE = "VALIDEE"
+    STATUT_REJETEE = "REJETEE"
+    STATUT_CHOICES = [
+        (STATUT_SOUMISE, "Soumise"),
+        (STATUT_EN_EXAMEN, "En cours d'examen"),
+        (STATUT_VALIDEE, "Validée"),
+        (STATUT_REJETEE, "Rejetée"),
+    ]
+
+    OCCUPATIONS = [
+        ("Terrain Nu", "Terrain Nu"),
+        ("Bâti", "Bâti"),
+        ("Zone de culture", "Zone de culture"),
+    ]
+
+    contribuable = models.ForeignKey(
+        Contribuable, on_delete=models.CASCADE, related_name="declarations"
+    )
+    parcelle = models.ForeignKey(
+        Parcelle, on_delete=models.CASCADE, related_name="declarations"
+    )
+    type_taxe = models.ForeignKey(
+        TypeTaxe, on_delete=models.PROTECT, related_name="declarations"
+    )
+    annee_fiscale = models.PositiveIntegerField()
+
+    occupation_declaree = models.CharField(max_length=30, choices=OCCUPATIONS)
+    superficie_declaree = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Laisser vide pour reprendre la superficie cadastrale."
+    )
+    commentaire_citoyen = models.TextField(blank=True, verbose_name="Précisions apportées")
+    piece_jointe = models.FileField(upload_to="declarations_fiscales/", blank=True, null=True)
+
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default=STATUT_SOUMISE)
+    date_declaration = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    traite_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="declarations_traitees"
+    )
+    motif_rejet = models.TextField(blank=True)
+    commentaire_agent = models.TextField(blank=True)
+
+    taxation_generee = models.ForeignKey(
+        Taxation, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="declaration_origine"
+    )
+
+    class Meta:
+        verbose_name = "Déclaration fiscale"
+        verbose_name_plural = "Déclarations fiscales"
+        ordering = ["-date_declaration"]
+
+    def __str__(self):
+        return f"Déclaration {self.parcelle.nicad} - {self.annee_fiscale} ({self.get_statut_display()})"
+
+
+class RecoursFiscal(models.Model):
+    """
+    Contestation d'une taxation par le contribuable (recours simple,
+    niveau 1), avec une possibilite de suivi en REDRESSEMENT (niveau 2)
+    si le recours initial est rejete : le contribuable demande alors au
+    Chef Fiscalite de verifier specifiquement l'historique de ses
+    paiements des mois/annees precedents, pour prouver sa bonne foi.
+    Reste traite par le meme role (fiscal), contrairement a un recours
+    hierarchique classique.
+    """
+    NIVEAU_RECOURS = 1
+    NIVEAU_REDRESSEMENT = 2
+    NIVEAU_CHOICES = [
+        (NIVEAU_RECOURS, "Recours (contestation initiale)"),
+        (NIVEAU_REDRESSEMENT, "Redressement (vérification de l'historique des paiements)"),
+    ]
+
+    STATUT_SOUMIS = "SOUMIS"
+    STATUT_EN_EXAMEN = "EN_EXAMEN"
+    STATUT_ACCEPTE = "ACCEPTE"
+    STATUT_REJETE = "REJETE"
+    STATUT_CHOICES = [
+        (STATUT_SOUMIS, "Soumis"),
+        (STATUT_EN_EXAMEN, "En cours d'examen"),
+        (STATUT_ACCEPTE, "Accepté"),
+        (STATUT_REJETE, "Rejeté"),
+    ]
+
+    taxation = models.ForeignKey(Taxation, on_delete=models.CASCADE, related_name="recours")
+    contribuable = models.ForeignKey(Contribuable, on_delete=models.CASCADE, related_name="recours_fiscaux")
+
+    niveau = models.PositiveSmallIntegerField(choices=NIVEAU_CHOICES, default=NIVEAU_RECOURS)
+    recours_precedent = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="redressement"
+    )
+
+    motif = models.TextField(verbose_name="Motif de la contestation")
+    piece_jointe = models.FileField(upload_to="recours_fiscaux/", blank=True, null=True)
+
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default=STATUT_SOUMIS)
+    date_soumission = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    traite_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="recours_traites"
+    )
+    decision_commentaire = models.TextField(blank=True, verbose_name="Explication de la décision")
+    ancien_montant = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    nouveau_montant = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Recours fiscal"
+        verbose_name_plural = "Recours fiscaux"
+        ordering = ["-date_soumission"]
+
+    def __str__(self):
+        return f"{self.get_niveau_display()} — {self.taxation} ({self.get_statut_display()})"
+
+
+class DemandeImmatriculation(models.Model):
+    """
+    Demande de premiere immatriculation fiscale : une personne qui n'a
+    jamais ete contribuable (ex : vient d'acheter un bien) demande a
+    etre enregistree pour une parcelle deja cadastree mais pas encore
+    rattachee a un proprietaire/contribuable connu. Principe de
+    l'adhesion SenTax, transpose a la fiscalite fonciere locale.
+    """
+    STATUT_SOUMISE = "SOUMISE"
+    STATUT_EN_EXAMEN = "EN_EXAMEN"
+    STATUT_VALIDEE = "VALIDEE"
+    STATUT_REJETEE = "REJETEE"
+    STATUT_CHOICES = [
+        (STATUT_SOUMISE, "Soumise"),
+        (STATUT_EN_EXAMEN, "En cours d'examen"),
+        (STATUT_VALIDEE, "Validée"),
+        (STATUT_REJETEE, "Rejetée"),
+    ]
+
+    OCCUPATIONS = [
+        ("Terrain Nu", "Terrain Nu"),
+        ("Bâti", "Bâti"),
+        ("Zone de culture", "Zone de culture"),
+    ]
+
+    nom = models.CharField(max_length=100)
+    prenom = models.CharField(max_length=100)
+    ni_cni = models.CharField("Numéro CNI", max_length=20)
+    telephone = models.CharField(max_length=20)
+    email = models.EmailField(blank=True)
+
+    parcelle = models.ForeignKey(
+        Parcelle, on_delete=models.CASCADE, related_name="demandes_immatriculation"
+    )
+    occupation_declaree = models.CharField(max_length=30, choices=OCCUPATIONS)
+    piece_jointe = models.FileField(
+        upload_to="immatriculations/",
+        help_text="Acte de vente, titre foncier ou attestation de cession (obligatoire).",
+    )
+
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default=STATUT_SOUMISE)
+    date_soumission = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    traite_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="immatriculations_traitees",
+    )
+    motif_rejet = models.TextField(blank=True)
+
+    contribuable_cree = models.ForeignKey(
+        Contribuable, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="demande_origine",
+    )
+
+    class Meta:
+        verbose_name = "Demande de première immatriculation"
+        verbose_name_plural = "Demandes de première immatriculation"
+        ordering = ["-date_soumission"]
+
+    def __str__(self):
+        return f"{self.nom} {self.prenom} — {self.parcelle.nicad} ({self.get_statut_display()})"
+
+
+class DemandeExoneration(models.Model):
+    """
+    Demande d'exoneration fiscale pour une parcelle : le contribuable
+    estime que son bien devrait etre exempte de taxe fonciere (batiment
+    religieux, etablissement public, mission diplomatique...). Si
+    validee, le statut fiscal de la parcelle passe a EXONERE, et la
+    commande emettre_role_annuel ne lui emettra plus de nouvelle
+    taxation pour les annees suivantes.
+    """
+    MOTIF_RELIGIEUX = "RELIGIEUX"
+    MOTIF_PUBLIC = "PUBLIC"
+    MOTIF_DIPLOMATIQUE = "DIPLOMATIQUE"
+    MOTIF_AUTRE = "AUTRE"
+    MOTIF_CHOICES = [
+        (MOTIF_RELIGIEUX, "Bâtiment religieux (mosquée, église...)"),
+        (MOTIF_PUBLIC, "Établissement public (école, hôpital, administration...)"),
+        (MOTIF_DIPLOMATIQUE, "Mission diplomatique"),
+        (MOTIF_AUTRE, "Autre motif"),
+    ]
+
+    STATUT_SOUMISE = "SOUMISE"
+    STATUT_EN_EXAMEN = "EN_EXAMEN"
+    STATUT_VALIDEE = "VALIDEE"
+    STATUT_REJETEE = "REJETEE"
+    STATUT_CHOICES = [
+        (STATUT_SOUMISE, "Soumise"),
+        (STATUT_EN_EXAMEN, "En cours d'examen"),
+        (STATUT_VALIDEE, "Validée"),
+        (STATUT_REJETEE, "Rejetée"),
+    ]
+
+    contribuable = models.ForeignKey(
+        Contribuable, on_delete=models.CASCADE, related_name="demandes_exoneration"
+    )
+    parcelle = models.ForeignKey(
+        Parcelle, on_delete=models.CASCADE, related_name="demandes_exoneration"
+    )
+
+    motif = models.CharField(max_length=20, choices=MOTIF_CHOICES)
+    description = models.TextField(
+        blank=True, verbose_name="Précisions",
+        help_text="Détaillez votre situation si besoin (surtout pour 'Autre motif').",
+    )
+    piece_jointe = models.FileField(
+        upload_to="exonerations/",
+        help_text="Justificatif (attestation religieuse, arrêté, décision administrative...).",
+    )
+
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default=STATUT_SOUMISE)
+    date_soumission = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    traite_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="exonerations_traitees",
+    )
+    motif_rejet = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Demande d'exonération"
+        verbose_name_plural = "Demandes d'exonération"
+        ordering = ["-date_soumission"]
+
+    def __str__(self):
+        return f"{self.parcelle.nicad} — {self.get_motif_display()} ({self.get_statut_display()})"
+
+
+class PlanPaiement(models.Model):
+    """
+    Demande d'echelonnement d'une taxation en plusieurs echeances (au
+    lieu d'un paiement unique). Une fois validee, genere automatiquement
+    les EcheancePlanPaiement correspondantes (montants egaux, dates
+    espacees d'un mois).
+    """
+    STATUT_SOUMIS = "SOUMIS"
+    STATUT_EN_EXAMEN = "EN_EXAMEN"
+    STATUT_VALIDE = "VALIDE"
+    STATUT_REJETE = "REJETE"
+    STATUT_TERMINE = "TERMINE"
+    STATUT_CHOICES = [
+        (STATUT_SOUMIS, "Soumis"),
+        (STATUT_EN_EXAMEN, "En cours d'examen"),
+        (STATUT_VALIDE, "Validé"),
+        (STATUT_REJETE, "Rejeté"),
+        (STATUT_TERMINE, "Terminé (toutes échéances payées)"),
+    ]
+
+    taxation = models.ForeignKey(
+        Taxation, on_delete=models.CASCADE, related_name="plans_paiement"
+    )
+    contribuable = models.ForeignKey(
+        Contribuable, on_delete=models.CASCADE, related_name="plans_paiement"
+    )
+    nombre_echeances = models.PositiveSmallIntegerField(
+        verbose_name="Nombre d'échéances souhaité",
+        help_text="Entre 2 et 4 échéances.",
+    )
+    motif = models.TextField(verbose_name="Motif de la demande")
+
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default=STATUT_SOUMIS)
+    date_soumission = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    traite_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="plans_paiement_traites",
+    )
+    motif_rejet = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Plan de paiement"
+        verbose_name_plural = "Plans de paiement"
+        ordering = ["-date_soumission"]
+
+    def __str__(self):
+        return f"Plan {self.taxation} en {self.nombre_echeances} échéance(s) ({self.get_statut_display()})"
+
+
+class EcheancePlanPaiement(models.Model):
+    """Une echeance individuelle d'un plan de paiement valide."""
+    STATUT_EN_ATTENTE = "EN_ATTENTE"
+    STATUT_PAYEE = "PAYEE"
+    STATUT_CHOICES = [
+        (STATUT_EN_ATTENTE, "En attente"),
+        (STATUT_PAYEE, "Payée"),
+    ]
+
+    plan = models.ForeignKey(PlanPaiement, on_delete=models.CASCADE, related_name="echeances")
+    numero = models.PositiveSmallIntegerField(verbose_name="N° de l'échéance")
+    montant = models.DecimalField(max_digits=12, decimal_places=2)
+    date_prevue = models.DateField()
+    statut = models.CharField(max_length=15, choices=STATUT_CHOICES, default=STATUT_EN_ATTENTE)
+    paiement = models.ForeignKey(
+        Paiement, on_delete=models.SET_NULL, null=True, blank=True, related_name="echeance_origine"
+    )
+
+    class Meta:
+        verbose_name = "Échéance de plan de paiement"
+        verbose_name_plural = "Échéances de plan de paiement"
+        ordering = ["plan", "numero"]
+
+    def __str__(self):
+        return f"Échéance {self.numero} — {self.montant} FCFA ({self.get_statut_display()})"
+
+
+class DemandeMutation(models.Model):
+    """
+    Demande de mutation fiscale : transfert du dossier fiscal d'une
+    parcelle deja rattachee a un proprietaire, vers un nouveau
+    proprietaire (typiquement suite a une revente). Deposee
+    publiquement par l'acheteur, avec preuve d'achat. Cree un nouveau
+    Contribuable pour l'acheteur a la validation, et rattache la
+    parcelle a son nouveau proprietaire.
+    """
+    STATUT_SOUMISE = "SOUMISE"
+    STATUT_EN_EXAMEN = "EN_EXAMEN"
+    STATUT_VALIDEE = "VALIDEE"
+    STATUT_REJETEE = "REJETEE"
+    STATUT_CHOICES = [
+        (STATUT_SOUMISE, "Soumise"),
+        (STATUT_EN_EXAMEN, "En cours d'examen"),
+        (STATUT_VALIDEE, "Validée"),
+        (STATUT_REJETEE, "Rejetée"),
+    ]
+
+    parcelle = models.ForeignKey(
+        Parcelle, on_delete=models.CASCADE, related_name="demandes_mutation"
+    )
+
+    nouveau_nom = models.CharField("Nom du nouveau propriétaire", max_length=100)
+    nouveau_prenom = models.CharField("Prénom du nouveau propriétaire", max_length=100)
+    nouveau_cni = models.CharField("Numéro CNI du nouveau propriétaire", max_length=20)
+    nouveau_telephone = models.CharField("Téléphone", max_length=20)
+    nouveau_email = models.EmailField("Email (facultatif)", blank=True)
+
+    piece_jointe = models.FileField(
+        upload_to="mutations/",
+        help_text="Acte de vente ou tout document attestant du transfert de propriété (obligatoire).",
+    )
+
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default=STATUT_SOUMISE)
+    date_soumission = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    traite_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="mutations_traitees",
+    )
+    motif_rejet = models.TextField(blank=True)
+
+    nouveau_contribuable_cree = models.ForeignKey(
+        Contribuable, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="mutation_origine",
+    )
+
+    class Meta:
+        verbose_name = "Demande de mutation fiscale"
+        verbose_name_plural = "Demandes de mutation fiscale"
+        ordering = ["-date_soumission"]
+
+    def __str__(self):
+        return f"Mutation {self.parcelle.nicad} → {self.nouveau_nom} {self.nouveau_prenom} ({self.get_statut_display()})"

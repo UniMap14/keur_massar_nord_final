@@ -1,0 +1,119 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}Mon profil — Keur Massar Nord{% endblock %}
+
+{% block content %}
+<style>
+  .mp-wrap { max-width: 720px; margin: 0 auto; }
+  .mp-header {
+    display: flex; align-items: center; gap: 20px; margin-bottom: 32px;
+  }
+  .mp-avatar {
+    width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
+    border: 3px solid var(--gold, #c9982e); background: var(--off-white, #f5efe2);
+  }
+  .mp-avatar-placeholder {
+    width: 84px; height: 84px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; background: var(--green-dark, #2f7a4f); color: #fff;
+    font-size: 32px; font-weight: 700; border: 3px solid var(--gold, #c9982e);
+  }
+  .mp-header h2 { margin: 0 0 4px; font-size: 20px; }
+  .mp-header .mp-fonction { color: var(--gold, #c9982e); font-weight: 600; font-size: 13.5px; }
+
+  .mp-card {
+    background: #fff; border: 1px solid var(--border, #e6e0d4); border-radius: 12px;
+    padding: 26px; margin-bottom: 20px;
+  }
+  .mp-card h3 {
+    font-size: 15px; margin: 0 0 18px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border, #e6e0d4);
+  }
+  .mp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .mp-field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: #6f6a5e; }
+  .mp-field input {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border, #e6e0d4);
+    border-radius: 8px; font-size: 14px;
+  }
+  .mp-field input:focus { outline: none; border-color: var(--green-dark, #2f7a4f); }
+  .mp-help { font-size: 11.5px; color: #948a7d; margin-top: 12px; }
+  @media (max-width: 600px) { .mp-row { grid-template-columns: 1fr; } }
+</style>
+
+<div class="mp-wrap">
+  <div class="mp-header">
+    {% if profil.photo %}
+      <img src="{{ profil.photo.url }}" alt="Photo de profil" class="mp-avatar">
+    {% else %}
+      <div class="mp-avatar-placeholder">{{ request.user.username|first|upper }}</div>
+    {% endif %}
+    <div>
+      <h2>{{ request.user.get_full_name|default:request.user.username }}</h2>
+      {% if profil.fonction %}<div class="mp-fonction">{{ profil.fonction }}</div>{% endif %}
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="mp-card">
+      <h3>Informations générales</h3>
+      <div class="mp-row">
+        <div class="mp-field">
+          <label>Prénom</label>
+          <input type="text" name="first_name" value="{{ request.user.first_name }}">
+        </div>
+        <div class="mp-field">
+          <label>Nom</label>
+          <input type="text" name="last_name" value="{{ request.user.last_name }}">
+        </div>
+      </div>
+      <div class="mp-row">
+        <div class="mp-field">
+          <label>Fonction</label>
+          <input type="text" name="fonction" value="{{ profil.fonction }}" placeholder="Ex : Chef du Service Fiscalité">
+        </div>
+        <div class="mp-field">
+          <label>Téléphone</label>
+          <input type="text" name="telephone" value="{{ profil.telephone }}" placeholder="+221 XX XXX XX XX">
+        </div>
+      </div>
+      <div class="mp-field">
+        <label>Photo de profil</label>
+        <input type="file" name="photo" accept="image/*">
+      </div>
+    </div>
+
+    <div class="mp-card">
+      <h3>Connexion</h3>
+      <div class="mp-field" style="margin-bottom:16px;">
+        <label>Nom d'utilisateur</label>
+        <input type="text" name="username" value="{{ request.user.username }}">
+      </div>
+      <p class="mp-help" style="margin-top:0; margin-bottom:16px;">Laissez les 3 champs ci-dessous vides si vous ne souhaitez pas changer votre mot de passe.</p>
+      <div class="mp-row">
+        <div class="mp-field">
+          <label>Mot de passe actuel</label>
+          <input type="password" name="mdp_actuel" autocomplete="current-password">
+        </div>
+        <div class="mp-field"></div>
+      </div>
+      <div class="mp-row">
+        <div class="mp-field">
+          <label>Nouveau mot de passe</label>
+          <input type="password" name="mdp_nouveau" autocomplete="new-password">
+        </div>
+        <div class="mp-field">
+          <label>Confirmer le nouveau mot de passe</label>
+          <input type="password" name="mdp_confirmation" autocomplete="new-password">
+        </div>
+      </div>
+      <p class="mp-help">Au moins 8 caractères.</p>
+    </div>
+
+    <button type="submit" class="btn-primary">
+      <i class="fa-solid fa-floppy-disk"></i> Enregistrer les modifications
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block page_title %}Mon espace{% endblock %} · KEUR MASSAR NORD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+        --green       : #6b4a35;
+        --green-dark  : #3c2a20;
+        --green-light : #8a624a;
+        --gold        : #c9982e;
+        --gold-dark   : #a67c1f;
+        --white       : #ffffff;
+        --off-white   : #f5efe2;
+        --text        : #2b211a;
+        --text-muted  : #6b5d4f;
+        --border      : rgba(0,0,0,0.08);
+        --shadow-sm   : 0 4px 16px rgba(43,33,26,0.06);
+        --shadow-md   : 0 12px 32px rgba(43,33,26,0.10);
+        --radius      : 16px;
+        --radius-sm   : 10px;
+        --ok          : #2f7a4f;
+        --ok-bg       : rgba(47,122,79,0.10);
+        --danger      : #b23b2e;
+        --danger-bg   : rgba(178,59,46,0.09);
+        --info        : #3468a8;
+        --info-bg     : rgba(52,104,168,0.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; font-family: 'DM Sans', Arial, sans-serif; color: var(--text);
+        background: var(--off-white); min-height: 100vh; line-height: 1.6;
+    }
+    a { color: inherit; }
+
+    /* ===== SHELL / SIDEBAR ===== */
+    .cshell { display: flex; min-height: 100vh; }
+    .csidebar {
+        width: 250px; flex-shrink: 0; background: var(--green-dark); color: rgba(255,255,255,0.85);
+        display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+    }
+    .csidebar-brand { display: flex; align-items: center; gap: 12px; padding: 22px 20px; }
+    .csidebar-brand .mark {
+        width: 36px; height: 36px; border-radius: 10px; background: var(--gold); color: var(--green-dark);
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0;
+    }
+    .csidebar-brand .name { font-weight: 700; font-size: 13.5px; color: #fff; line-height: 1.3; }
+    .csidebar-brand .sub { font-size: 10px; color: var(--gold); letter-spacing: 1px; font-weight: 600; text-transform: uppercase; }
+
+    .csidebar-user { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .csidebar-user .avatar {
+        width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--green-dark);
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0;
+    }
+    .csidebar-user .who { font-size: 12.5px; font-weight: 700; color: #fff; line-height: 1.35; }
+    .csidebar-user .who .sub { font-size: 10.5px; color: rgba(255,255,255,0.55); font-weight: 500; }
+
+    .csidebar-nav { list-style: none; margin: 0; padding: 14px 12px; flex: 1; }
+    .csidebar-nav li { margin-bottom: 3px; }
+    .csidebar-link {
+        display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px;
+        text-decoration: none; font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.75);
+        transition: background .2s ease, color .2s ease;
+    }
+    .csidebar-link i { width: 18px; text-align: center; font-size: 13px; opacity: 0.8; flex-shrink: 0; }
+    .csidebar-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .csidebar-link.active { background: var(--gold); color: var(--green-dark); font-weight: 700; }
+    .csidebar-link.active i { opacity: 1; }
+
+    .csidebar-footer { padding: 14px 12px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .csidebar-footer form { margin: 0; }
+    .csidebar-footer button {
+        width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+        border-radius: 8px; border: none; background: none; color: rgba(255,255,255,0.7);
+        font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: color .2s ease;
+    }
+    .csidebar-footer button:hover { color: #e07a6b; }
+
+    /* ===== MAIN ===== */
+    .cmain { flex: 1; min-width: 0; }
+    .cmain-header {
+        background: var(--green); color: #fff; padding: 30px 36px; position: relative; overflow: hidden;
+    }
+    .cmain-header h1 { font-family: 'Playfair Display', serif; font-size: clamp(22px, 3vw, 30px); font-weight: 700; margin: 0 0 6px; }
+    .cmain-header p { margin: 0; color: rgba(255,255,255,0.75); font-size: 13.5px; }
+
+    .cmain-content { max-width: 960px; margin: -18px auto 0; padding: 0 24px 60px; position: relative; z-index: 2; }
+
+    /* ===== CARDS (reprises telles quelles depuis l'existant) ===== */
+    .card {
+        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        border-radius: var(--radius); padding: 26px 28px; margin-bottom: 22px;
+    }
+    .card h2 {
+        font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
+        color: var(--green); margin: 0 0 20px; display: flex; align-items: center; gap: 10px;
+    }
+    .card h2 i {
+        width: 30px; height: 30px; border-radius: 9px; background: var(--off-white);
+        color: var(--gold-dark); display: flex; align-items: center; justify-content: center; font-size: 13px;
+    }
+
+    /* ===== Menu mobile ===== */
+    .csidebar-toggle { display: none; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+    @media (max-width: 860px) {
+        .cshell { flex-direction: column; }
+        .csidebar { width: 100%; height: auto; position: relative; flex-direction: row; align-items: center; flex-wrap: wrap; }
+        .csidebar-brand { padding: 14px 16px; flex: 1; }
+        .csidebar-toggle { display: block; margin-right: 16px; }
+        .csidebar-user, .csidebar-nav, .csidebar-footer { display: none; width: 100%; }
+        .cshell.mobile-open .csidebar-user,
+        .cshell.mobile-open .csidebar-nav,
+        .cshell.mobile-open .csidebar-footer { display: block; }
+        .cmain-header { padding: 26px 20px; }
+        .cmain-content { padding: 0 16px 50px; }
+    }
+
+    {% block extra_style %}{% endblock %}
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="cshell" id="cshell">
+
+  <aside class="csidebar">
+    <div class="csidebar-brand">
+      <button type="button" class="csidebar-toggle" id="csidebarToggle" aria-label="Ouvrir le menu"><i class="fa-solid fa-bars"></i></button>
+      <div class="mark">K</div>
+      <div>
+        <div class="name">KEUR MASSAR NORD</div>
+        <div class="sub">Espace citoyen</div>
+      </div>
+    </div>
+
+    <div class="csidebar-user">
+      <div class="avatar">{{ request.user.username|slice:":1"|upper }}</div>
+      <div class="who">
+        {{ request.user.get_full_name|default:request.user.username }}
+        <div class="sub">Compte citoyen</div>
+      </div>
+    </div>
+
+    <ul class="csidebar-nav">
+      <li><a href="{% url 'citoyen_espace' %}" class="csidebar-link {% if active_section == 'apercu' %}active{% endif %}">
+        <i class="fa-solid fa-gauge-high"></i> Vue d'ensemble
+      </a></li>
+      <li><a href="{% url 'citoyen_demandes' %}" class="csidebar-link {% if active_section == 'demandes' %}active{% endif %}">
+        <i class="fa-solid fa-folder-open"></i> Mes démarches
+      </a></li>
+      <li><a href="{% url 'citoyen_declarations' %}" class="csidebar-link {% if active_section == 'declarations' %}active{% endif %}">
+        <i class="fa-solid fa-file-signature"></i> Mes déclarations
+      </a></li>
+      <li><a href="{% url 'citoyen_recours_liste' %}" class="csidebar-link {% if active_section == 'recours' %}active{% endif %}">
+        <i class="fa-solid fa-scale-balanced"></i> Mes recours
+      </a></li>
+      <li><a href="{% url 'citoyen_calendrier_fiscal' %}" class="csidebar-link {% if active_section == 'calendrier' %}active{% endif %}">
+        <i class="fa-solid fa-calendar-days"></i> Calendrier fiscal
+      </a></li>
+      <li><a href="{% url 'citoyen_exoneration_liste' %}" class="csidebar-link {% if active_section == 'exonerations' %}active{% endif %}">
+        <i class="fa-solid fa-house-circle-check"></i> Mes exonérations
+      </a></li>
+      <li><a href="{% url 'citoyen_plan_paiement_liste' %}" class="csidebar-link {% if active_section == 'plans_paiement' %}active{% endif %}">
+        <i class="fa-solid fa-calendar-days"></i> Plans de paiement
+      </a></li>
+      <li><a href="{% url 'citoyen_modifier_profil' %}" class="csidebar-link {% if active_section == 'profil' %}active{% endif %}">
+        <i class="fa-solid fa-user-pen"></i> Mon profil
+      </a></li>
+      <li><a href="{% url 'home' %}" class="csidebar-link" target="_blank" rel="noopener">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Voir le site public
+      </a></li>
+    </ul>
+
+    <div class="csidebar-footer">
+      <form action="{% url 'dashboard_logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit"><i class="fa-solid fa-arrow-right-from-bracket"></i> Se déconnecter</button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="cmain">
+    <header class="cmain-header">
+      <h1>{% block header_title %}Mon espace{% endblock %}</h1>
+      <p>{% block header_subtitle %}Retrouvez ici vos informations, votre fiscalité et vos démarches.{% endblock %}</p>
+    </header>
+
+    <main class="cmain-content">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="card" style="border-left: 4px solid var(--gold); padding: 14px 18px; margin-bottom: 16px;">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    var toggle = document.getElementById('csidebarToggle');
+    var shell = document.getElementById('cshell');
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        shell.classList.toggle('mobile-open');
+      });
+    }
+  })();
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

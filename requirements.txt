@@ -1,4 +1,4 @@
-# Dépendances Python du projet KMS Nord.
+# Dépendances Python du projet KEUR MASSAR NORD.
 # Installation :  pip install -r requirements.txt
 #
 # Remarque GDAL/GEOS : django.contrib.gis nécessite en plus une

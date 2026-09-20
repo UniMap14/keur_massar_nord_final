@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
+﻿from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.core.serializers import serialize
 from django.http import HttpResponse
@@ -17,6 +17,18 @@ class Simplify(GeomOutputGeoFunc):
     (indispensable à l'échelle de ~40 000 parcelles).
     """
     function = "ST_Simplify"
+    arity = 2
+
+
+class SimplifyPreserveTopology(GeomOutputGeoFunc):
+    """
+    Comme Simplify, mais via ST_SimplifyPreserveTopology : garantit une
+    géométrie toujours valide (jamais NULL/vide), contrairement à
+    ST_Simplify qui peut faire disparaître une toute petite parcelle avec
+    une tolérance trop grossière -- ce qui faisait planter json.loads()
+    sur la vue d'ensemble complète (40 000 parcelles).
+    """
+    function = "ST_SimplifyPreserveTopology"
     arity = 2
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -38,6 +50,8 @@ from .forms import SimulateurFiscalForm
 
 from .forms import ContactForm
 from .forms import ContribuableForm, PaiementForm
+from .forms import DemandeImmatriculationForm
+from .forms import DemandeMutationForm
 from .models import (
     Parcelle,
     Propriétaire,
@@ -50,6 +64,7 @@ from .models import (
     CategorieInfrastructure,
     Infrastructure,
     Actualite,
+    ProfilCitoyen,
 )
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q, Prefetch
@@ -109,8 +124,8 @@ def home_page(request):
         # Chiffres démographiques/administratifs saisis manuellement pour
         # le moment (données non issues de la base). À remplacer par des
         # requêtes réelles quand les données correspondantes seront prêtes.
-        'population': "380 000",
-        'superficie': "15,4",
+        'population': "224 765",
+        'superficie': "13,18",
         'nb_quartiers': 104,
         'annee_creation': 2021,
 
@@ -225,7 +240,7 @@ def guide_fiscal_detail(request, code):
 # ============================================================
 
 TOLERANCE_SIMPLIFICATION = 0.00002
-TOLERANCE_SIMPLIFICATION_TOUTES = 0.0003  # bien plus grossier : vue de toute la commune dézoomée
+TOLERANCE_SIMPLIFICATION_TOUTES = 0.00003  # formes reconnaissables meme pour les petites parcelles
 
 CACHE_KEY_PUBLIC = "geojson_parcelles_public"
 CACHE_KEY_ADMIN = "geojson_parcelles_admin"
@@ -237,7 +252,7 @@ CACHE_TTL_SECONDES = 120  # invalidé de toute façon dès qu'une parcelle est m
 # polygones d'un coup). On limite donc désormais chaque réponse à la zone
 # visible de la carte (bbox) ET à un plafond de sécurité, même si la zone
 # demandée contient encore trop de parcelles.
-PARCELLES_MAX_PAR_REQUETE = 1500
+PARCELLES_MAX_PAR_REQUETE = 10000
 
 
 def _bbox_depuis_requete(request):
@@ -277,10 +292,11 @@ def api_parcelles_geojson(request):
         .exclude(geom__isnull=True)
         .filter(geom__bboverlaps=bbox_poly)
         .select_related("zone")
-        .annotate(geojson_geom=AsGeoJSON(Simplify("geom", TOLERANCE_SIMPLIFICATION)))
+        .annotate(geojson_geom=AsGeoJSON(SimplifyPreserveTopology("geom", TOLERANCE_SIMPLIFICATION)))
         .only(
             "id", "nicad", "superficie", "adresse_parcelle",
-            "occupation_sol", "zone__nom",
+            "occupation_sol", "section_cadastrale", "numero_parcelle", "numero_lot", "numero_titre_foncier",
+            "zone__nom",
         )
         .order_by("id")[:PARCELLES_MAX_PAR_REQUETE]
     )
@@ -292,6 +308,10 @@ def api_parcelles_geojson(request):
             "properties": {
                 "nicad": parcelle.nicad,
                 "num_lot": parcelle.nicad,
+                "numero_parcelle": parcelle.numero_parcelle,
+                "numero_lot": parcelle.numero_lot,
+                "section_cadastrale": parcelle.section_cadastrale,
+                "numero_titre_foncier": parcelle.numero_titre_foncier,
                 "superficie": parcelle.superficie,
                 "adresse_parcelle": parcelle.adresse_parcelle,
                 "occupation_sol": parcelle.occupation_sol,
@@ -317,10 +337,11 @@ def api_parcelles_toutes_geojson(request):
             Parcelle.objects
             .exclude(geom__isnull=True)
             .select_related("zone")
-            .annotate(geojson_geom=AsGeoJSON(Simplify("geom", TOLERANCE_SIMPLIFICATION_TOUTES)))
+            .annotate(geojson_geom=AsGeoJSON(SimplifyPreserveTopology("geom", TOLERANCE_SIMPLIFICATION_TOUTES)))
             .only(
                 "id", "nicad", "superficie", "adresse_parcelle",
-                "occupation_sol", "zone__nom",
+                "occupation_sol", "section_cadastrale", "numero_parcelle", "numero_lot", "numero_titre_foncier",
+                "zone__nom",
             )
             .order_by("id")
         )
@@ -332,6 +353,10 @@ def api_parcelles_toutes_geojson(request):
                 "properties": {
                     "nicad": parcelle.nicad,
                     "num_lot": parcelle.nicad,
+                    "numero_parcelle": parcelle.numero_parcelle,
+                    "numero_lot": parcelle.numero_lot,
+                    "section_cadastrale": parcelle.section_cadastrale,
+                    "numero_titre_foncier": parcelle.numero_titre_foncier,
                     "superficie": parcelle.superficie,
                     "adresse_parcelle": parcelle.adresse_parcelle,
                     "occupation_sol": parcelle.occupation_sol,
@@ -372,11 +397,11 @@ def api_parcelles_geojson_admin(request):
         .exclude(geom__isnull=True)
         .filter(geom__bboverlaps=bbox_poly)
         .select_related("zone", "proprietaire")
-        .annotate(geojson_geom=AsGeoJSON(Simplify("geom", TOLERANCE_SIMPLIFICATION)))
+        .annotate(geojson_geom=AsGeoJSON(SimplifyPreserveTopology("geom", TOLERANCE_SIMPLIFICATION)))
         .only(
             "id", "nicad", "superficie", "adresse_parcelle",
             "montant_taxe_annuelle", "valeur_locative", "statut_fiscal",
-            "type_document", "reference_arrete", "occupation_sol",
+            "type_document", "reference_arrete", "section_cadastrale", "numero_parcelle", "numero_lot", "numero_titre_foncier", "occupation_sol", "simulation_fiscale",
             "zone__nom", "proprietaire__nom", "proprietaire__prenom",
         )
         .order_by("id")[:PARCELLES_MAX_PAR_REQUETE]
@@ -397,7 +422,12 @@ def api_parcelles_geojson_admin(request):
                 "statut_fiscal": parcelle.statut_fiscal,
                 "type_document": parcelle.type_document,
                 "reference_arrete": parcelle.reference_arrete,
+                "section_cadastrale": parcelle.section_cadastrale,
+                "numero_parcelle": parcelle.numero_parcelle,
+                "numero_lot": parcelle.numero_lot,
+                "numero_titre_foncier": parcelle.numero_titre_foncier,
                 "occupation_sol": parcelle.occupation_sol,
+                "simulation_fiscale": parcelle.simulation_fiscale,
                 "zone_nom": parcelle.zone.nom if parcelle.zone_id else None,
                 "proprietaire": (
                     f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
@@ -422,11 +452,11 @@ def api_parcelles_toutes_geojson_admin(request):
             Parcelle.objects
             .exclude(geom__isnull=True)
             .select_related("zone", "proprietaire")
-            .annotate(geojson_geom=AsGeoJSON(Simplify("geom", TOLERANCE_SIMPLIFICATION_TOUTES)))
+            .annotate(geojson_geom=AsGeoJSON(SimplifyPreserveTopology("geom", TOLERANCE_SIMPLIFICATION_TOUTES)))
             .only(
                 "id", "nicad", "superficie", "adresse_parcelle",
                 "montant_taxe_annuelle", "valeur_locative", "statut_fiscal",
-                "type_document", "reference_arrete", "occupation_sol",
+                "type_document", "reference_arrete", "section_cadastrale", "numero_parcelle", "numero_lot", "numero_titre_foncier", "occupation_sol", "simulation_fiscale",
                 "zone__nom", "proprietaire__nom", "proprietaire__prenom",
             )
             .order_by("id")
@@ -447,7 +477,12 @@ def api_parcelles_toutes_geojson_admin(request):
                     "statut_fiscal": parcelle.statut_fiscal,
                     "type_document": parcelle.type_document,
                     "reference_arrete": parcelle.reference_arrete,
+                "section_cadastrale": parcelle.section_cadastrale,
+                "numero_parcelle": parcelle.numero_parcelle,
+                "numero_lot": parcelle.numero_lot,
+                "numero_titre_foncier": parcelle.numero_titre_foncier,
                     "occupation_sol": parcelle.occupation_sol,
+                    "simulation_fiscale": parcelle.simulation_fiscale,
                     "zone_nom": parcelle.zone.nom if parcelle.zone_id else None,
                     "proprietaire": (
                         f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
@@ -513,6 +548,11 @@ def parcelle_update_fiscal(request, parcelle_id):
         try:
             parcelle.montant_taxe_annuelle = float(montant)
             champs_modifies.append("montant_taxe_annuelle")
+            # Un agent qui saisit un montant à la main fournit une vraie
+            # donnée : ça n'est plus une simulation, le badge doit disparaître.
+            if parcelle.simulation_fiscale:
+                parcelle.simulation_fiscale = False
+                champs_modifies.append("simulation_fiscale")
         except ValueError:
             return JsonResponse({"ok": False, "error": "Montant de taxe invalide."}, status=400)
 
@@ -547,6 +587,26 @@ def parcelle_update_fiscal(request, parcelle_id):
         parcelle.reference_arrete = reference_arrete.strip()
         champs_modifies.append("reference_arrete")
 
+    section_cadastrale = request.POST.get("section_cadastrale")
+    if section_cadastrale is not None:
+        parcelle.section_cadastrale = section_cadastrale.strip()
+        champs_modifies.append("section_cadastrale")
+
+    numero_parcelle = request.POST.get("numero_parcelle")
+    if numero_parcelle is not None:
+        parcelle.numero_parcelle = numero_parcelle.strip()
+        champs_modifies.append("numero_parcelle")
+
+    numero_lot = request.POST.get("numero_lot")
+    if numero_lot is not None:
+        parcelle.numero_lot = numero_lot.strip()
+        champs_modifies.append("numero_lot")
+
+    numero_titre_foncier = request.POST.get("numero_titre_foncier")
+    if numero_titre_foncier is not None:
+        parcelle.numero_titre_foncier = numero_titre_foncier.strip()
+        champs_modifies.append("numero_titre_foncier")
+
     # Propriétaire : recherché par numéro CNI. Champ vide = pas de changement.
     # "RETIRER" = détache le propriétaire actuel.
     cni = request.POST.get("proprietaire_cni")
@@ -580,7 +640,12 @@ def parcelle_update_fiscal(request, parcelle_id):
         "adresse_parcelle": parcelle.adresse_parcelle,
         "type_document": parcelle.type_document,
         "occupation_sol": parcelle.occupation_sol,
+        "simulation_fiscale": parcelle.simulation_fiscale,
         "reference_arrete": parcelle.reference_arrete,
+                "section_cadastrale": parcelle.section_cadastrale,
+                "numero_parcelle": parcelle.numero_parcelle,
+                "numero_lot": parcelle.numero_lot,
+                "numero_titre_foncier": parcelle.numero_titre_foncier,
         "proprietaire": (
             f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
             if parcelle.proprietaire_id else None
@@ -928,7 +993,7 @@ def signalement(request):
                     reverse('dashboard_signalement_detail', args=[objet.pk])
                 )
                 send_mail(
-                    subject=f"[KMS Nord] Nouveau signalement : {objet.titre}",
+                    subject=f"[KEUR MASSAR NORD] Nouveau signalement : {objet.titre}",
                     message=(
                         f"Un nouveau signalement citoyen a été déposé.\n\n"
                         f"Titre : {objet.titre}\n"
@@ -991,9 +1056,12 @@ def signalement_suivi(request):
 
 def statistiques(request):
     context = {
-        'population': "380 000",        # ANSD, SES Dakar 2024 ; RGPH-2023 donnait 224 765 hab.
-        'annee_population': 2024,
-        'superficie': "15,4",
+        'population': "224 765",        # RGPH-5 (2023), ANSD
+        'annee_population': 2023,
+        'superficie': "13,18",
+        'densite': "17 058",
+        'pop_hommes_pct': "50,7",
+        'pop_femmes_pct': "49,3",
         'nb_quartiers': 104,
         'annee_creation': 2021,
     }
@@ -1218,7 +1286,7 @@ def recu_pdf_view(request, pk):
     c.rect(0, hauteur - 32 * mm, largeur, 32 * mm, fill=True, stroke=False)
     c.setFillColor(OR)
     c.setFont("Helvetica-Bold", 20)
-    c.drawString(marge, hauteur - 16 * mm, "KMS Nord")
+    c.drawString(marge, hauteur - 16 * mm, "KEUR MASSAR NORD")
     c.setFillColor(HexColor("#ffffff"))
     c.setFont("Helvetica", 10)
     c.drawString(marge, hauteur - 23 * mm, "Commune de Keur Massar Nord — Foncier & Fiscal")
@@ -1283,7 +1351,7 @@ def recu_pdf_view(request, pk):
         "Document généré électroniquement. Son authenticité peut être vérifiée sur "
         "keurmassarnord.sn/fiscalite/verifier-recu/"
     )
-    c.drawString(marge, 13 * mm, f"Édité le {paiement.date_paiement.today().strftime('%d/%m/%Y')} depuis l'espace citoyen KMS Nord.")
+    c.drawString(marge, 13 * mm, f"Édité le {paiement.date_paiement.today().strftime('%d/%m/%Y')} depuis l'espace citoyen KEUR MASSAR NORD.")
 
     c.showPage()
     c.save()
@@ -1339,3 +1407,427 @@ def actualite_detail(request, pk):
         "actualite": actualite,
         "autres": autres,
     })
+
+def api_parcelles_bounds(request):
+    """
+    Renvoie l'enveloppe geographique (bounding box) de TOUTES les
+    parcelles, calculee cote base de donnees (tres rapide, une seule
+    requete d'agregation). Utilisee par la carte pour se cadrer
+    automatiquement sur tout le territoire des l'ouverture, quelle que
+    soit la taille de l'ecran -- garantit qu'on ne "rate" jamais une
+    partie de la commune au chargement initial.
+    """
+    from django.contrib.gis.db.models import Extent
+
+    resultat = Parcelle.objects.exclude(geom__isnull=True).aggregate(etendue=Extent("geom"))
+    etendue = resultat["etendue"]
+    if not etendue:
+        return JsonResponse({"ok": False})
+    west, south, east, north = etendue
+    return JsonResponse({"ok": True, "west": west, "south": south, "east": east, "north": north})
+
+
+# ============================================================
+# DOCUMENTS OFFICIELS (quitus fiscal, attestation de non-imposition) —
+# meme style visuel que le recu de paiement (recu_pdf_view), genere en
+# PDF avec reportlab. Principe SenTax : ces documents ne sont delivres
+# que si la situation fiscale du contribuable le permet reellement.
+# ============================================================
+
+def _preparer_pdf_document(titre_document, numero_reference):
+    """Cree le canvas ReportLab et dessine l'en-tete commun (bande verte,
+    logo texte, titre du document). Renvoie (buffer, canvas, largeur,
+    hauteur, marge, y_depart, couleurs)."""
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas as pdf_canvas
+    from reportlab.lib.colors import HexColor
+
+    VERT_FONCE = HexColor("#3c2a20")
+    OR = HexColor("#c9982e")
+    GRIS = HexColor("#6b5d4f")
+    BORDURE = HexColor("#e6e0d4")
+
+    buffer = BytesIO()
+    c = pdf_canvas.Canvas(buffer, pagesize=A4)
+    largeur, hauteur = A4
+    marge = 20 * mm
+
+    c.setFillColor(VERT_FONCE)
+    c.rect(0, hauteur - 32 * mm, largeur, 32 * mm, fill=True, stroke=False)
+    c.setFillColor(OR)
+    c.setFont("Helvetica-Bold", 20)
+    c.drawString(marge, hauteur - 16 * mm, "KEUR MASSAR NORD")
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica", 10)
+    c.drawString(marge, hauteur - 23 * mm, "Commune de Keur Massar Nord — Foncier & Fiscal")
+
+    c.setFillColor(OR)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawRightString(largeur - marge, hauteur - 16 * mm, titre_document)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica", 10)
+    c.drawRightString(largeur - marge, hauteur - 23 * mm, numero_reference)
+
+    return buffer, c, largeur, hauteur, marge, hauteur - 46 * mm, (VERT_FONCE, OR, GRIS, BORDURE)
+
+
+def _pied_de_page_document(c, marge, hauteur_page_url, texte_verif):
+    """Pied de page commun (authenticite + date d'edition)."""
+    from django.utils import timezone
+    from reportlab.lib.colors import HexColor
+    c.setFillColor(HexColor("#6b5d4f"))
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawString(marge, 18 * 2.834645669, texte_verif)
+    c.drawString(marge, 13 * 2.834645669, f"Édité le {timezone.now().strftime('%d/%m/%Y')} depuis l'espace citoyen KEUR MASSAR NORD.")
+
+
+@login_required
+def quitus_fiscal_pdf_view(request):
+    """
+    Genere un QUITUS FISCAL en PDF : atteste que le contribuable est a
+    jour de ses obligations fiscales communales. Refuse de le delivrer
+    si ce n'est reellement pas le cas (document a valeur officielle).
+    """
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    if profil is None:
+        messages.error(request, "Votre compte n'est pas encore relié à un dossier fiscal.")
+        return redirect("citoyen_espace")
+
+    contribuable = profil.contribuable
+    if contribuable.statut_global != "A_JOUR":
+        messages.error(
+            request,
+            "Un quitus fiscal ne peut être délivré que si votre compte est à jour de tous vos paiements. "
+            "Réglez vos taxations en retard puis réessayez."
+        )
+        return redirect("citoyen_espace")
+
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor
+
+    numero_doc = f"QF-{contribuable.numero_fiscal}-{timezone_now_str()}"
+    buffer, c, largeur, hauteur, marge, y, (VERT_FONCE, OR, GRIS, BORDURE) = _preparer_pdf_document(
+        "QUITUS FISCAL", numero_doc
+    )
+
+    c.setFillColor(GRIS)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(marge, y, "CONTRIBUABLE")
+    y -= 6 * mm
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(marge, y, f"{contribuable.nom} {contribuable.prenom}")
+    y -= 6 * mm
+    c.setFont("Helvetica", 10)
+    c.drawString(marge, y, f"Identifiant fiscalité : {contribuable.numero_fiscal}")
+
+    y -= 14 * mm
+    c.setStrokeColor(BORDURE)
+    c.line(marge, y, largeur - marge, y)
+    y -= 12 * mm
+
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica", 11)
+    texte = (
+        f"La commune de Keur Massar Nord atteste par le présent document que "
+        f"{contribuable.nom} {contribuable.prenom} est, à la date d'édition, "
+        f"À JOUR de l'ensemble de ses obligations fiscales communales "
+        f"(taxes foncières sur les propriétés bâties et non bâties)."
+    )
+    from textwrap import wrap
+    for ligne in wrap(texte, width=78):
+        c.drawString(marge, y, ligne)
+        y -= 6 * mm
+
+    y -= 8 * mm
+    c.setFillColor(OR)
+    c.rect(marge, y - 4 * mm, largeur - 2 * marge, 18 * mm, fill=True, stroke=False)
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(marge + 6 * mm, y + 6 * mm, "TOTAL RÉGLÉ")
+    c.setFont("Helvetica-Bold", 16)
+    c.drawRightString(
+        largeur - marge - 6 * mm, y + 5 * mm,
+        f"{contribuable.montant_paye_total:,.0f} FCFA".replace(",", " ")
+    )
+
+    _pied_de_page_document(
+        c, marge, hauteur,
+        "Document généré électroniquement, à valeur informative. Son authenticité peut être "
+        "vérifiée auprès des services fiscaux de la commune."
+    )
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="quitus_fiscal_{contribuable.numero_fiscal}.pdf"'
+    return response
+
+
+@login_required
+def attestation_non_imposition_pdf_view(request):
+    """
+    Genere une ATTESTATION DE NON-IMPOSITION en PDF : atteste que le
+    contribuable n'est redevable d'aucune taxe communale. Refuse de la
+    delivrer si le contribuable a bien des taxes dues (meme partiellement
+    payees) — ce document a une signification precise, differente d'un
+    simple "compte a jour".
+    """
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    if profil is None:
+        messages.error(request, "Votre compte n'est pas encore relié à un dossier fiscal.")
+        return redirect("citoyen_espace")
+
+    contribuable = profil.contribuable
+    if contribuable.montant_du_total and contribuable.montant_du_total > 0:
+        messages.error(
+            request,
+            "Une attestation de non-imposition ne peut être délivrée qu'aux contribuables "
+            "n'ayant aucune taxe communale à leur nom. Votre dossier comporte des taxations : "
+            "un quitus fiscal peut être demandé une fois vos paiements à jour."
+        )
+        return redirect("citoyen_espace")
+
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor
+    from textwrap import wrap
+
+    numero_doc = f"ANI-{contribuable.numero_fiscal}-{timezone_now_str()}"
+    buffer, c, largeur, hauteur, marge, y, (VERT_FONCE, OR, GRIS, BORDURE) = _preparer_pdf_document(
+        "ATTESTATION DE NON-IMPOSITION", numero_doc
+    )
+
+    c.setFillColor(GRIS)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(marge, y, "CONTRIBUABLE")
+    y -= 6 * mm
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(marge, y, f"{contribuable.nom} {contribuable.prenom}")
+    y -= 6 * mm
+    c.setFont("Helvetica", 10)
+    c.drawString(marge, y, f"Identifiant fiscalité : {contribuable.numero_fiscal}")
+
+    y -= 14 * mm
+    c.setStrokeColor(BORDURE)
+    c.line(marge, y, largeur - marge, y)
+    y -= 12 * mm
+
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica", 11)
+    texte = (
+        f"La commune de Keur Massar Nord atteste par le présent document que "
+        f"{contribuable.nom} {contribuable.prenom} n'est, à la date d'édition, "
+        f"redevable d'AUCUNE taxe foncière communale (CFPB/CFPNB) sur le territoire "
+        f"de la commune."
+    )
+    for ligne in wrap(texte, width=78):
+        c.drawString(marge, y, ligne)
+        y -= 6 * mm
+
+    _pied_de_page_document(
+        c, marge, hauteur,
+        "Document généré électroniquement, à valeur informative. Son authenticité peut être "
+        "vérifiée auprès des services fiscaux de la commune."
+    )
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="attestation_non_imposition_{contribuable.numero_fiscal}.pdf"'
+    return response
+
+
+def timezone_now_str():
+    from django.utils import timezone
+    return timezone.now().strftime("%Y%m%d")
+
+
+def immatriculation_demande_view(request):
+    """
+    Formulaire PUBLIC (aucun compte requis) permettant a une personne
+    qui n'a jamais ete contribuable de demander sa premiere
+    immatriculation fiscale, pour une parcelle deja cadastree mais pas
+    encore rattachee a un proprietaire/contribuable connu.
+    """
+    if request.method == "POST":
+        form = DemandeImmatriculationForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request,
+                "Votre demande a bien été soumise. Un agent l'examinera et vous "
+                "recevrez votre numéro fiscal par email une fois votre dossier validé."
+            )
+            return redirect("immatriculation_demande")
+    else:
+        form = DemandeImmatriculationForm()
+
+    return render(request, "foncier/immatriculation_demande.html", {
+        "form": form,
+    })
+
+
+def mutation_demande_view(request):
+    """
+    Formulaire PUBLIC (aucun compte requis) permettant a l'acheteur
+    d'une parcelle deja immatriculee de demander le transfert du
+    dossier fiscal a son nom (mutation fiscale suite a une revente).
+    """
+    if request.method == "POST":
+        form = DemandeMutationForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request,
+                "Votre demande de mutation a bien été soumise. Un agent l'examinera et vous "
+                "recevrez votre numéro fiscal par email une fois votre dossier validé."
+            )
+            return redirect("mutation_demande")
+    else:
+        form = DemandeMutationForm()
+
+    return render(request, "foncier/mutation_demande.html", {
+        "form": form,
+    })
+
+
+@login_required
+def releve_compte_pdf_view(request):
+    """
+    Genere un RELEVE DE COMPTE FISCAL en PDF : recapitulatif de TOUTES
+    les taxations du contribuable, toutes annees confondues (pas
+    seulement un recu de paiement unique). Reprend le meme style
+    visuel que les autres documents (quitus, attestation).
+    """
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor
+    from foncier.models import Taxation
+
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    if profil is None:
+        messages.error(request, "Votre compte n'est pas encore relié à un dossier fiscal.")
+        return redirect("citoyen_espace")
+
+    contribuable = profil.contribuable
+    taxations = (
+        Taxation.objects.filter(contribuable=contribuable)
+        .select_related("type_taxe", "parcelle")
+        .order_by("-annee_fiscale")
+    )
+
+    numero_doc = f"RC-{contribuable.numero_fiscal}-{timezone_now_str()}"
+    buffer, c, largeur, hauteur, marge, y, (VERT_FONCE, OR, GRIS, BORDURE) = _preparer_pdf_document(
+        "RELEVÉ DE COMPTE", numero_doc
+    )
+
+    c.setFillColor(GRIS)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(marge, y, "CONTRIBUABLE")
+    y -= 6 * mm
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(marge, y, f"{contribuable.nom} {contribuable.prenom}")
+    y -= 6 * mm
+    c.setFont("Helvetica", 10)
+    c.drawString(marge, y, f"Identifiant fiscalité : {contribuable.numero_fiscal}")
+
+    y -= 12 * mm
+    c.setStrokeColor(BORDURE)
+    c.line(marge, y, largeur - marge, y)
+    y -= 10 * mm
+
+    # --- En-tete du tableau ---
+    def dessiner_entete_tableau(y_pos):
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(marge, y_pos, "ANNÉE")
+        c.drawString(marge + 22 * mm, y_pos, "TAXE")
+        c.drawString(marge + 70 * mm, y_pos, "PARCELLE")
+        c.drawRightString(marge + 122 * mm, y_pos, "DÛ")
+        c.drawRightString(marge + 145 * mm, y_pos, "PAYÉ")
+        c.drawRightString(largeur - marge, y_pos, "STATUT")
+        y_pos -= 4 * mm
+        c.setStrokeColor(BORDURE)
+        c.line(marge, y_pos, largeur - marge, y_pos)
+        return y_pos - 6 * mm
+
+    y = dessiner_entete_tableau(y)
+
+    total_du = Decimal("0")
+    total_paye = Decimal("0")
+
+    for t in taxations:
+        if y < 30 * mm:
+            # Page pleine : nouvelle page, redessine l'en-tete
+            _pied_de_page_document(
+                c, marge, hauteur,
+                "Document généré électroniquement, à valeur informative."
+            )
+            c.showPage()
+            c.setFillColor(VERT_FONCE)
+            y = hauteur - 20 * mm
+            y = dessiner_entete_tableau(y)
+
+        statut_label = "À jour" if t.statut == "A_JOUR" else "En retard"
+        parcelle_label = t.parcelle.nicad if t.parcelle_id else "—"
+
+        c.setFillColor(VERT_FONCE)
+        c.setFont("Helvetica", 8.5)
+        c.drawString(marge, y, str(t.annee_fiscale))
+        c.drawString(marge + 22 * mm, y, t.type_taxe.libelle[:28])
+        c.drawString(marge + 70 * mm, y, parcelle_label[:20])
+        c.drawRightString(marge + 122 * mm, y, f"{t.montant_du:,.0f}".replace(",", " "))
+        c.drawRightString(marge + 145 * mm, y, f"{t.montant_paye:,.0f}".replace(",", " "))
+        c.setFillColor(HexColor("#2f7a4f") if t.statut == "A_JOUR" else HexColor("#b23b2e"))
+        c.drawRightString(largeur - marge, y, statut_label)
+
+        total_du += t.montant_du
+        total_paye += t.montant_paye
+        y -= 7 * mm
+
+    y -= 6 * mm
+    c.setFillColor(OR)
+    c.rect(marge, y - 4 * mm, largeur - 2 * marge, 18 * mm, fill=True, stroke=False)
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(marge + 6 * mm, y + 7 * mm, "TOTAL DÛ (toutes années)")
+    c.drawString(marge + 6 * mm, y + 1 * mm, "TOTAL RÉGLÉ (toutes années)")
+    c.setFont("Helvetica-Bold", 12)
+    c.drawRightString(largeur - marge - 6 * mm, y + 7 * mm, f"{total_du:,.0f} FCFA".replace(",", " "))
+    c.drawRightString(largeur - marge - 6 * mm, y + 1 * mm, f"{total_paye:,.0f} FCFA".replace(",", " "))
+
+    _pied_de_page_document(
+        c, marge, hauteur,
+        "Document généré électroniquement, à valeur informative. Son authenticité peut être "
+        "vérifiée auprès des services fiscaux de la commune."
+    )
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="releve_compte_{contribuable.numero_fiscal}.pdf"'
+    return response

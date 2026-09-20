@@ -7,7 +7,7 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
-{% block title %}{{ title }} · KMS Nord Administration{% endblock %}
+{% block title %}{{ title }} · KEUR MASSAR NORD Administration{% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
@@ -19,9 +19,9 @@
 
 {% block branding %}
 <div id="branding-kmsn">
-  <img src="{% static 'foncier/images/logo.jpeg' %}" alt="Logo KMS Nord">
+  <img src="{% static 'foncier/images/logo.jpeg' %}" alt="Logo KEUR MASSAR NORD">
   <h1 id="site-name">
-    <a href="{% url 'admin:index' %}">KMS Nord — Foncier &amp; Fiscal</a>
+    <a href="{% url 'admin:index' %}">KEUR MASSAR NORD — Foncier &amp; Fiscal</a>
   </h1>
 </div>
 {% endblock %}

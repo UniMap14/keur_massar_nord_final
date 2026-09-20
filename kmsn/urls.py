@@ -40,6 +40,6 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-admin.site.site_header = "KMS Nord — Administration Foncière & Fiscale"
-admin.site.site_title = "KMS Nord Admin"
+admin.site.site_header = "KEUR MASSAR NORD — Administration Foncière & Fiscale"
+admin.site.site_title = "KEUR MASSAR NORD Admin"
 admin.site.index_title = "Tableau de bord administrateur"

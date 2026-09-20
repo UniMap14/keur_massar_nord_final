@@ -133,7 +133,13 @@
           <td>{{ citoyen.numero_fiscal }}</td>
           <td>{{ citoyen.numero_foncier }}</td>
           <td><span class="badge {{ citoyen.statut }}">{{ citoyen.get_statut_display }}</span></td>
-          <td>{{ citoyen.valide_par.get_full_name|default:citoyen.valide_par.username|default:"—" }}</td>
+          <td>
+            {% if citoyen.valide_par %}
+              {{ citoyen.valide_par.get_full_name|default:citoyen.valide_par.username }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
           <td>{{ citoyen.date_validation|date:"d/m/Y H:i"|default:"—" }}</td>
         </tr>
         {% endfor %}

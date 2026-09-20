@@ -1,7 +1,7 @@
 {% extends 'foncier/base.html' %}
-{% block title %}Géoportail - KMS Nord Foncier{% endblock %}
+{% block title %}Géoportail - KEUR MASSAR NORD Foncier{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <style>
   .sidebar-left { flex: 2; min-height: 700px; position: relative; }
   .sidebar-right { flex: 1; max-height: 700px; overflow-y: auto; }
@@ -144,14 +144,15 @@
   }
 
   /* Fiche de parcelle (popup) : carte blanche épurée */
-  .maplibregl-popup.fiche-parcelle .maplibregl-popup-content {
+  .leaflet-popup.fiche-parcelle .leaflet-popup-content-wrapper {
     padding: 0;
     border-radius: 14px;
     box-shadow: 0 12px 34px rgba(43, 33, 26, 0.18);
     overflow: hidden;
-    min-width: 260px;
   }
-  .maplibregl-popup.fiche-parcelle .maplibregl-popup-close-button { display: none; }
+  .leaflet-popup.fiche-parcelle .leaflet-popup-content { margin: 0; min-width: 260px; }
+  .leaflet-popup.fiche-parcelle .leaflet-popup-close-button { display: none; }
+  .leaflet-popup.fiche-parcelle .leaflet-popup-tip { box-shadow: 0 12px 34px rgba(43, 33, 26, 0.18); }
   .fp-card { padding: 18px 20px; font-family: 'DM Sans', Arial, sans-serif; }
   .fp-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -177,50 +178,6 @@
     color: var(--green); text-decoration: none;
   }
   .fp-link:hover { text-decoration: underline; }
-
-  .map-view-toggle {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    z-index: 1100;
-    display: flex;
-    background: rgba(245, 239, 226, 0.95);
-    border: 1px solid rgba(201, 152, 46, 0.35);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-  }
-  .map-view-toggle button {
-    border: none;
-    background: none;
-    padding: 8px 14px;
-    font-size: 12.5px;
-    font-weight: 600;
-    cursor: pointer;
-    color: var(--text-muted);
-  }
-  .map-view-toggle button.active {
-    background: var(--green);
-    color: #fff;
-  }
-  #map3d {
-    display: none;
-    height: 100%;
-    width: 100%;
-  }
-  .map3d-hint {
-    position: absolute;
-    top: 60px;
-    right: 14px;
-    z-index: 1100;
-    background: rgba(245, 239, 226, 0.95);
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 11.5px;
-    color: var(--text-muted);
-    max-width: 190px;
-    box-shadow: var(--shadow-sm);
-  }
 
   @media (max-width: 900px) {
     .page-section > .container > div[style*="display: flex"] {
@@ -262,23 +219,10 @@
     <div class="sidebar-left">
       <div class="card border-0 shadow-sm overflow-hidden" style="height: 100%;">
         <div id="map" style="height: 100%;"></div>
-        <div id="map3d"></div>
-
-        <div class="map-view-toggle">
-          <button type="button" id="btnVue2D" class="active">Vue 2D</button>
-          <button type="button" id="btnVue3D">Vue 3D</button>
-        </div>
-        <div class="map3d-hint" id="map3dHint" style="display:none;">
-          Glisse avec le clic droit (ou deux doigts) pour incliner et pivoter la vue.
-        </div>
 
         <div id="mapLoader" class="map-loader">
           <div class="map-loader-spinner"></div>
           <p>Chargement de la carte...</p>
-        </div>
-        <div id="zoomHint" class="zoom-hint" style="display:none;">
-          <i class="fa-solid fa-magnifying-glass-plus"></i>
-          Zoomez pour afficher les parcelles (trop nombreuses à cette échelle).
         </div>
         <div
           class="map-legend"
@@ -378,22 +322,6 @@
 
       <div class="card border-0 shadow-sm">
         <div class="filter-section">
-          <h5 tabindex="0" role="button" id="statistiquesTitle">
-            <i class="fa-solid fa-chart-pie"></i> Statistiques
-          </h5>
-          <div style="margin-bottom:12px;">
-            <div class="stats-label">Parcelles affichées</div>
-            <div class="stats-value" id="stat-parcelles" aria-live="polite">0</div>
-          </div>
-          <div>
-            <div class="stats-label">Superficie totale</div>
-            <div class="stats-value" id="stat-superficie" aria-live="polite">0 m²</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card border-0 shadow-sm">
-        <div class="filter-section">
           <h5 tabindex="0" role="button" id="exportTitle">
             <i class="fa-solid fa-download"></i> Exporter
           </h5>
@@ -439,327 +367,140 @@
     `.replace(/\s+/g, ' ').trim());
   }
 </script>
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-  // ============================================================
-  // VUE 3D (MapLibre GL JS + OpenFreeMap "Liberty")
-  // ============================================================
-  let map3d = null;
-  let is3DActive = false;
-  let sharedParcellesData = null;
-
-  // La commune a ~38 000 parcelles : on ne charge plus tout d'un coup.
-  // On ne charge les parcelles que si on est suffisamment zoomé, et on
-  // recharge automatiquement la zone visible quand la carte bouge.
-  const MIN_ZOOM_PARCELLES = 14;
+  // La commune a ~40 000 parcelles : au chargement (zoom large), on
+  // affiche TOUTES les parcelles en géométrie allégée (api_parcelles_
+  // toutes). Dès qu'on zoome suffisamment, on bascule sur les parcelles
+  // en détail complet, limitées à la zone visible (bbox).
   let bboxReloadTimer = null;
-  let premierChargementParcelles = true;
-
-  function toggleVue3D(activer3D) {
-    if (activer3D === is3DActive) return;
-    is3DActive = activer3D;
-
-    const map2dEl = document.getElementById('map');
-    const map3dEl = document.getElementById('map3d');
-    const hintEl = document.getElementById('map3dHint');
-    const btn2d = document.getElementById('btnVue2D');
-    const btn3d = document.getElementById('btnVue3D');
-
-    if (is3DActive) {
-      map2dEl.style.display = 'none';
-      map3dEl.style.display = 'block';
-      hintEl.style.display = 'block';
-      btn2d.classList.remove('active');
-      btn3d.classList.add('active');
-
-      if (!map3d) {
-        initMap3D();
-      } else {
-        setTimeout(function () { map3d.resize(); }, 50);
-      }
-    } else {
-      map3dEl.style.display = 'none';
-      map2dEl.style.display = 'block';
-      hintEl.style.display = 'none';
-      btn3d.classList.remove('active');
-      btn2d.classList.add('active');
-      setTimeout(function () { if (map) map.resize(); }, 50);
-    }
-  }
-
-  function initMap3D() {
-    map3d = new maplibregl.Map({
-      container: 'map3d',
-      style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: [-17.31, 14.79],
-      zoom: 15.5,
-      pitch: 60,
-      bearing: -17,
-      canvasContextAttributes: { antialias: true }
-    });
-
-    map3d.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-
-    map3d.on('load', function () {
-      chargerParcelles3D();
-    });
-  }
-
-  function chargerParcelles3D() {
-    function applyData(data) {
-      if (map3d.getSource('parcelles-3d')) {
-        map3d.getSource('parcelles-3d').setData(data);
-        return;
-      }
-
-      map3d.addSource('parcelles-3d', { type: 'geojson', data: data });
-
-      map3d.addLayer({
-        id: 'parcelles-3d-layer',
-        source: 'parcelles-3d',
-        type: 'fill-extrusion',
-        paint: {
-          // Pas de donnée fiscale sur la carte publique : hauteur/couleur fixes.
-          'fill-extrusion-color': '#c9982e',
-          'fill-extrusion-height': 5,
-          'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.75
-        }
-      });
-
-      map3d.on('click', 'parcelles-3d-layer', function (e) {
-        const props = e.features[0].properties;
-        new maplibregl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(
-            '<strong>Parcelle ' + props.nicad + '</strong><br>' +
-            '<small>' + (props.adresse_parcelle || '') + '</small>'
-          )
-          .addTo(map3d);
-      });
-
-      map3d.on('mouseenter', 'parcelles-3d-layer', function () {
-        map3d.getCanvas().style.cursor = 'pointer';
-      });
-      map3d.on('mouseleave', 'parcelles-3d-layer', function () {
-        map3d.getCanvas().style.cursor = '';
-      });
-    }
-
-    if (sharedParcellesData) {
-      applyData(sharedParcellesData);
-      return;
-    }
-
-    fetch('{% url "api_parcelles" %}')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        sharedParcellesData = data;
-        applyData(data);
-      })
-      .catch(function (e) { console.error('Erreur chargement parcelles 3D:', e); });
-  }
 
   // ============================================================
-  // VUE 2D (MapLibre GL JS + deck.gl, rendu WebGL2)
-  //
-  // Le fond de carte et l'affichage des zones/parcelles utilisent
-  // désormais deck.gl (superposé à MapLibre via MapboxOverlay) au lieu
-  // de Leaflet : rendu GPU, plus fluide avec un grand nombre de
-  // polygones. La logique de chargement (bbox / vue d'ensemble mise en
-  // cache) est identique à avant, seule la façon de dessiner change.
+  // CARTE (Leaflet)
   // ============================================================
 
   let map;
-  let deckOverlay;
+  let coucheZones, coucheParcelles, coucheItineraire, userMarker;
   let zonesVisible = true, parcellesVisible = true;
-  let allZones = {}, allParcelles = {};
+  let allZones = { type: 'FeatureCollection', features: [] };
+  let allParcelles = { type: 'FeatureCollection', features: [] };
   let filteredParcelles = [];
   let selectedFeature = null;
-  let userMarker = null, userLatLng = null;
-  let routeGeoJSON = null;
+  let userLatLng = null;
   let popupActif = null;
-
-  // Style vectoriel OpenFreeMap "Liberty" (gratuit, sans clé), le même
-  // que celui déjà utilisé pour la vue 3D — bien plus fin visuellement
-  // que des tuiles raster OSM brutes (labels, teintes douces, routes
-  // détaillées).
-  const CARTE_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
-
-  // Calcule l'enveloppe [ [minLng,minLat], [maxLng,maxLat] ] d'une liste
-  // de features GeoJSON (remplace L.geoJSON(...).getBounds() de Leaflet).
-  function bboxDeFeatures(features) {
-    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-
-    function visiter(coords) {
-      if (typeof coords[0] === 'number') {
-        const [lng, lat] = coords;
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-      } else {
-        coords.forEach(visiter);
-      }
-    }
-
-    (features || []).forEach(function (f) {
-      if (f.geometry && f.geometry.coordinates) visiter(f.geometry.coordinates);
-    });
-
-    if (!isFinite(minLng)) return null;
-    return [[minLng, minLat], [maxLng, maxLat]];
-  }
+  const renduCanvas = L.canvas({ padding: 0.5 }); // rendu performant pour ~40 000 formes
 
   function fermerPopup() {
-    if (popupActif) { popupActif.remove(); popupActif = null; }
+    if (popupActif) { map.closePopup(popupActif); popupActif = null; }
   }
 
   function fermerFicheParcelle() {
     fermerPopup();
     selectedFeature = null;
-    updateDeckLayers();
+    redessinerCouches();
   }
 
   function idDeFeature(feature) {
-    // Identifiant stable pour comparer une feature à la sélection
-    // courante (les objets peuvent différer entre deux chargements
-    // même pour la même parcelle).
     return feature && feature.properties ? feature.properties.nicad : null;
   }
 
-  function couleurZone() { return [107, 74, 53, 25]; }
-  function couleurLigneZone() { return [107, 74, 53, 230]; }
-
-  function couleurParcelle(feature) {
-    // Carte publique : pas de statut fiscal, teinte dorée douce, avec
-    // une sélection mise en avant en vert vif (comme la maquette de
-    // référence) pour bien distinguer la parcelle active.
-    return idDeFeature(feature) === idDeFeature(selectedFeature)
-      ? [47, 122, 79, 235]
-      : [201, 152, 46, 95];
+  function styleParcelle(feature) {
+    const estSelectionnee = idDeFeature(feature) === idDeFeature(selectedFeature);
+    return {
+      renderer: renduCanvas,
+      color: estSelectionnee ? '#2f7a4f' : '#c9982e',
+      weight: estSelectionnee ? 2 : 1,
+      fillColor: estSelectionnee ? '#2f7a4f' : '#c9982e',
+      fillOpacity: estSelectionnee ? 0.7 : 0.35,
+    };
   }
 
-  function couleurLigneParcelle(feature) {
-    return idDeFeature(feature) === idDeFeature(selectedFeature)
-      ? [47, 122, 79, 255]
-      : [201, 152, 46, 200];
+  function styleZone() {
+    return {
+      renderer: renduCanvas,
+      color: '#6b4a35',
+      weight: 2,
+      dashArray: '4 3',
+      fillColor: '#6b4a35',
+      fillOpacity: 0.08,
+    };
   }
 
-  // Reconstruit la liste complète des calques deck.gl à partir de l'état
-  // courant (zones, parcelles affichées, sélection, itinéraire) et les
-  // envoie à l'overlay. Point d'entrée unique appelé après chaque
-  // changement (chargement, filtre, sélection, bascule de calque...).
-  function updateDeckLayers() {
+  function redessinerCouches() {
     const parcellesAffichees = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
 
-    const layers = [
-      new deck.GeoJsonLayer({
-        id: 'zones',
-        data: allZones,
-        visible: zonesVisible,
-        filled: true,
-        stroked: true,
-        getFillColor: couleurZone,
-        getLineColor: couleurLigneZone,
-        lineWidthMinPixels: 2,
-        pickable: true,
-        onClick: function (info) {
-          if (!info.object) return;
-          fermerPopup();
-          popupActif = new maplibregl.Popup()
-            .setLngLat(info.coordinate)
-            .setHTML('<strong>' + (info.object.properties.nom || '') + '</strong>')
-            .addTo(map);
-        }
-      }),
-      new deck.GeoJsonLayer({
-        id: 'parcelles',
-        data: { type: 'FeatureCollection', features: parcellesAffichees },
-        visible: parcellesVisible,
-        filled: true,
-        stroked: true,
-        getFillColor: couleurParcelle,
-        getLineColor: couleurLigneParcelle,
-        lineWidthMinPixels: 1,
-        pickable: true,
-        updateTriggers: {
-          getFillColor: [selectedFeature],
-          getLineColor: [selectedFeature]
-        },
-        onClick: function (info) {
-          if (!info.object) return;
-          selectedFeature = info.object;
-          const props = info.object.properties;
+    if (coucheParcelles) map.removeLayer(coucheParcelles);
+    coucheParcelles = L.geoJSON({ type: 'FeatureCollection', features: parcellesAffichees }, {
+      style: styleParcelle,
+      onEachFeature: function (feature, layer) {
+        layer.on('click', function (e) {
+          selectedFeature = feature;
+          const props = feature.properties;
           fermerPopup();
 
           const ficheHTML =
             '<div class="fp-card">' +
               '<div class="fp-head">' +
-                '<h4>Parcelle : ' + (props.nicad || '') + '</h4>' +
+                '<h4>NICAD : ' + (props.nicad || '') + '</h4>' +
                 '<button type="button" class="fp-close" id="fpCloseBtn" aria-label="Fermer">✕</button>' +
               '</div>' +
               '<div class="fp-row"><span class="fp-label">Superficie</span><span class="fp-value">' + Math.round(props.superficie || 0) + ' m²</span></div>' +
+              (props.numero_parcelle ? '<div class="fp-row"><span class="fp-label">N° parcelle</span><span class="fp-value">' + props.numero_parcelle + '</span></div>' : '') +
+              (props.numero_lot ? '<div class="fp-row"><span class="fp-label">N° lot</span><span class="fp-value">' + props.numero_lot + '</span></div>' : '') +
+              (props.section_cadastrale ? '<div class="fp-row"><span class="fp-label">Section cadastrale</span><span class="fp-value">' + props.section_cadastrale + '</span></div>' : '') +
+              '<div class="fp-row"><span class="fp-label">Titre foncier</span><span class="fp-value">' + (props.numero_titre_foncier || '—') + '</span></div>' +
               (props.occupation_sol ? '<div class="fp-row"><span class="fp-label">Occupation du sol</span><span class="fp-value">' + props.occupation_sol + '</span></div>' : '') +
               (props.zone_nom ? '<div class="fp-row"><span class="fp-label">Zone</span><span class="fp-value">' + props.zone_nom + '</span></div>' : '') +
               (props.adresse_parcelle ? '<div class="fp-row"><span class="fp-label">Secteur</span><span class="fp-value">' + props.adresse_parcelle + '</span></div>' : '') +
               '<a class="fp-link" href="{% url "recherche_cadastrale" %}?q=' + encodeURIComponent(props.nicad || '') + '">Voir la fiche complète →</a>' +
             '</div>';
 
-          popupActif = new maplibregl.Popup({ className: 'fiche-parcelle', closeButton: false, maxWidth: '300px' })
-            .setLngLat(info.coordinate)
-            .setHTML(ficheHTML)
-            .addTo(map);
+          popupActif = L.popup({ className: 'fiche-parcelle', closeButton: false, maxWidth: 300 })
+            .setLatLng(e.latlng)
+            .setContent(ficheHTML)
+            .openOn(map);
 
-          const closeBtn = document.getElementById('fpCloseBtn');
-          if (closeBtn) closeBtn.addEventListener('click', fermerFicheParcelle);
+          setTimeout(function () {
+            const closeBtn = document.getElementById('fpCloseBtn');
+            if (closeBtn) closeBtn.addEventListener('click', fermerFicheParcelle);
+          }, 0);
+          redessinerCouches();
+        });
+      }
+    });
+    if (parcellesVisible) coucheParcelles.addTo(map);
 
-          updateStats();
-          updateDeckLayers();
-        }
-      })
-    ];
+    if (coucheZones) map.removeLayer(coucheZones);
+    coucheZones = L.geoJSON(allZones, {
+      style: styleZone,
+      onEachFeature: function (feature, layer) {
+        layer.on('click', function (e) {
+          fermerPopup();
+          popupActif = L.popup()
+            .setLatLng(e.latlng)
+            .setContent('<strong>' + (feature.properties.nom || '') + '</strong>')
+            .openOn(map);
+        });
+      }
+    });
+    if (zonesVisible) coucheZones.addTo(map);
 
-    if (routeGeoJSON) {
-      layers.push(new deck.GeoJsonLayer({
-        id: 'itineraire',
-        data: routeGeoJSON,
-        stroked: true,
-        filled: false,
-        getLineColor: [255, 102, 0, 220],
-        lineWidthMinPixels: 5
-      }));
-    }
-
-    deckOverlay.setProps({ layers: layers });
+    if (coucheItineraire) { map.removeLayer(coucheItineraire); coucheItineraire = null; }
   }
 
   function initMap() {
-    map = new maplibregl.Map({
-      container: 'map',
-      style: CARTE_STYLE,
-      center: [-17.31, 14.79],
-      zoom: 14
-    });
-    map.addControl(new maplibregl.NavigationControl(), 'top-left');
+    map = L.map('map', { preferCanvas: true }).setView([14.79, -17.31], 13);
 
-    deckOverlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
-    map.addControl(deckOverlay);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      subdomains: 'abc',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
-    map.on('load', function () {
-      Promise.all([loadZones(), loadParcelles()]).finally(function () {
-        const loader = document.getElementById('mapLoader');
-        if (loader) loader.classList.add('hidden');
-      });
-    });
-
-    // Recharge les parcelles visibles à chaque déplacement/zoom de la
-    // carte (avec un petit délai pour ne pas spammer le serveur pendant
-    // qu'on glisse la carte).
-    map.on('moveend', function () {
-      clearTimeout(bboxReloadTimer);
-      bboxReloadTimer = setTimeout(loadParcelles, 400);
+    Promise.all([loadZones(), loadParcelles()]).finally(function () {
+      const loader = document.getElementById('mapLoader');
+      if (loader) loader.classList.add('hidden');
     });
   }
 
@@ -768,46 +509,23 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         allZones = data;
-        updateDeckLayers();
+        redessinerCouches();
       })
       .catch(function (e) { console.error('Erreur zones:', e); });
   }
 
   function loadParcelles() {
-    const zoomHint = document.getElementById('zoomHint');
-
-    // Dézoomé : on charge TOUTES les parcelles d'un coup (géométrie très
-    // simplifiée, mise en cache côté serveur) pour une vue d'ensemble
-    // complète de la commune. Zoomé : rechargement précis limité à la
-    // zone visible, pour le détail fin.
-    if (map.getZoom() < MIN_ZOOM_PARCELLES) {
-      if (zoomHint) zoomHint.style.display = 'none';
-      return fetch('{% url "api_parcelles_toutes" %}')
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          allParcelles = data;
-          sharedParcellesData = data;
-          updateDeckLayers();
-          updateStats();
-        })
-        .catch(function (e) { console.error('Erreur parcelles (vue d\'ensemble):', e); });
-    }
-
-    const b = map.getBounds();
-    const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
-    return fetch('{% url "api_parcelles" %}?bbox=' + bbox)
+    return fetch('{% url "api_parcelles_toutes" %}')
       .then(function (r) { return r.json(); })
       .then(function (data) {
         allParcelles = data;
-        sharedParcellesData = data;
-        updateDeckLayers();
+        redessinerCouches();
         populateZoneFilter();
         populateOccupationFilter();
-        updateStats();
-        if (premierChargementParcelles) {
-          appliquerRechercheDepuisURL();
-          premierChargementParcelles = false;
+        if (coucheParcelles && coucheParcelles.getBounds().isValid()) {
+          map.fitBounds(coucheParcelles.getBounds(), { padding: [20, 20] });
         }
+        appliquerRechercheDepuisURL();
       })
       .catch(function (e) { console.error('Erreur parcelles:', e); });
   }
@@ -828,8 +546,8 @@
       zoneSelect.value = zoneMatch.value;
       applyFilters();
       if (filteredParcelles.length) {
-        const bounds = bboxDeFeatures(filteredParcelles);
-        if (bounds) map.fitBounds(bounds, { padding: 50 });
+        const coucheTemp = L.geoJSON(filteredParcelles);
+        map.fitBounds(coucheTemp.getBounds(), { padding: [50, 50] });
       }
     } else {
       searchParcelle();
@@ -850,6 +568,7 @@
       });
     }
     const select = document.getElementById('filter-zone');
+    select.querySelectorAll('option:not(:first-child)').forEach(function (o) { o.remove(); });
     Array.from(zones).sort().forEach(function (zone) {
       const opt = document.createElement('option');
       opt.value = zone;
@@ -866,6 +585,7 @@
       });
     }
     const select = document.getElementById('filter-occupation');
+    select.querySelectorAll('option:not(:first-child)').forEach(function (o) { o.remove(); });
     Array.from(occupations).sort().forEach(function (occ) {
       const opt = document.createElement('option');
       opt.value = occ;
@@ -887,8 +607,7 @@
     }
 
     filteredParcelles = filtered;
-    updateDeckLayers();
-    updateStats();
+    redessinerCouches();
   }
 
   function searchParcelle() {
@@ -906,11 +625,10 @@
 
     if (found) {
       result.innerHTML = '<span style="color:green;"><i class="fa-solid fa-check"></i> Trouvé: ' + found.properties.nicad + '</span>';
-      const bounds = bboxDeFeatures([found]);
-      if (bounds) map.fitBounds(bounds, { padding: 50 });
+      const coucheTemp = L.geoJSON(found);
+      map.fitBounds(coucheTemp.getBounds(), { padding: [50, 50] });
       selectedFeature = found;
-      updateStats();
-      updateDeckLayers();
+      redessinerCouches();
     } else {
       result.innerHTML = '<span style="color:red;"><i class="fa-solid fa-times"></i> Non trouvé</span>';
     }
@@ -922,19 +640,7 @@
     document.getElementById('search-nicad').value = '';
     document.getElementById('search-result').textContent = '';
     filteredParcelles = [];
-    updateDeckLayers();
-    updateStats();
-  }
-
-  function updateStats() {
-    const features = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
-    const total = features.length;
-    const superficieTotale = features.reduce(function (sum, f) {
-      return sum + (parseFloat(f.properties.superficie) || 0);
-    }, 0);
-
-    document.getElementById('stat-parcelles').textContent = total.toLocaleString('fr-FR');
-    document.getElementById('stat-superficie').textContent = Math.round(superficieTotale).toLocaleString('fr-FR') + ' m²';
+    redessinerCouches();
   }
 
   function csvEscape(value) {
@@ -990,17 +696,16 @@
       function (pos) {
         userLatLng = [pos.coords.latitude, pos.coords.longitude];
 
-        if (userMarker) userMarker.remove();
+        if (userMarker) map.removeLayer(userMarker);
 
-        const el = document.createElement('div');
-        el.style.cssText = 'background:#c9982e; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 6px rgba(0,0,0,0.5);';
+        const icone = L.divIcon({
+          className: '',
+          html: '<div style="background:#c9982e; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
+          iconSize: [16, 16]
+        });
 
-        userMarker = new maplibregl.Marker({ element: el })
-          .setLngLat([userLatLng[1], userLatLng[0]])
-          .setPopup(new maplibregl.Popup().setText('Vous êtes ici'))
-          .addTo(map);
-
-        map.flyTo({ center: [userLatLng[1], userLatLng[0]], zoom: 15 });
+        userMarker = L.marker(userLatLng, { icon: icone }).addTo(map).bindPopup('Vous êtes ici');
+        map.flyTo(userLatLng, 15);
         status.innerHTML = '<span style="color:green;"><i class="fa-solid fa-check"></i> Position trouvée.</span>';
       },
       function (err) {
@@ -1031,11 +736,12 @@
         }
 
         const route = data.routes[0];
-        routeGeoJSON = route.geometry;
-        updateDeckLayers();
+        if (coucheItineraire) map.removeLayer(coucheItineraire);
+        coucheItineraire = L.geoJSON(route.geometry, {
+          style: { color: '#ff6600', weight: 5 }
+        }).addTo(map);
 
-        const bounds = bboxDeFeatures([{ geometry: route.geometry }]);
-        if (bounds) map.fitBounds(bounds, { padding: 50 });
+        map.fitBounds(coucheItineraire.getBounds(), { padding: [50, 50] });
 
         const distanceKm = (route.distance / 1000).toFixed(2);
         const dureeMin = Math.round(route.duration / 60);
@@ -1051,8 +757,7 @@
   }
 
   function effacerItineraire() {
-    routeGeoJSON = null;
-    updateDeckLayers();
+    if (coucheItineraire) { map.removeLayer(coucheItineraire); coucheItineraire = null; }
     document.getElementById('route-info').style.display = 'none';
   }
 
@@ -1069,8 +774,6 @@
       }
     }
 
-    onEvent('btnVue2D', 'click', function () { toggleVue3D(false); });
-    onEvent('btnVue3D', 'click', function () { toggleVue3D(true); });
 
     onEvent('btnGeolocaliser', 'click', localiserMoi);
     onEvent('btnEffacerItineraire', 'click', effacerItineraire);
@@ -1089,12 +792,12 @@
 
     onEvent('toggle-zones', 'change', function (e) {
       zonesVisible = e.target.checked;
-      updateDeckLayers();
+      redessinerCouches();
     });
 
     onEvent('toggle-parcelles', 'change', function (e) {
       parcellesVisible = e.target.checked;
-      updateDeckLayers();
+      redessinerCouches();
     });
 
     // Titres de panneaux : guide vocal au clic et au clavier

@@ -1,0 +1,66 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}Mes exonérations{% endblock %}
+{% block header_title %}Mes demandes d'exonération{% endblock %}
+{% block header_subtitle %}Suivez vos demandes d'exonération fiscale.{% endblock %}
+
+{% block extra_style %}
+    .exo-card {
+        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+        border-radius: var(--radius); padding: 20px 24px; margin-bottom: 14px;
+    }
+    .exo-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+    .exo-top .titre { font-weight: 700; font-size: 15.5px; }
+    .exo-meta { font-size: 12.5px; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap; }
+    .exo-meta i { color: var(--gold-dark); margin-right: 4px; }
+
+    .badge {
+        display: inline-block; padding: 4px 12px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap;
+    }
+    .badge.soumise { background: rgba(52,104,168,0.10); color: #3468a8; }
+    .badge.en-examen { background: rgba(185,116,11,0.10); color: #b9740b; }
+    .badge.validee { background: var(--ok-bg); color: var(--ok); }
+    .badge.rejetee { background: var(--danger-bg); color: var(--danger); }
+
+    .exo-decision {
+        margin-top: 10px; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 12.5px;
+    }
+    .exo-decision.ko { background: var(--danger-bg); color: var(--danger); }
+
+    .empty-state {
+        text-align: center; padding: 60px 20px; color: var(--text-muted);
+        background: var(--white); border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+    .empty-state i { font-size: 28px; color: var(--gold-dark); margin-bottom: 12px; display: block; }
+{% endblock %}
+
+{% block content %}
+
+{% if demandes %}
+  {% for d in demandes %}
+  <div class="exo-card">
+    <div class="exo-top">
+      <div class="titre">{{ d.parcelle.nicad }} — {{ d.get_motif_display }}</div>
+      <span class="badge {% if d.statut == 'SOUMISE' %}soumise{% elif d.statut == 'EN_EXAMEN' %}en-examen{% elif d.statut == 'VALIDEE' %}validee{% else %}rejetee{% endif %}">
+        {{ d.get_statut_display }}
+      </span>
+    </div>
+    <div class="exo-meta">
+      <span><i class="fa-solid fa-calendar"></i>Déposée le {{ d.date_soumission|date:"d/m/Y" }}</span>
+    </div>
+    {% if d.statut == 'REJETEE' and d.motif_rejet %}
+      <div class="exo-decision ko"><strong>Motif du rejet :</strong> {{ d.motif_rejet }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-house-circle-check"></i>
+    Vous n'avez déposé aucune demande d'exonération pour le moment.<br><br>
+    Vous pouvez en déposer une depuis « Ma fiscalité », sur une parcelle concernée.
+  </div>
+{% endif %}
+
+{% endblock %}

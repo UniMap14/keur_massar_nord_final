@@ -1,112 +1,11 @@
+{% extends "citoyens/base_citoyen.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mon espace · KMS Nord</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <style>
-    :root {
-        --green       : #6b4a35;
-        --green-dark  : #3c2a20;
-        --green-light : #8a624a;
-        --gold        : #c9982e;
-        --gold-dark   : #a67c1f;
-        --white       : #ffffff;
-        --off-white   : #f5efe2;
-        --text        : #2b211a;
-        --text-muted  : #6b5d4f;
-        --border      : rgba(0,0,0,0.08);
-        --shadow-sm   : 0 4px 16px rgba(43,33,26,0.06);
-        --shadow-md   : 0 12px 32px rgba(43,33,26,0.10);
-        --radius      : 16px;
-        --radius-sm   : 10px;
-        --ok          : #2f7a4f;
-        --ok-bg       : rgba(47,122,79,0.10);
-        --danger      : #b23b2e;
-        --danger-bg   : rgba(178,59,46,0.09);
-        --info        : #3468a8;
-        --info-bg     : rgba(52,104,168,0.09);
-    }
-    * { box-sizing: border-box; }
-    body {
-        margin: 0; font-family: 'DM Sans', Arial, sans-serif; color: var(--text);
-        background: var(--off-white); min-height: 100vh; line-height: 1.6;
-    }
 
-    .topbar {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 32px; background: var(--green-dark); color: var(--white);
-    }
-    .topbar .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; }
-    .topbar .brand i {
-        color: var(--green-dark); background: var(--gold); width: 34px; height: 34px;
-        border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px;
-    }
-    .topbar .brand-text { display: flex; flex-direction: column; line-height: 1.25; }
-    .topbar .brand-text .sub { font-size: 10.5px; color: var(--gold); letter-spacing: 1.2px; font-weight: 600; text-transform: uppercase; }
-    .topbar .logout {
-        color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; font-weight: 500;
-        display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.25); transition: all .2s ease;
-    }
-    .topbar .logout:hover { color: var(--white); border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.06); }
+{% block page_title %}Mon espace{% endblock %}
+{% block header_title %}Bonjour {{ citoyen.user.first_name|default:citoyen.user.username }} 👋{% endblock %}
+{% block header_subtitle %}Retrouvez ici vos informations, votre fiscalité et vos démarches.{% endblock %}
 
-    .hero {
-        background: var(--green); padding: 46px 24px 40px; text-align: center; color: var(--white);
-    }
-    .hero-badge {
-        display: inline-flex; align-items: center; gap: 8px; background: rgba(201,152,46,0.18);
-        border: 1px solid rgba(201,152,46,0.4); color: var(--gold); padding: 6px 16px;
-        border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 1.3px;
-        text-transform: uppercase; margin-bottom: 16px;
-    }
-    .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
-    .hero h1 {
-        font-family: 'Playfair Display', serif; font-size: clamp(26px, 4vw, 36px);
-        font-weight: 700; margin: 0 0 8px;
-    }
-    .hero p { margin: 0; color: rgba(255,255,255,0.75); font-size: 14.5px; }
-
-    .wrap { max-width: 960px; margin: -28px auto 0; padding: 0 20px 60px; position: relative; z-index: 2; }
-
-    .card {
-        background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
-        border-radius: var(--radius); padding: 26px 28px; margin-bottom: 22px;
-        opacity: 0; transform: translateY(10px); animation: cardIn .5s ease forwards;
-    }
-    .card:nth-of-type(1) { animation-delay: .02s; }
-    .card:nth-of-type(2) { animation-delay: .08s; }
-    .card:nth-of-type(3) { animation-delay: .14s; }
-    .card:nth-of-type(4) { animation-delay: .20s; }
-    @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
-
-    .card h2 {
-        font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
-        color: var(--green); margin: 0 0 20px; display: flex; align-items: center; gap: 10px;
-    }
-    .card h2 i {
-        width: 30px; height: 30px; border-radius: 9px; background: var(--off-white);
-        color: var(--gold-dark); display: flex; align-items: center; justify-content: center; font-size: 13px;
-    }
-
-    .info-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px;
-    }
-    .info-item .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; font-weight: 600; }
-    .info-item .value { font-size: 15px; font-weight: 600; color: var(--text); }
-
-    .placeholder {
-        display: flex; align-items: flex-start; gap: 12px; color: var(--text-muted);
-        font-size: 13.5px; padding: 16px 18px; background: rgba(201,152,46,0.07);
-        border: 1px dashed rgba(201,152,46,0.4); border-radius: var(--radius-sm); line-height: 1.55;
-    }
-    .placeholder i { color: var(--gold-dark); font-size: 16px; margin-top: 1px; }
-
+{% block extra_style %}
     /* --- CTA Démarches --- */
     .cta-card {
         display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
@@ -124,15 +23,19 @@
     }
     .btn-gold:hover { background: #d9ad4f; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(201,152,46,0.35); }
 
-    /* --- Résumé fiscal --- */
-    .solde-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 14px; margin-bottom: 22px;
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
+    .info-item .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; font-weight: 600; }
+    .info-item .value { font-size: 15px; font-weight: 600; color: var(--text); }
+
+    .placeholder {
+        display: flex; align-items: flex-start; gap: 12px; color: var(--text-muted);
+        font-size: 13.5px; padding: 16px 18px; background: rgba(201,152,46,0.07);
+        border: 1px dashed rgba(201,152,46,0.4); border-radius: var(--radius-sm); line-height: 1.55;
     }
-    .solde-item {
-        background: var(--off-white); border: 1px solid var(--border);
-        border-radius: var(--radius-sm); padding: 16px 18px;
-    }
+    .placeholder i { color: var(--gold-dark); font-size: 16px; margin-top: 1px; }
+
+    .solde-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .solde-item { background: var(--off-white); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px 18px; }
     .solde-item .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; font-weight: 600; }
     .solde-item .value { font-size: 19px; font-weight: 700; color: var(--text); }
     .solde-item .value.due { color: var(--danger); }
@@ -140,35 +43,20 @@
     .solde-item .value.ok { color: var(--ok); }
     .solde-item .value.late { color: var(--danger); }
 
-    .badge {
-        display: inline-block; padding: 4px 12px; border-radius: 999px;
-        font-size: 11px; font-weight: 700; letter-spacing: .02em;
-    }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .02em; }
     .badge.a-jour { background: var(--ok-bg); color: var(--ok); }
     .badge.en-retard { background: var(--danger-bg); color: var(--danger); }
     .badge.exonere { background: var(--info-bg); color: var(--info); }
 
-    /* --- Table taxations --- */
     .tax-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-    .tax-table th {
-        text-align: left; color: var(--text-muted); font-weight: 700;
-        font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em;
-        padding: 10px 12px; border-bottom: 2px solid var(--off-white);
-    }
+    .tax-table th { text-align: left; color: var(--text-muted); font-weight: 700; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; padding: 10px 12px; border-bottom: 2px solid var(--off-white); }
     .tax-table td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
     .tax-table tr:last-child td { border-bottom: none; }
     .tax-table .num { text-align: right; white-space: nowrap; font-weight: 600; }
 
-    .paiements-toggle {
-        background: none; border: none; color: var(--green);
-        font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 6px;
-        margin-top: 6px;
-    }
+    .paiements-toggle { background: none; border: none; color: var(--green); font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 6px; margin-top: 6px; }
     .paiements-toggle:hover { color: var(--gold-dark); }
-    .paiements-detail {
-        display: none; margin-top: 10px; padding-left: 14px;
-        border-left: 2px solid var(--border); font-size: 12px; color: var(--text-muted);
-    }
+    .paiements-detail { display: none; margin-top: 10px; padding-left: 14px; border-left: 2px solid var(--border); font-size: 12px; color: var(--text-muted); }
     .paiements-detail.open { display: block; }
     .paiements-detail div { padding: 5px 0; }
     .paiements-detail .recu { color: var(--text); font-weight: 700; }
@@ -177,217 +65,219 @@
 
     @media (max-width: 480px) {
       .tax-table { display: block; overflow-x: auto; white-space: nowrap; }
-    }
-
-    @media (max-width: 480px) {
-      .topbar { padding: 14px 18px; }
-      .hero { padding: 40px 18px 34px; }
-      .card { padding: 20px 18px; }
       .cta-card { flex-direction: column; align-items: flex-start; }
     }
-  </style>
-</head>
-<body>
+{% endblock %}
 
-  <div class="topbar">
-    <div class="brand">
-      <i class="fa-solid fa-fire"></i>
-      <div class="brand-text">
-        <span>KMS Nord</span>
-        <span class="sub">Foncier &amp; Fiscal</span>
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <h2 style="display:flex; align-items:center; justify-content:space-between;">
+    <span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-id-card"></i> Mes informations</span>
+    <a href="{% url 'citoyen_modifier_profil' %}" style="font-size:12px; font-weight:700; color:var(--green); text-decoration:none; display:inline-flex; align-items:center; gap:6px; text-transform:none; letter-spacing:0;">
+      <i class="fa-solid fa-pen" style="width:auto;height:auto;background:none;color:var(--gold-dark);font-size:12px;"></i> Modifier
+    </a>
+  </h2>
+  <div class="info-grid">
+    <div class="info-item">
+      <div class="label">Nom complet</div>
+      <div class="value">{{ citoyen.user.get_full_name|default:"—" }}</div>
+    </div>
+    <div class="info-item">
+      <div class="label">Email</div>
+      <div class="value">{{ citoyen.user.email }}</div>
+    </div>
+    <div class="info-item">
+      <div class="label">Téléphone</div>
+      <div class="value">{{ citoyen.telephone|default:"—" }}</div>
+    </div>
+    <div class="info-item">
+      <div class="label">Membre depuis</div>
+      <div class="value">{{ citoyen.date_inscription|date:"d/m/Y" }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card cta-card">
+  <div>
+    <h2><i class="fa-solid fa-folder-open"></i> Démarches en ligne</h2>
+    <p>Demandez un extrait cadastral, une attestation, une autorisation... et suivez vos dossiers.</p>
+  </div>
+  <a href="{% url 'citoyen_demandes' %}" class="btn-gold">
+    <i class="fa-solid fa-arrow-right"></i> Mes démarches
+  </a>
+</div>
+
+<div class="card">
+  <h2><i class="fa-solid fa-file-invoice-dollar"></i> Ma fiscalité</h2>
+  <div class="info-grid" style="margin-bottom:20px;">
+    <div class="info-item">
+      <div class="label">Identifiant fiscalité</div>
+      <div class="value">{{ citoyen.numero_fiscal }}</div>
+    </div>
+  </div>
+  {% if contribuable %}
+    <div class="solde-grid">
+      <div class="solde-item">
+        <div class="label">Total dû</div>
+        <div class="value due">{{ contribuable.montant_du_total|floatformat:0 }} FCFA</div>
+      </div>
+      <div class="solde-item">
+        <div class="label">Total payé</div>
+        <div class="value paid">{{ contribuable.montant_paye_total|floatformat:0 }} FCFA</div>
+      </div>
+      <div class="solde-item">
+        <div class="label">Solde restant</div>
+        <div class="value {% if contribuable.solde_total > 0 %}late{% else %}ok{% endif %}">
+          {{ contribuable.solde_total|floatformat:0 }} FCFA
+        </div>
+      </div>
+      <div class="solde-item">
+        <div class="label">Statut global</div>
+        <div class="value">
+          {% if contribuable.statut_global == 'A_JOUR' %}
+            <span class="badge a-jour">À jour</span>
+          {% else %}
+            <span class="badge en-retard">En retard</span>
+          {% endif %}
+        </div>
       </div>
     </div>
-    <form action="{% url 'dashboard_logout' %}" method="post" style="margin:0;">
-      {% csrf_token %}
-      <button type="submit" class="logout" style="background:none; cursor:pointer; font-family:inherit;">
-        <i class="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion
-      </button>
-    </form>
-  </div>
 
-  <div class="hero">
-    <span class="hero-badge"><span class="dot"></span> Espace personnel</span>
-    <h1>Bonjour {{ citoyen.user.first_name|default:citoyen.user.username }} 👋</h1>
-    <p>Retrouvez ici vos informations, votre fiscalité et vos démarches.</p>
-  </div>
-
-  <div class="wrap">
-
-    <div class="card">
-      <h2 style="display:flex; align-items:center; justify-content:space-between;">
-        <span style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-id-card"></i> Mes informations</span>
-        <a href="{% url 'citoyen_modifier_profil' %}" style="font-size:12px; font-weight:700; color:var(--green); text-decoration:none; display:inline-flex; align-items:center; gap:6px; text-transform:none; letter-spacing:0;">
-          <i class="fa-solid fa-pen" style="width:auto;height:auto;background:none;color:var(--gold-dark);font-size:12px;"></i> Modifier
-        </a>
-      </h2>
-      <div class="info-grid">
-        <div class="info-item">
-          <div class="label">Nom complet</div>
-          <div class="value">{{ citoyen.user.get_full_name|default:"—" }}</div>
-        </div>
-        <div class="info-item">
-          <div class="label">Email</div>
-          <div class="value">{{ citoyen.user.email }}</div>
-        </div>
-        <div class="info-item">
-          <div class="label">Téléphone</div>
-          <div class="value">{{ citoyen.telephone|default:"—" }}</div>
-        </div>
-        <div class="info-item">
-          <div class="label">Membre depuis</div>
-          <div class="value">{{ citoyen.date_inscription|date:"d/m/Y" }}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card cta-card">
-      <div>
-        <h2><i class="fa-solid fa-folder-open"></i> Démarches en ligne</h2>
-        <p>Demandez un extrait cadastral, une attestation, une autorisation... et suivez vos dossiers.</p>
-      </div>
-      <a href="{% url 'citoyen_demandes' %}" class="btn-gold">
-        <i class="fa-solid fa-arrow-right"></i> Mes démarches
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:22px;">
+      <a href="{% url 'quitus_fiscal_pdf' %}" style="display:inline-flex; align-items:center; gap:8px; background:var(--off-white); border:1px solid var(--border); color:var(--green); font-weight:700; font-size:12.5px; padding:9px 16px; border-radius:999px; text-decoration:none;">
+        <i class="fa-solid fa-file-shield"></i> Télécharger mon quitus fiscal
+      </a>
+      <a href="{% url 'attestation_non_imposition_pdf' %}" style="display:inline-flex; align-items:center; gap:8px; background:var(--off-white); border:1px solid var(--border); color:var(--green); font-weight:700; font-size:12.5px; padding:9px 16px; border-radius:999px; text-decoration:none;">
+        <i class="fa-solid fa-file-circle-check"></i> Attestation de non-imposition
+      </a>
+      <a href="{% url 'releve_compte_pdf' %}" style="display:inline-flex; align-items:center; gap:8px; background:var(--off-white); border:1px solid var(--border); color:var(--green); font-weight:700; font-size:12.5px; padding:9px 16px; border-radius:999px; text-decoration:none;">
+        <i class="fa-solid fa-file-invoice"></i> Relevé de compte complet
       </a>
     </div>
 
-    <div class="card">
-      <h2><i class="fa-solid fa-file-invoice-dollar"></i> Ma fiscalité</h2>
-      <div class="info-grid" style="margin-bottom:20px;">
-        <div class="info-item">
-          <div class="label">Identifiant fiscalité</div>
-          <div class="value">{{ citoyen.numero_fiscal }}</div>
-        </div>
-      </div>
-      {% if contribuable %}
-        <div class="solde-grid">
-          <div class="solde-item">
-            <div class="label">Total dû</div>
-            <div class="value due">{{ contribuable.montant_du_total|floatformat:0 }} FCFA</div>
-          </div>
-          <div class="solde-item">
-            <div class="label">Total payé</div>
-            <div class="value paid">{{ contribuable.montant_paye_total|floatformat:0 }} FCFA</div>
-          </div>
-          <div class="solde-item">
-            <div class="label">Solde restant</div>
-            <div class="value {% if contribuable.solde_total > 0 %}late{% else %}ok{% endif %}">
-              {{ contribuable.solde_total|floatformat:0 }} FCFA
-            </div>
-          </div>
-          <div class="solde-item">
-            <div class="label">Statut global</div>
-            <div class="value">
-              {% if contribuable.statut_global == 'A_JOUR' %}
-                <span class="badge a-jour">À jour</span>
-              {% else %}
-                <span class="badge en-retard">En retard</span>
+    {% if taxations %}
+    <table class="tax-table">
+      <thead>
+        <tr>
+          <th>Année</th>
+          <th>Taxe</th>
+          <th>Parcelle</th>
+          <th class="num">Dû</th>
+          <th class="num">Payé</th>
+          <th class="num">Solde</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in taxations %}
+        <tr>
+          <td>{{ t.annee_fiscale }}</td>
+          <td>{{ t.type_taxe.libelle }}</td>
+          <td>{{ t.parcelle.nicad|default:"—" }}</td>
+          <td class="num">{{ t.montant_du|floatformat:0 }}</td>
+          <td class="num">{{ t.montant_paye|floatformat:0 }}</td>
+          <td class="num">{{ t.solde|floatformat:0 }}</td>
+          <td>
+            {% if t.statut == 'A_JOUR' %}
+              <span class="badge a-jour">À jour</span>
+            {% else %}
+              <span class="badge en-retard">En retard</span>
+              <br>
+              <a href="{% url 'citoyen_payer_taxation' t.pk %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:8px; background:var(--gold); color:var(--green-dark); font-weight:700; font-size:12px; padding:6px 14px; border-radius:999px;text-decoration:none;">
+                <i class="fa-solid fa-mobile-screen-button"></i> Payer en ligne
+              </a>
+              <br>
+              <a href="{% url 'citoyen_recours_creer' t.pk %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:6px; background:none; border:1px solid var(--border); color:var(--text-muted); font-weight:700; font-size:11.5px; padding:5px 12px; border-radius:999px;text-decoration:none;">
+                <i class="fa-solid fa-scale-balanced"></i> Contester
+              </a>
+              {% if t.parcelle %}
+              <br>
+              <a href="{% url 'citoyen_exoneration_creer' t.parcelle.pk %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:6px; background:none; border:1px solid var(--border); color:var(--text-muted); font-weight:700; font-size:11.5px; padding:5px 12px; border-radius:999px;text-decoration:none;">
+                <i class="fa-solid fa-house-circle-check"></i> Exonération
+              </a>
               {% endif %}
-            </div>
-          </div>
-        </div>
-
-        {% if taxations %}
-        <table class="tax-table">
-          <thead>
-            <tr>
-              <th>Année</th>
-              <th>Taxe</th>
-              <th>Parcelle</th>
-              <th class="num">Dû</th>
-              <th class="num">Payé</th>
-              <th class="num">Solde</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for t in taxations %}
-            <tr>
-              <td>{{ t.annee_fiscale }}</td>
-              <td>{{ t.type_taxe.libelle }}</td>
-              <td>{{ t.parcelle.nicad|default:"—" }}</td>
-              <td class="num">{{ t.montant_du|floatformat:0 }}</td>
-              <td class="num">{{ t.montant_paye|floatformat:0 }}</td>
-              <td class="num">{{ t.solde|floatformat:0 }}</td>
-              <td>
-                {% if t.statut == 'A_JOUR' %}
-                  <span class="badge a-jour">À jour</span>
-                {% else %}
-                  <span class="badge en-retard">En retard</span>
-                  <br>
-                  <a href="{% url 'citoyen_payer_taxation' t.pk %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:8px; background:var(--gold); color:var(--green-dark); font-weight:700; font-size:12px; padding:6px 14px; border-radius:999px; text-decoration:none;">
-                    <i class="fa-solid fa-mobile-screen-button"></i> Payer en ligne
-                  </a>
-                {% endif %}
-                {% if t.paiements.all %}
-                  <br>
-                  <button type="button" class="paiements-toggle" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-up');">
-                    <i class="fa-solid fa-chevron-down"></i> {{ t.paiements.all|length }} paiement{{ t.paiements.all|length|pluralize }}
-                  </button>
-                  <div class="paiements-detail">
-                    {% for p in t.paiements.all %}
-                      <div>
-                        <span class="recu">{{ p.numero_recu }}</span> —
-                        {{ p.montant|floatformat:0 }} FCFA le {{ p.date_paiement|date:"d/m/Y" }}
-                        ({{ p.get_mode_paiement_display }})
-                        <a href="{% url 'paiement_recu_pdf' p.pk %}" style="color:var(--gold-dark); text-decoration:none; font-weight:700; margin-left:8px;">
-                          <i class="fa-solid fa-file-pdf"></i> Télécharger le reçu
-                        </a>
-                      </div>
-                    {% endfor %}
+              <br>
+              <a href="{% url 'citoyen_plan_paiement_creer' t.pk %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:6px; background:none; border:1px solid var(--border); color:var(--text-muted); font-weight:700; font-size:11.5px; padding:5px 12px; border-radius:999px;text-decoration:none;">
+                <i class="fa-solid fa-calendar-days"></i> Échelonner
+              </a>
+            {% endif %}
+            {% if t.paiements.all %}
+              <br>
+              <button type="button" class="paiements-toggle" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-up');">
+                <i class="fa-solid fa-chevron-down"></i> {{ t.paiements.all|length }} paiement{{ t.paiements.all|length|pluralize }}
+              </button>
+              <div class="paiements-detail">
+                {% for p in t.paiements.all %}
+                  <div>
+                    <span class="recu">{{ p.numero_recu }}</span> —
+                    {{ p.montant|floatformat:0 }} FCFA le {{ p.date_paiement|date:"d/m/Y" }}
+                    ({{ p.get_mode_paiement_display }})
+                    <a href="{% url 'paiement_recu_pdf' p.pk %}" style="color:var(--gold-dark); text-decoration:none; font-weight:700; margin-left:8px;">
+                      <i class="fa-solid fa-file-pdf"></i> Télécharger le reçu
+                    </a>
                   </div>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div class="placeholder">
-          <i class="fa-solid fa-circle-check"></i>
-          Aucune taxation enregistrée pour le moment sur votre dossier.
-        </div>
-        {% endif %}
-      {% else %}
-        <div class="placeholder">
-          <i class="fa-solid fa-circle-info"></i>
-          Votre compte n'est pas encore relié à votre dossier fiscal par l'administration.
-          Une fois le lien fait, vos taxations et paiements réels s'afficheront ici.
-        </div>
-      {% endif %}
+                {% endfor %}
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="placeholder">
+      <i class="fa-solid fa-circle-check"></i>
+      Aucune taxation enregistrée pour le moment sur votre dossier.
     </div>
+    {% endif %}
+  {% else %}
+    <div class="placeholder">
+      <i class="fa-solid fa-circle-info"></i>
+      Votre compte n'est pas encore relié à votre dossier fiscal par l'administration.
+      Une fois le lien fait, vos taxations et paiements réels s'afficheront ici.
+    </div>
+  {% endif %}
+</div>
 
-    <div class="card">
-      <h2 id="carte-titre"><i class="fa-solid fa-map-location-dot"></i> Géoportail</h2>
-      <div class="info-grid" style="margin-bottom:20px;">
-        <div class="info-item">
-          <div class="label">Votre identifiant foncier (NICAD)</div>
-          <div class="value">{{ citoyen.numero_foncier }}</div>
-        </div>
-      </div>
-      <div class="placeholder" id="carte-info" style="margin-bottom:16px;">
-        <i class="fa-solid fa-circle-info"></i>
-        <span id="carte-info-texte">Chargement de vos parcelles…</span>
-      </div>
-      <div id="carte-parcelles" style="height: 420px; border-radius: 12px; overflow: hidden;"></div>
+<div class="card">
+  <h2 id="carte-titre"><i class="fa-solid fa-map-location-dot"></i> Géoportail</h2>
+  <div class="info-grid" style="margin-bottom:20px;">
+    <div class="info-item">
+      <div class="label">Votre identifiant foncier (NICAD)</div>
+      <div class="value">{{ citoyen.numero_foncier }}</div>
     </div>
   </div>
+  <div class="placeholder" id="carte-info" style="margin-bottom:16px;">
+    <i class="fa-solid fa-circle-info"></i>
+    <span id="carte-info-texte">Chargement de vos parcelles…</span>
+  </div>
+  <div id="carte-parcelles" style="height: 420px; border-radius: 12px; overflow: hidden;"></div>
+</div>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+{% endblock %}
+
+{% block extra_js %}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script>
     (function () {
-      var carte = L.map('carte-parcelles').setView([14.78, -17.35], 15); // Keur Massar Nord approx.
+      var carte = L.map('carte-parcelles').setView([14.78, -17.35], 15);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         subdomains: 'abc',
+        referrerPolicy: 'strict-origin-when-cross-origin',
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(carte);
 
       function couleurParStatut(statut) {
         if (statut === 'EN_RETARD') return '#b23b2e';
         if (statut === 'EXONERE') return '#3468a8';
-        return '#2f7a4f'; // A_JOUR par défaut
+        return '#2f7a4f';
       }
 
       fetch("{% url 'parcelles_geojson' %}")
@@ -434,16 +324,12 @@
           console.error('Erreur chargement parcelles :', err);
         });
 
-      // Géolocalisation du citoyen
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function (pos) {
           var latlng = [pos.coords.latitude, pos.coords.longitude];
-          L.marker(latlng, {
-            title: 'Votre position'
-          }).addTo(carte).bindPopup('Vous êtes ici');
+          L.marker(latlng, { title: 'Votre position' }).addTo(carte).bindPopup('Vous êtes ici');
         });
       }
     })();
   </script>
-</body>
-</html>
+{% endblock %}

@@ -106,7 +106,11 @@
               {{ e.get_action_display }} — <strong>{{ e.modele }}</strong> « {{ e.objet_repr }} »
             </div>
             <div class="audit-meta">
-              {{ e.utilisateur.get_full_name|default:e.utilisateur.username|default:"Système" }}
+              {% if e.utilisateur %}
+                {{ e.utilisateur.get_full_name|default:e.utilisateur.username }}
+              {% else %}
+                Système
+              {% endif %}
               · {{ e.horodatage|date:"d/m/Y H:i" }}
               {% if e.adresse_ip %} · {{ e.adresse_ip }}{% endif %}
             </div>

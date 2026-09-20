@@ -1,0 +1,79 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Déclarations fiscales{% endblock %}
+{% block header_title %}Déclarations fiscales{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">Examinez les déclarations déposées par les citoyens</div>{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-filter"></i> Filtrer par statut</h2>
+  </div>
+  <div class="panel-body" style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a href="{% url 'dashboard_declaration_list' %}" class="btn {% if not statut_filtre %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Toutes</a>
+    <a href="{% url 'dashboard_declaration_list' %}?statut=SOUMISE" class="btn {% if statut_filtre == 'SOUMISE' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Soumises</a>
+    <a href="{% url 'dashboard_declaration_list' %}?statut=EN_EXAMEN" class="btn {% if statut_filtre == 'EN_EXAMEN' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">En examen</a>
+    <a href="{% url 'dashboard_declaration_list' %}?statut=VALIDEE" class="btn {% if statut_filtre == 'VALIDEE' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Validées</a>
+    <a href="{% url 'dashboard_declaration_list' %}?statut=REJETEE" class="btn {% if statut_filtre == 'REJETEE' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">Rejetées</a>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-file-signature"></i> Déclarations</h2>
+  </div>
+  <div class="panel-body flush">
+    {% if declarations %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Contribuable</th>
+          <th>Parcelle</th>
+          <th>Taxe</th>
+          <th>Année</th>
+          <th>Occupation déclarée</th>
+          <th>Déposée le</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in declarations %}
+        <tr>
+          <td>{{ d.contribuable }}</td>
+          <td>{{ d.parcelle.nicad }}</td>
+          <td>{{ d.type_taxe }}</td>
+          <td>{{ d.annee_fiscale }}</td>
+          <td>{{ d.occupation_declaree }}</td>
+          <td>{{ d.date_declaration|date:"d/m/Y" }}</td>
+          <td>
+            {% if d.statut == 'SOUMISE' %}
+              <span class="badge" style="background:rgba(52,104,168,0.10); color:#3468a8;">Soumise</span>
+            {% elif d.statut == 'EN_EXAMEN' %}
+              <span class="badge" style="background:rgba(185,116,11,0.10); color:#b9740b;">En examen</span>
+            {% elif d.statut == 'VALIDEE' %}
+              <span class="badge" style="background:rgba(47,122,79,0.10); color:#2f7a4f;">Validée</span>
+            {% else %}
+              <span class="badge badge-danger">Rejetée</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'dashboard_declaration_traiter' d.pk %}" class="btn btn-outline btn-sm">
+              <i class="fa-solid fa-eye"></i> {% if d.statut == 'SOUMISE' or d.statut == 'EN_EXAMEN' %}Traiter{% else %}Voir{% endif %}
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon icon-success"><i class="fa-solid fa-check"></i></div>
+      Aucune déclaration {% if statut_filtre %}avec ce statut{% else %}pour le moment{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

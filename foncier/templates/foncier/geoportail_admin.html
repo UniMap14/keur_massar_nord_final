@@ -8,12 +8,11 @@
 {% block header_subtitle %}<div class="topbar-subtitle">Statut fiscal, montants et propriétaire des parcelles</div>{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <style>
   .admin-geo-wrap { display:flex; gap:16px; min-height:700px; }
   .geo-map-col { flex:2; min-height:700px; position:relative; border-radius:12px; overflow:hidden; }
   #map-admin { height:100%; width:100%; }
-  #map3d-admin { display:none; height:100%; width:100%; }
 
   .geo-sidebar { flex:1; max-width:360px; max-height:700px; overflow-y:auto; display:flex; flex-direction:column; gap:14px; }
   .geo-sidebar .panel { margin:0; }
@@ -61,22 +60,6 @@
   .map-legend-item:last-child { margin-bottom: 0; }
   .map-legend-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
 
-  .map-view-toggle {
-    position: absolute; top: 14px; right: 14px; z-index: 1100; display: flex;
-    background: rgba(255,255,255,0.95); border: 1px solid rgba(0,0,0,0.08); border-radius: 8px;
-    overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-  }
-  .map-view-toggle button {
-    border: none; background: none; padding: 8px 14px; font-size: 12.5px; font-weight: 600;
-    cursor: pointer; color: var(--ink-quiet, #766c5d);
-  }
-  .map-view-toggle button.active { background: var(--green, #3a7d44); color: #fff; }
-  .map3d-hint {
-    position: absolute; top: 60px; right: 14px; z-index: 1100; background: rgba(255,255,255,0.95);
-    border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: var(--ink-quiet, #766c5d);
-    max-width: 190px; box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-  }
-
   .edit-panel .ep-sub { font-size:12.5px; color:#766c5d; margin-bottom:14px; }
   .edit-panel .ep-empty { color:#766c5d; font-size:13px; text-align:center; padding:24px 10px; }
   .ep-field { margin-bottom: 12px; }
@@ -97,7 +80,6 @@
   .ep-readonly { font-size:12.5px; color:#766c5d; margin-bottom:14px; padding-bottom:12px; border-bottom:1px dashed #e7e0d3; }
   .ep-readonly strong { color:#24201a; }
 
-  /* ===== FICHE EN LECTURE SEULE (nouveau) ===== */
   .ep-view-row {
     display: flex; justify-content: space-between; align-items: baseline;
     gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0ebe0;
@@ -109,6 +91,11 @@
     letter-spacing: .03em; flex-shrink: 0;
   }
   .ep-view-row .ep-view-value { text-align: right; font-weight: 600; color: #24201a; }
+  .ep-badge-simu {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px;
+    border-radius: 100px; background: #fff3cd; color: #8a6d3b; border: 1px solid #f0dca0;
+    vertical-align: middle; margin-left: 4px;
+  }
 
   .ep-status-badge {
     display: inline-flex; align-items: center; gap: 6px;
@@ -147,25 +134,11 @@
 
   <div class="geo-map-col">
     <div id="map-admin"></div>
-    <div id="map3d-admin"></div>
-
-    <div class="map-view-toggle">
-      <button type="button" id="btnVue2D" class="active">Vue 2D</button>
-      <button type="button" id="btnVue3D">Vue 3D</button>
-    </div>
-    <div class="map3d-hint" id="map3dHint" style="display:none;">
-      Glisse avec le clic droit (ou deux doigts) pour incliner et pivoter la vue.
-    </div>
 
     <div id="mapLoader" class="map-loader">
       <div class="map-loader-spinner"></div>
       <p>Chargement de la carte...</p>
     </div>
-    <div id="zoomHint" class="zoom-hint" style="display:none;">
-      <i class="fa-solid fa-magnifying-glass-plus"></i>
-      Zoomez pour afficher les parcelles (trop nombreuses à cette échelle).
-    </div>
-
     <div class="map-legend">
       <h6>Légende</h6>
       <div class="map-legend-item"><span class="map-legend-swatch" style="background:#6b4a35; border:1px dashed #6b4a35;"></span><span>Zone/Quartier</span></div>
@@ -245,19 +218,6 @@
         </button>
       </div>
     </div>
-
-    <div class="panel">
-      <div class="panel-header"><h2><i class="fa-solid fa-chart-pie"></i> Statistiques</h2></div>
-      <div class="panel-body">
-        <div class="stats-label">Parcelles affichées</div>
-        <div class="stats-value" id="stat-parcelles">0</div>
-        <div class="stats-label" style="margin-top:10px;">Taxe collectée</div>
-        <div class="stats-value" id="stat-taxe">0 FCFA</div>
-        <div class="stats-label" style="margin-top:10px;">En retard</div>
-        <div class="stats-value" id="stat-retard" style="color:#dc3545;">0</div>
-        <div class="stats-label" style="margin-top:10px;">À jour</div>
-        <div class="stats-value" id="stat-ajour" style="color:#28a745;">0</div>
-      </div>
     </div>
 
     <div class="panel">
@@ -273,10 +233,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-  // Gabarit d'URL Django pour la sauvegarde (id=0 remplacé dynamiquement en JS)
   const URL_UPDATE_TEMPLATE = '{% url "parcelle_update_fiscal" 0 %}';
 
   function getCookie(name) {
@@ -311,269 +269,85 @@
     ATTES: 'Attestation de cession'
   };
 
-  // ============================================================
-  // VUE 3D (MapLibre GL JS + OpenFreeMap "Liberty")
-  // ============================================================
-  let map3d = null;
-  let is3DActive = false;
-  let sharedParcellesData = null;
-
-  const MIN_ZOOM_PARCELLES = 14;
   let bboxReloadTimer = null;
-  let premierChargementParcelles = true;
-
-  function toggleVue3D(activer3D) {
-    if (activer3D === is3DActive) return;
-    is3DActive = activer3D;
-
-    const map2dEl = document.getElementById('map-admin');
-    const map3dEl = document.getElementById('map3d-admin');
-    const hintEl = document.getElementById('map3dHint');
-    const btn2d = document.getElementById('btnVue2D');
-    const btn3d = document.getElementById('btnVue3D');
-
-    if (is3DActive) {
-      map2dEl.style.display = 'none';
-      map3dEl.style.display = 'block';
-      hintEl.style.display = 'block';
-      btn2d.classList.remove('active');
-      btn3d.classList.add('active');
-
-      if (!map3d) {
-        initMap3D();
-      } else {
-        setTimeout(function () { map3d.resize(); }, 50);
-      }
-    } else {
-      map3dEl.style.display = 'none';
-      map2dEl.style.display = 'block';
-      hintEl.style.display = 'none';
-      btn3d.classList.remove('active');
-      btn2d.classList.add('active');
-      setTimeout(function () { if (map) map.resize(); }, 50);
-    }
-  }
-
-  function initMap3D() {
-    map3d = new maplibregl.Map({
-      container: 'map3d-admin',
-      style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: [-17.31, 14.79],
-      zoom: 15.5,
-      pitch: 60,
-      bearing: -17,
-      canvasContextAttributes: { antialias: true }
-    });
-
-    map3d.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-
-    map3d.on('load', function () {
-      chargerParcelles3D();
-    });
-  }
-
-  function chargerParcelles3D() {
-    function applyData(data) {
-      if (map3d.getSource('parcelles-3d-admin')) {
-        map3d.getSource('parcelles-3d-admin').setData(data);
-        return;
-      }
-
-      map3d.addSource('parcelles-3d-admin', { type: 'geojson', data: data });
-
-      map3d.addLayer({
-        id: 'parcelles-3d-admin-layer',
-        source: 'parcelles-3d-admin',
-        type: 'fill-extrusion',
-        paint: {
-          'fill-extrusion-color': [
-            'match', ['get', 'statut_fiscal'],
-            'A_JOUR', '#28a745',
-            'EN_RETARD', '#dc3545',
-            'EXONERE', '#3b82f6',
-            '#c9982e'
-          ],
-          'fill-extrusion-height': [
-            'match', ['get', 'statut_fiscal'],
-            'EN_RETARD', 10,
-            6
-          ],
-          'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.88
-        }
-      });
-
-      map3d.on('click', 'parcelles-3d-admin-layer', function (e) {
-        const feature = e.features[0];
-        afficherFicheParcelle(feature, null);
-      });
-
-      map3d.on('mouseenter', 'parcelles-3d-admin-layer', function () {
-        map3d.getCanvas().style.cursor = 'pointer';
-      });
-      map3d.on('mouseleave', 'parcelles-3d-admin-layer', function () {
-        map3d.getCanvas().style.cursor = '';
-      });
-    }
-
-    if (sharedParcellesData) {
-      applyData(sharedParcellesData);
-      return;
-    }
-
-    fetch('{% url "api_parcelles_admin" %}')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        sharedParcellesData = data;
-        applyData(data);
-      })
-      .catch(function (e) { console.error('Erreur chargement parcelles 3D admin:', e); });
-  }
-
-  // ============================================================
-  // VUE 2D (MapLibre GL JS + deck.gl, rendu WebGL2)
-  // ============================================================
 
   let map;
-  let deckOverlay;
+  let coucheZones, coucheParcelles, coucheItineraire, marqueurUtilisateur;
   let zonesVisible = true, parcellesVisible = true;
-  let allZones = {}, allParcelles = {};
+  let allZones = { type: 'FeatureCollection', features: [] };
+  let allParcelles = { type: 'FeatureCollection', features: [] };
   let filteredParcelles = [];
-  let userMarker = null, userLatLng = null;
-  let routeGeoJSON = null;
+  let userLatLng = null;
   let selectedFeature = null;
-
-  // Style vectoriel OpenFreeMap "Liberty" (gratuit, sans clé), le même
-  // que celui déjà utilisé pour la vue 3D.
-  const CARTE_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
-
-  function bboxDeFeatures(features) {
-    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-
-    function visiter(coords) {
-      if (typeof coords[0] === 'number') {
-        const [lng, lat] = coords;
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-      } else {
-        coords.forEach(visiter);
-      }
-    }
-
-    (features || []).forEach(function (f) {
-      if (f.geometry && f.geometry.coordinates) visiter(f.geometry.coordinates);
-    });
-
-    if (!isFinite(minLng)) return null;
-    return [[minLng, minLat], [maxLng, maxLat]];
-  }
+  const renduCanvas = L.canvas({ padding: 0.5 });
 
   function idDeFeature(feature) {
     return feature && feature.properties ? feature.properties.id : null;
   }
 
-  function couleurZone() { return [107, 74, 53, 25]; }
-  function couleurLigneZone() { return [107, 74, 53, 230]; }
-
-  function hexVersRGBA(hex, alpha) {
-    const n = parseInt(hex.replace('#', ''), 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, alpha];
+  function styleParcelle(feature) {
+    const estSelectionnee = idDeFeature(feature) === idDeFeature(selectedFeature);
+    return {
+      renderer: renduCanvas,
+      color: estSelectionnee ? '#f59e0b' : '#ffffff',
+      weight: estSelectionnee ? 2 : 1,
+      fillColor: estSelectionnee ? '#f59e0b' : couleurStatut(feature.properties.statut_fiscal),
+      fillOpacity: estSelectionnee ? 0.75 : 0.55,
+    };
   }
 
-  function couleurParcelle(feature) {
-    const base = hexVersRGBA(couleurStatut(feature.properties.statut_fiscal), 150);
-    return idDeFeature(feature) === idDeFeature(selectedFeature) ? [245, 158, 11, 220] : base;
+  function styleZone() {
+    return {
+      renderer: renduCanvas,
+      color: '#6b4a35',
+      weight: 2,
+      dashArray: '4 3',
+      fillColor: '#6b4a35',
+      fillOpacity: 0.08,
+    };
   }
 
-  function couleurLigneParcelle(feature) {
-    return idDeFeature(feature) === idDeFeature(selectedFeature)
-      ? [245, 158, 11, 255]
-      : [255, 255, 255, 220];
-  }
-
-  function updateDeckLayers() {
+  function redessinerCouches() {
     const parcellesAffichees = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
 
-    const layers = [
-      new deck.GeoJsonLayer({
-        id: 'zones',
-        data: allZones,
-        visible: zonesVisible,
-        filled: true,
-        stroked: true,
-        getFillColor: couleurZone,
-        getLineColor: couleurLigneZone,
-        lineWidthMinPixels: 2,
-        pickable: true,
-        onClick: function (info) {
-          if (!info.object) return;
-          new maplibregl.Popup()
-            .setLngLat(info.coordinate)
-            .setHTML('<strong>' + (info.object.properties.nom || '') + '</strong>')
-            .addTo(map);
-        }
-      }),
-      new deck.GeoJsonLayer({
-        id: 'parcelles',
-        data: { type: 'FeatureCollection', features: parcellesAffichees },
-        visible: parcellesVisible,
-        filled: true,
-        stroked: true,
-        getFillColor: couleurParcelle,
-        getLineColor: couleurLigneParcelle,
-        lineWidthMinPixels: 1,
-        pickable: true,
-        updateTriggers: {
-          getFillColor: [selectedFeature],
-          getLineColor: [selectedFeature]
-        },
-        onClick: function (info) {
-          if (!info.object) return;
-          selectedFeature = info.object;
-          afficherFicheParcelle(info.object);
-          updateDeckLayers();
-        }
-      })
-    ];
+    if (coucheParcelles) map.removeLayer(coucheParcelles);
+    coucheParcelles = L.geoJSON({ type: 'FeatureCollection', features: parcellesAffichees }, {
+      style: styleParcelle,
+      onEachFeature: function (feature, layer) {
+        layer.on('click', function () {
+          selectedFeature = feature;
+          afficherFicheParcelle(feature);
+          redessinerCouches();
+        });
+      }
+    });
+    if (parcellesVisible) coucheParcelles.addTo(map);
 
-    if (routeGeoJSON) {
-      layers.push(new deck.GeoJsonLayer({
-        id: 'itineraire',
-        data: routeGeoJSON,
-        stroked: true,
-        filled: false,
-        getLineColor: [255, 102, 0, 220],
-        lineWidthMinPixels: 5
-      }));
-    }
+    if (coucheZones) map.removeLayer(coucheZones);
+    coucheZones = L.geoJSON(allZones, {
+      style: styleZone,
+      onEachFeature: function (feature, layer) {
+        layer.bindPopup('<strong>' + (feature.properties.nom || '') + '</strong>');
+      }
+    });
+    if (zonesVisible) coucheZones.addTo(map);
 
-    deckOverlay.setProps({ layers: layers });
+    if (coucheItineraire) { map.removeLayer(coucheItineraire); coucheItineraire = null; }
   }
 
   function initMap() {
-    map = new maplibregl.Map({
-      container: 'map-admin',
-      style: CARTE_STYLE,
-      center: [-17.31, 14.79],
-      zoom: 14
-    });
-    map.addControl(new maplibregl.NavigationControl(), 'top-left');
+    map = L.map('map-admin', { preferCanvas: true }).setView([14.79, -17.31], 13);
 
-    deckOverlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
-    map.addControl(deckOverlay);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      subdomains: 'abc',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
-    map.on('load', function () {
-      Promise.all([loadZones(), loadParcelles()]).finally(function () {
-        const loader = document.getElementById('mapLoader');
-        if (loader) loader.classList.add('hidden');
-      });
-    });
-
-    map.on('moveend', function () {
-      clearTimeout(bboxReloadTimer);
-      bboxReloadTimer = setTimeout(loadParcelles, 400);
+    Promise.all([loadZones(), loadParcelles()]).finally(function () {
+      const loader = document.getElementById('mapLoader');
+      if (loader) loader.classList.add('hidden');
     });
   }
 
@@ -582,38 +356,21 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         allZones = data;
-        updateDeckLayers();
+        redessinerCouches();
       })
       .catch(function (e) { console.error('Erreur zones:', e); });
   }
 
   function loadParcelles() {
-    const zoomHint = document.getElementById('zoomHint');
-
-    if (map.getZoom() < MIN_ZOOM_PARCELLES) {
-      if (zoomHint) zoomHint.style.display = 'none';
-      return fetch('{% url "api_parcelles_toutes_admin" %}')
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          allParcelles = data;
-          sharedParcellesData = data;
-          updateDeckLayers();
-          populateZoneFilter();
-          updateStats();
-        })
-        .catch(function (e) { console.error('Erreur parcelles admin (vue d\'ensemble):', e); });
-    }
-
-    const b = map.getBounds();
-    const bbox = b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth();
-    return fetch('{% url "api_parcelles_admin" %}?bbox=' + bbox)
+    return fetch('{% url "api_parcelles_toutes_admin" %}')
       .then(function (r) { return r.json(); })
       .then(function (data) {
         allParcelles = data;
-        sharedParcellesData = data;
-        updateDeckLayers();
+        redessinerCouches();
         populateZoneFilter();
-        updateStats();
+        if (coucheParcelles && coucheParcelles.getBounds().isValid()) {
+          map.fitBounds(coucheParcelles.getBounds(), { padding: [20, 20] });
+        }
       })
       .catch(function (e) { console.error('Erreur parcelles admin:', e); });
   }
@@ -632,6 +389,7 @@
       });
     }
     const select = document.getElementById('filter-zone');
+    select.querySelectorAll('option:not(:first-child)').forEach(function (o) { o.remove(); });
     Array.from(zones).sort().forEach(function (zone) {
       const opt = document.createElement('option');
       opt.value = zone;
@@ -653,8 +411,7 @@
     }
 
     filteredParcelles = filtered;
-    updateDeckLayers();
-    updateStats();
+    redessinerCouches();
   }
 
   function searchParcelle() {
@@ -672,12 +429,12 @@
 
     if (found) {
       result.innerHTML = '<span style="color:green;"><i class="fa-solid fa-check"></i> Trouvé: ' + found.properties.nicad + '</span>';
-      const bounds = bboxDeFeatures([found]);
-      if (bounds) map.fitBounds(bounds, { padding: 50 });
+      const coucheTemp = L.geoJSON(found);
+      map.fitBounds(coucheTemp.getBounds(), { padding: [50, 50] });
 
       selectedFeature = found;
       afficherFicheParcelle(found);
-      updateDeckLayers();
+      redessinerCouches();
     } else {
       result.innerHTML = '<span style="color:red;"><i class="fa-solid fa-times"></i> Non trouvé</span>';
     }
@@ -689,23 +446,7 @@
     document.getElementById('search-nicad').value = '';
     document.getElementById('search-result').textContent = '';
     filteredParcelles = [];
-    updateDeckLayers();
-    updateStats();
-  }
-
-  function updateStats() {
-    const features = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
-    const total = features.length;
-    const ajour = features.filter(function (f) { return f.properties.statut_fiscal === 'A_JOUR'; }).length;
-    const retard = features.filter(function (f) { return f.properties.statut_fiscal === 'EN_RETARD'; }).length;
-    const taxeTotal = features.reduce(function (sum, f) {
-      return sum + (parseFloat(f.properties.montant_taxe_annuelle) || 0);
-    }, 0);
-
-    document.getElementById('stat-parcelles').textContent = total.toLocaleString('fr-FR');
-    document.getElementById('stat-taxe').textContent = taxeTotal.toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' FCFA';
-    document.getElementById('stat-retard').textContent = retard;
-    document.getElementById('stat-ajour').textContent = ajour;
+    redessinerCouches();
   }
 
   function csvEscape(value) {
@@ -765,17 +506,16 @@
       function (pos) {
         userLatLng = [pos.coords.latitude, pos.coords.longitude];
 
-        if (userMarker) userMarker.remove();
+        if (marqueurUtilisateur) map.removeLayer(marqueurUtilisateur);
 
-        const el = document.createElement('div');
-        el.style.cssText = 'background:#3a7d44; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 6px rgba(0,0,0,0.5);';
+        const icone = L.divIcon({
+          className: '',
+          html: '<div style="background:#3a7d44; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
+          iconSize: [16, 16]
+        });
 
-        userMarker = new maplibregl.Marker({ element: el })
-          .setLngLat([userLatLng[1], userLatLng[0]])
-          .setPopup(new maplibregl.Popup().setText('Vous êtes ici'))
-          .addTo(map);
-
-        map.flyTo({ center: [userLatLng[1], userLatLng[0]], zoom: 15 });
+        marqueurUtilisateur = L.marker(userLatLng, { icon: icone }).addTo(map).bindPopup('Vous êtes ici');
+        map.flyTo(userLatLng, 15);
         status.innerHTML = '<span style="color:green;"><i class="fa-solid fa-check"></i> Position trouvée.</span>';
       },
       function (err) {
@@ -804,11 +544,12 @@
         }
 
         const route = data.routes[0];
-        routeGeoJSON = route.geometry;
-        updateDeckLayers();
+        if (coucheItineraire) map.removeLayer(coucheItineraire);
+        coucheItineraire = L.geoJSON(route.geometry, {
+          style: { color: '#ff6600', weight: 5 }
+        }).addTo(map);
 
-        const bounds = bboxDeFeatures([{ geometry: route.geometry }]);
-        if (bounds) map.fitBounds(bounds, { padding: 50 });
+        map.fitBounds(coucheItineraire.getBounds(), { padding: [50, 50] });
 
         const distanceKm = (route.distance / 1000).toFixed(2);
         const dureeMin = Math.round(route.duration / 60);
@@ -824,14 +565,9 @@
   }
 
   function effacerItineraire() {
-    routeGeoJSON = null;
-    updateDeckLayers();
+    if (coucheItineraire) { map.removeLayer(coucheItineraire); coucheItineraire = null; }
     document.getElementById('route-info').style.display = 'none';
   }
-
-  // ============================================================
-  // PANNEAU — FICHE PARCELLE (lecture seule) + FORMULAIRE D'ÉDITION
-  // ============================================================
 
   function afficherFicheParcelle(feature) {
     const p = feature.properties;
@@ -856,6 +592,18 @@
         <span class="ep-view-value">${p.adresse_parcelle || '—'}</span>
       </div>
       <div class="ep-view-row">
+        <span class="ep-view-label">N° parcelle</span>
+        <span class="ep-view-value">${p.numero_parcelle || '—'}</span>
+      </div>
+      <div class="ep-view-row">
+        <span class="ep-view-label">N° lot</span>
+        <span class="ep-view-value">${p.numero_lot || '—'}</span>
+      </div>
+      <div class="ep-view-row">
+        <span class="ep-view-label">N° titre foncier</span>
+        <span class="ep-view-value">${p.numero_titre_foncier || '—'}</span>
+      </div>
+      <div class="ep-view-row">
         <span class="ep-view-label">Type de document</span>
         <span class="ep-view-value">${LIBELLES_TYPE_DOC[p.type_document] || p.type_document || '—'}</span>
       </div>
@@ -868,8 +616,12 @@
         <span class="ep-view-value">${p.reference_arrete || '—'}</span>
       </div>
       <div class="ep-view-row">
+        <span class="ep-view-label">Section cadastrale</span>
+        <span class="ep-view-value">${p.section_cadastrale || '—'}</span>
+      </div>
+      <div class="ep-view-row">
         <span class="ep-view-label">Taxe annuelle</span>
-        <span class="ep-view-value">${Number(p.montant_taxe_annuelle).toLocaleString('fr-FR')} FCFA</span>
+        <span class="ep-view-value">${Number(p.montant_taxe_annuelle).toLocaleString('fr-FR')} FCFA${p.simulation_fiscale ? ' <span class="ep-badge-simu" title="Montant simulé à des fins académiques, non une donnée fiscale réelle">🔬 Simulation</span>' : ''}</span>
       </div>
       <div class="ep-view-row">
         <span class="ep-view-label">Valeur locative</span>
@@ -888,11 +640,10 @@
     `;
 
     document.getElementById('epItineraireBtn').addEventListener('click', function () {
-      const bounds = bboxDeFeatures([feature]);
-      if (bounds) {
-        const centre = [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2];
-        calculerItineraire(centre[1], centre[0]);
-      }
+      const coucheTemp = L.geoJSON(feature);
+      const bounds = coucheTemp.getBounds();
+      const centre = bounds.getCenter();
+      calculerItineraire(centre.lat, centre.lng);
     });
 
     document.getElementById('epEditBtn').addEventListener('click', function () {
@@ -963,6 +714,26 @@
       </div>
 
       <div class="ep-field">
+        <label>Section cadastrale</label>
+        <input type="text" class="ep-section" value="${p.section_cadastrale || ''}">
+      </div>
+
+      <div class="ep-field">
+        <label>N° parcelle</label>
+        <input type="text" class="ep-num-parcelle" value="${p.numero_parcelle || ''}">
+      </div>
+
+      <div class="ep-field">
+        <label>N° lot</label>
+        <input type="text" class="ep-num-lot" value="${p.numero_lot || ''}">
+      </div>
+
+      <div class="ep-field">
+        <label>N° titre foncier</label>
+        <input type="text" class="ep-num-titre-foncier" value="${p.numero_titre_foncier || ''}">
+      </div>
+
+      <div class="ep-field">
         <label>Propriétaire (numéro CNI)</label>
         <input type="text" class="ep-cni" placeholder="Laisser vide = ne pas changer">
         <span class="ep-help">Tape "RETIRER" pour détacher le propriétaire actuel. La CNI doit déjà exister (créée via l'admin Django).</span>
@@ -991,6 +762,10 @@
       formData.append('type_document', panel.querySelector('.ep-type-doc').value);
       formData.append('occupation_sol', panel.querySelector('.ep-occupation').value);
       formData.append('reference_arrete', panel.querySelector('.ep-arrete').value);
+      formData.append('section_cadastrale', panel.querySelector('.ep-section').value);
+      formData.append('numero_parcelle', panel.querySelector('.ep-num-parcelle').value);
+      formData.append('numero_lot', panel.querySelector('.ep-num-lot').value);
+      formData.append('numero_titre_foncier', panel.querySelector('.ep-num-titre-foncier').value);
       formData.append('proprietaire_cni', panel.querySelector('.ep-cni').value);
 
       fetch(URL_UPDATE_TEMPLATE.replace('0', p.id), {
@@ -1001,17 +776,12 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data.ok) {
-            // Met à jour les propriétés en mémoire ET dans le GeoJSON
-            // global (même objet référencé par selectedFeature) pour que
-            // recherche/filtre/export/carte reflètent le changement.
             Object.assign(p, data);
             if (allParcelles.features) {
               const idx = allParcelles.features.findIndex(function (f) { return f.properties.id === p.id; });
               if (idx !== -1) Object.assign(allParcelles.features[idx].properties, data);
             }
-
-            updateStats();
-            updateDeckLayers();
+            redessinerCouches();
             afficherFicheParcelle(feature);
           } else {
             statusEl.style.color = 'red';
@@ -1025,14 +795,7 @@
     });
   }
 
-  // ============================================================
-  // ATTACHE DES ÉVÉNEMENTS
-  // ============================================================
   document.addEventListener('DOMContentLoaded', function () {
-    // Petit utilitaire : n'attache l'écouteur que si l'élément existe
-    // vraiment dans la page. Avant ce correctif, un seul id manquant ou
-    // renommé faisait planter tout le bloc et empêchait initMap() de
-    // jamais s'exécuter (carte bloquée indéfiniment sur "Chargement...").
     function onEvent(id, evenement, gestionnaire) {
       const el = document.getElementById(id);
       if (el) {
@@ -1041,9 +804,6 @@
         console.warn('Élément #' + id + ' introuvable dans la page (bouton/filtre ignoré).');
       }
     }
-
-    onEvent('btnVue2D', 'click', function () { toggleVue3D(false); });
-    onEvent('btnVue3D', 'click', function () { toggleVue3D(true); });
 
     onEvent('btnGeolocaliser', 'click', localiserMoi);
     onEvent('btnEffacerItineraire', 'click', effacerItineraire);
@@ -1062,12 +822,12 @@
 
     onEvent('toggle-zones', 'change', function (e) {
       zonesVisible = e.target.checked;
-      updateDeckLayers();
+      redessinerCouches();
     });
 
     onEvent('toggle-parcelles', 'change', function (e) {
       parcellesVisible = e.target.checked;
-      updateDeckLayers();
+      redessinerCouches();
     });
 
     try {

@@ -48,7 +48,7 @@ def soumettre_projet(request):
                 try:
                     corps = render_to_string("jeunesse/emails/projet_recu.txt", {"projet": projet})
                     send_mail(
-                        subject="Votre projet a bien été reçu — Espace Jeunes KMS Nord",
+                        subject="Votre projet a bien été reçu — Espace Jeunes KEUR MASSAR NORD",
                         message=corps,
                         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                         recipient_list=[projet.email],

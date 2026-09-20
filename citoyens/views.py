@@ -4,6 +4,8 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LoginView
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.http import JsonResponse, FileResponse, Http404
 from django.core.exceptions import PermissionDenied
@@ -13,9 +15,9 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView
 
-from foncier.models import Parcelle, ProfilCitoyen, DemandeService
+from foncier.models import Parcelle, ProfilCitoyen, DemandeService, DeclarationFiscale, RecoursFiscal, DemandeExoneration, PlanPaiement
 
-from .forms import CitoyenRegistrationForm, DemandeServiceForm, ModifierProfilForm, PaiementEnLigneForm
+from .forms import CitoyenRegistrationForm, DemandeServiceForm, ModifierProfilForm, PaiementEnLigneForm, DeclarationFiscaleForm, RecoursFiscalForm, DemandeExonerationForm, PlanPaiementForm
 from .models import Citoyen
 
 
@@ -107,6 +109,22 @@ def registration_pending_view(request):
     return render(request, "citoyens/registration_pending.html")
 
 
+
+class EmailAuthenticationForm(AuthenticationForm):
+    """
+    Le champ visible dit "Email" (voir dashboard/login.html), mais
+    AuthenticationForm attend un nom d'utilisateur : on traduit ici
+    l'email saisi vers le vrai username avant que Django ne verifie
+    le mot de passe.
+    """
+    def clean_username(self):
+        saisi = self.cleaned_data.get('username', '')
+        try:
+            user = User.objects.get(email__iexact=saisi)
+            return user.username
+        except (User.DoesNotExist, User.MultipleObjectsReturned):
+            return saisi
+
 class CitoyenLoginView(LoginView):
     """
     Login citoyen. Bloque l'accès à l'espace personnel tant que
@@ -115,6 +133,7 @@ class CitoyenLoginView(LoginView):
     # Réutilise le même template que la page de connexion de gestion
     # (foncier/templates/dashboard/login.html) : pas de duplication.
     template_name = "dashboard/login.html"
+    form_class = EmailAuthenticationForm
     redirect_authenticated_user = False
 
     def get_default_redirect_url(self):
@@ -139,10 +158,22 @@ class CitoyenLoginView(LoginView):
             form.add_error(None, message)
             return self.form_invalid(form)
 
-        return super().form_valid(form)
+        # Ne connecte pas encore : genere un code a usage unique (OTP)
+        # envoye par SMS/email, et redirige vers sa verification -- la
+        # connexion Django elle-meme n'a lieu qu'une fois le bon code
+        # saisi (voir otp_verify_view).
+        import time
+        code = _generer_otp()
+        self.request.session["otp_user_id"] = user.pk
+        self.request.session["otp_code"] = code
+        self.request.session["otp_expire"] = time.time() + 300
+        self.request.session["otp_next"] = self.get_success_url()
+        _envoyer_otp(user, code)
+
+        return redirect("citoyen_otp_verify")
 
 
-@login_required
+@login_required(login_url='citoyen_login')
 def espace_personnel_view(request):
     """
     Espace personnel du citoyen connecté (fiscalité / foncier).
@@ -227,7 +258,17 @@ def payer_taxation_view(request, pk):
                 # Backend "manuel" (démonstration) : déjà confirmé.
                 return redirect("citoyen_paiement_retour", pk=resultat["paiement"].pk)
     else:
-        form = PaiementEnLigneForm()
+        # Pre-remplit avec le compte de paiement enregistre dans le
+        # profil du citoyen, s'il en a un (moins de friction que de
+        # retaper operateur + numero a chaque paiement).
+        initial = {}
+        citoyen = getattr(request.user, "citoyen", None)
+        if citoyen is not None:
+            if citoyen.operateur_paiement:
+                initial["operateur"] = citoyen.operateur_paiement
+            if citoyen.telephone:
+                initial["telephone"] = citoyen.telephone
+        form = PaiementEnLigneForm(initial=initial)
 
     return render(request, "citoyens/espace/payer_taxation.html", {
         "taxation": taxation,
@@ -532,6 +573,7 @@ def modifier_profil_view(request):
             "last_name": request.user.last_name,
             "email": request.user.email,
             "telephone": citoyen.telephone,
+            "operateur_paiement": citoyen.operateur_paiement,
         })
         if form.is_valid():
             request.user.first_name = form.cleaned_data["first_name"]
@@ -540,6 +582,7 @@ def modifier_profil_view(request):
             request.user.save()
 
             citoyen.telephone = form.cleaned_data["telephone"]
+            citoyen.operateur_paiement = form.cleaned_data["operateur_paiement"]
             citoyen.save()
 
             messages.success(request, "Vos informations ont été mises à jour.")
@@ -550,9 +593,529 @@ def modifier_profil_view(request):
             "last_name": request.user.last_name,
             "email": request.user.email,
             "telephone": citoyen.telephone,
+            "operateur_paiement": citoyen.operateur_paiement,
         })
 
     return render(request, "citoyens/espace/modifier_profil.html", {
         "citoyen": citoyen,
+        "form": form,
+    })
+
+@login_required
+def declarations_liste_view(request):
+    """Liste des declarations fiscales deposees par le citoyen connecte."""
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    declarations = []
+    if profil:
+        declarations = (
+            DeclarationFiscale.objects.filter(contribuable=profil.contribuable)
+            .select_related("parcelle", "type_taxe")
+            .order_by("-date_declaration")
+        )
+
+    return render(request, "citoyens/espace/declarations_liste.html", {
+        "declarations": declarations,
+        "citoyen": citoyen,
+        "active_section": "declarations",
+    })
+
+
+@login_required
+def declaration_creer_view(request):
+    """Formulaire de depot d'une nouvelle declaration fiscale."""
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    if profil is None:
+        messages.error(
+            request,
+            "Votre compte n'est pas encore relié à un dossier fiscal. "
+            "Contactez la mairie pour effectuer une déclaration."
+        )
+        return redirect("citoyen_espace")
+
+    # Les parcelles "a soi" sont celles deja liees via une taxation
+    # existante (fonctionne aussi pour les comptes simules sans
+    # Proprietaire officiellement rattache), plus celles du Proprietaire
+    # lie le cas echeant (dossier reel).
+    parcelles_qs = Parcelle.objects.filter(taxations__contribuable=profil.contribuable)
+    if profil.contribuable.proprietaire is not None:
+        parcelles_qs = parcelles_qs | Parcelle.objects.filter(proprietaire=profil.contribuable.proprietaire)
+    parcelles_qs = parcelles_qs.distinct()
+
+    if request.method == "POST":
+        form = DeclarationFiscaleForm(request.POST, request.FILES, parcelles_qs=parcelles_qs)
+        if form.is_valid():
+            declaration = form.save(commit=False)
+            declaration.contribuable = profil.contribuable
+            declaration.save()
+            messages.success(
+                request,
+                "Votre déclaration a bien été soumise. Elle sera examinée par un agent "
+                "et donnera lieu à l'émission de votre taxation."
+            )
+            return redirect("citoyen_declarations")
+    else:
+        form = DeclarationFiscaleForm(parcelles_qs=parcelles_qs)
+
+    return render(request, "citoyens/espace/declaration_form.html", {
+        "form": form,
+        "citoyen": citoyen,
+        "active_section": "declarations",
+    })
+
+
+@login_required
+def recours_liste_view(request):
+    """Liste des recours/redressements fiscaux deposes par le citoyen connecte."""
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    recours_liste = []
+    if profil:
+        recours_liste = (
+            RecoursFiscal.objects.filter(contribuable=profil.contribuable)
+            .select_related("taxation", "taxation__type_taxe", "taxation__parcelle")
+            .order_by("-date_soumission")
+        )
+
+    return render(request, "citoyens/espace/recours_liste.html", {
+        "recours_liste": recours_liste,
+        "citoyen": citoyen,
+        "active_section": "recours",
+    })
+
+
+@login_required
+def recours_creer_view(request, taxation_pk):
+    """Depot d'un recours (niveau 1) sur une taxation precise."""
+    from foncier.models import Taxation
+
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    if profil is None:
+        messages.error(request, "Votre compte n'est pas encore relié à un dossier fiscal.")
+        return redirect("citoyen_espace")
+
+    taxation = get_object_or_404(Taxation, pk=taxation_pk, contribuable=profil.contribuable)
+
+    if request.method == "POST":
+        form = RecoursFiscalForm(request.POST, request.FILES)
+        if form.is_valid():
+            recours = form.save(commit=False)
+            recours.taxation = taxation
+            recours.contribuable = profil.contribuable
+            recours.niveau = RecoursFiscal.NIVEAU_RECOURS
+            recours.save()
+            messages.success(request, "Votre contestation a bien été soumise. Elle sera examinée par un agent.")
+            return redirect("citoyen_recours_liste")
+    else:
+        form = RecoursFiscalForm()
+
+    return render(request, "citoyens/espace/recours_form.html", {
+        "form": form,
+        "taxation": taxation,
+        "citoyen": citoyen,
+        "active_section": "recours",
+        "est_redressement": False,
+    })
+
+
+@login_required
+def recours_redressement_creer_view(request, recours_pk):
+    """Depot d'un redressement (niveau 2) suite au rejet d'un recours."""
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    if profil is None:
+        messages.error(request, "Votre compte n'est pas encore relié à un dossier fiscal.")
+        return redirect("citoyen_espace")
+
+    recours_precedent = get_object_or_404(
+        RecoursFiscal,
+        pk=recours_pk,
+        contribuable=profil.contribuable,
+        niveau=RecoursFiscal.NIVEAU_RECOURS,
+        statut=RecoursFiscal.STATUT_REJETE,
+    )
+
+    if request.method == "POST":
+        form = RecoursFiscalForm(request.POST, request.FILES)
+        if form.is_valid():
+            redressement = form.save(commit=False)
+            redressement.taxation = recours_precedent.taxation
+            redressement.contribuable = profil.contribuable
+            redressement.niveau = RecoursFiscal.NIVEAU_REDRESSEMENT
+            redressement.recours_precedent = recours_precedent
+            redressement.save()
+            messages.success(request, "Votre demande de redressement a bien été soumise.")
+            return redirect("citoyen_recours_liste")
+    else:
+        form = RecoursFiscalForm()
+
+    return render(request, "citoyens/espace/recours_form.html", {
+        "form": form,
+        "taxation": recours_precedent.taxation,
+        "citoyen": citoyen,
+        "active_section": "recours",
+        "est_redressement": True,
+        "recours_precedent": recours_precedent,
+    })
+
+
+@login_required
+def calendrier_fiscal_view(request):
+    """
+    Calendrier des echeances fiscales du citoyen connecte. Reprend
+    exactement la meme logique de calcul de date que la commande
+    envoyer_rappels_echeances (foncier/management/commands/), pour que
+    l'affichage reste toujours coherent avec les rappels reellement
+    envoyes par SMS/email.
+    """
+    import datetime
+    from foncier.models import Taxation
+
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    echeances = []
+
+    if profil:
+        taxations = (
+            Taxation.objects.filter(contribuable=profil.contribuable)
+            .select_related("type_taxe", "parcelle")
+            .exclude(type_taxe__mois_echeance__isnull=True)
+            .exclude(type_taxe__jour_echeance__isnull=True)
+        )
+        aujourdhui = datetime.date.today()
+
+        for t in taxations:
+            try:
+                date_echeance = datetime.date(
+                    aujourdhui.year, t.type_taxe.mois_echeance, t.type_taxe.jour_echeance
+                )
+            except ValueError:
+                continue
+
+            jours_restants = (date_echeance - aujourdhui).days
+
+            if t.solde <= 0:
+                statut_calendrier = "payee"
+            elif jours_restants < 0:
+                statut_calendrier = "en_retard"
+            elif jours_restants <= 30:
+                statut_calendrier = "proche"
+            else:
+                statut_calendrier = "a_venir"
+
+            echeances.append({
+                "taxation": t,
+                "date_echeance": date_echeance,
+                "jours_restants": jours_restants,
+                "statut_calendrier": statut_calendrier,
+            })
+
+        echeances.sort(key=lambda e: e["date_echeance"])
+
+    return render(request, "citoyens/espace/calendrier_fiscal.html", {
+        "echeances": echeances,
+        "citoyen": citoyen,
+        "active_section": "calendrier",
+    })
+
+
+# ============================================================
+# CONNEXION SECURISEE — code a usage unique (OTP)
+#
+# Apres identifiant/mot de passe corrects, un code a 6 chiffres est
+# envoye par SMS (si telephone connu) et par email, valable 5 minutes.
+# La connexion Django n'a lieu qu'une fois ce code saisi correctement.
+# Stockage temporaire du code en session (pas de nouveau modele/table).
+# ============================================================
+
+import random
+
+
+def _generer_otp():
+    return str(random.randint(100000, 999999))
+
+
+def _envoyer_otp(user, code):
+    from django.core.mail import send_mail
+    from django.conf import settings
+    from foncier.sms import envoyer_sms
+
+    message = f"KEUR MASSAR NORD : votre code de connexion est {code}. Valable 5 minutes."
+
+    citoyen = getattr(user, "citoyen", None)
+    if citoyen is not None and citoyen.telephone:
+        try:
+            envoyer_sms(citoyen.telephone, message)
+        except Exception:
+            pass
+
+    if user.email:
+        try:
+            send_mail(
+                subject="[KEUR MASSAR NORD] Code de connexion",
+                message=message,
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        except Exception:
+            pass
+
+
+def otp_verify_view(request):
+    """Page de saisie du code recu par SMS/email pour terminer la connexion."""
+    import time
+    from django.contrib.auth import login
+
+    user_id = request.session.get("otp_user_id")
+    if not user_id:
+        return redirect("citoyen_login")
+
+    erreur = None
+
+    if request.method == "POST":
+        code_saisi = request.POST.get("code", "").strip()
+        expire = request.session.get("otp_expire", 0)
+
+        if time.time() > expire:
+            erreur = "Ce code a expiré. Veuillez vous reconnecter."
+            for cle in ["otp_user_id", "otp_code", "otp_expire", "otp_next"]:
+                request.session.pop(cle, None)
+        elif code_saisi and code_saisi == request.session.get("otp_code"):
+            user = User.objects.get(pk=user_id)
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+            next_url = request.session.pop("otp_next", None) or reverse("citoyen_espace")
+            for cle in ["otp_user_id", "otp_code", "otp_expire"]:
+                request.session.pop(cle, None)
+            return redirect(next_url)
+        else:
+            erreur = "Code incorrect. Réessayez."
+
+    return render(request, "citoyens/otp_verify.html", {"erreur": erreur})
+
+
+def otp_resend_view(request):
+    """Renvoie un nouveau code OTP (invalide l'ancien)."""
+    import time
+
+    user_id = request.session.get("otp_user_id")
+    if not user_id:
+        return redirect("citoyen_login")
+
+    user = User.objects.get(pk=user_id)
+    code = _generer_otp()
+    request.session["otp_code"] = code
+    request.session["otp_expire"] = time.time() + 300
+    _envoyer_otp(user, code)
+    messages.info(request, "Un nouveau code vous a été envoyé.")
+    return redirect("citoyen_otp_verify")
+
+
+@login_required
+def exoneration_liste_view(request):
+    """Liste des demandes d'exoneration fiscale deposees par le citoyen connecte."""
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    demandes = []
+    if profil:
+        demandes = (
+            DemandeExoneration.objects.filter(contribuable=profil.contribuable)
+            .select_related("parcelle")
+            .order_by("-date_soumission")
+        )
+
+    return render(request, "citoyens/espace/exoneration_liste.html", {
+        "demandes": demandes,
+        "citoyen": citoyen,
+        "active_section": "exonerations",
+    })
+
+
+@login_required
+def exoneration_creer_view(request, parcelle_pk):
+    """Depot d'une demande d'exoneration fiscale pour une parcelle precise."""
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    if profil is None:
+        messages.error(request, "Votre compte n'est pas encore relié à un dossier fiscal.")
+        return redirect("citoyen_espace")
+
+    parcelles_qs = Parcelle.objects.filter(taxations__contribuable=profil.contribuable)
+    if profil.contribuable.proprietaire is not None:
+        parcelles_qs = parcelles_qs | Parcelle.objects.filter(proprietaire=profil.contribuable.proprietaire)
+    parcelle = get_object_or_404(parcelles_qs.distinct(), pk=parcelle_pk)
+
+    if request.method == "POST":
+        form = DemandeExonerationForm(request.POST, request.FILES)
+        if form.is_valid():
+            demande = form.save(commit=False)
+            demande.contribuable = profil.contribuable
+            demande.parcelle = parcelle
+            demande.save()
+            messages.success(request, "Votre demande d'exonération a bien été soumise. Elle sera examinée par un agent.")
+            return redirect("citoyen_exoneration_liste")
+    else:
+        form = DemandeExonerationForm()
+
+    return render(request, "citoyens/espace/exoneration_form.html", {
+        "form": form,
+        "parcelle": parcelle,
+        "citoyen": citoyen,
+        "active_section": "exonerations",
+    })
+
+
+@login_required
+def plan_paiement_liste_view(request):
+    """Liste des plans de paiement du citoyen connecte, avec leurs echeances."""
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    plans = []
+    if profil:
+        plans = (
+            PlanPaiement.objects.filter(contribuable=profil.contribuable)
+            .select_related("taxation", "taxation__type_taxe", "taxation__parcelle")
+            .prefetch_related("echeances")
+            .order_by("-date_soumission")
+        )
+
+    return render(request, "citoyens/espace/plan_paiement_liste.html", {
+        "plans": plans,
+        "citoyen": citoyen,
+        "active_section": "plans_paiement",
+    })
+
+
+@login_required
+def plan_paiement_creer_view(request, taxation_pk):
+    """Depot d'une demande de plan de paiement pour une taxation precise."""
+    from foncier.models import Taxation
+
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    profil = ProfilCitoyen.objects.filter(user=request.user, actif=True).select_related("contribuable").first()
+    if profil is None:
+        messages.error(request, "Votre compte n'est pas encore relié à un dossier fiscal.")
+        return redirect("citoyen_espace")
+
+    taxation = get_object_or_404(Taxation, pk=taxation_pk, contribuable=profil.contribuable)
+
+    if request.method == "POST":
+        form = PlanPaiementForm(request.POST)
+        if form.is_valid():
+            plan = form.save(commit=False)
+            plan.taxation = taxation
+            plan.contribuable = profil.contribuable
+            plan.save()
+            messages.success(request, "Votre demande de plan de paiement a bien été soumise. Elle sera examinée par un agent.")
+            return redirect("citoyen_plan_paiement_liste")
+    else:
+        form = PlanPaiementForm()
+
+    return render(request, "citoyens/espace/plan_paiement_form.html", {
+        "form": form,
+        "taxation": taxation,
+        "citoyen": citoyen,
+        "active_section": "plans_paiement",
+    })
+
+
+@login_required
+def echeance_payer_view(request, echeance_pk):
+    """
+    Paiement d'une echeance precise d'un plan de paiement valide.
+    Reprend exactement le meme mecanisme que payer_taxation_view : le
+    paiement reste 'En attente' jusqu'a validation par un agent (voir
+    dashboard_paiement_valider, qui met egalement a jour cette echeance
+    et le plan une fois confirme).
+    """
+    from foncier.models import EcheancePlanPaiement
+    from foncier.paiement_gateway import initier_paiement
+
+    profil = getattr(request.user, "profil_citoyen", None)
+    if profil is None or not profil.actif:
+        raise PermissionDenied("Votre compte n'est pas encore relié à un dossier contribuable.")
+
+    echeance = get_object_or_404(
+        EcheancePlanPaiement.objects.select_related("plan", "plan__taxation"),
+        pk=echeance_pk, plan__contribuable=profil.contribuable,
+    )
+
+    if echeance.statut == "PAYEE":
+        messages.info(request, "Cette échéance est déjà réglée.")
+        return redirect("citoyen_plan_paiement_liste")
+
+    if request.method == "POST":
+        form = PaiementEnLigneForm(request.POST)
+        if form.is_valid():
+            resultat = initier_paiement(
+                taxation=echeance.plan.taxation,
+                montant=echeance.montant,
+                telephone=form.cleaned_data["telephone"],
+                request=request,
+                backend=form.cleaned_data["operateur"],
+            )
+            if not resultat["ok"]:
+                messages.error(request, resultat["erreur"] or "Le paiement n'a pas pu être initié.")
+            else:
+                echeance.paiement = resultat["paiement"]
+                echeance.save(update_fields=["paiement"])
+
+                if resultat["redirect_url"]:
+                    return redirect(resultat["redirect_url"])
+                return redirect("citoyen_paiement_retour", pk=resultat["paiement"].pk)
+    else:
+        initial = {}
+        citoyen = getattr(request.user, "citoyen", None)
+        if citoyen is not None:
+            if citoyen.operateur_paiement:
+                initial["operateur"] = citoyen.operateur_paiement
+            if citoyen.telephone:
+                initial["telephone"] = citoyen.telephone
+        form = PaiementEnLigneForm(initial=initial)
+
+    return render(request, "citoyens/espace/echeance_payer.html", {
+        "echeance": echeance,
         "form": form,
     })
