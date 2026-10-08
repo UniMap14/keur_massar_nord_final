@@ -1,0 +1,76 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Cartothèque{% endblock %}
+{% block header_title %}Cartothèque{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ cartes.count }} carte(s) publiée(s) sur le site</div>{% endblock %}
+
+{% block topbar_extra %}
+<a href="{% url 'dashboard_cartotheque_create' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Ajouter une carte</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .4s ease forwards; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .carto-admin-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px;
+    }
+    .carto-admin-card {
+        background: #fff; border: 1px solid var(--line, #ece6da); border-radius: var(--radius-md, 10px);
+        overflow: hidden; transition: box-shadow .18s ease, transform .18s ease;
+    }
+    .carto-admin-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
+    .carto-admin-thumb { height: 150px; overflow: hidden; background: var(--brand-cream, #f5efe2); }
+    .carto-admin-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .carto-admin-body { padding: 14px 16px; }
+    .carto-admin-body h4 { font-size: 13.5px; margin: 0 0 6px; color: var(--brand-brown-dark, #2b1e16); line-height: 1.35; }
+    .carto-admin-explication {
+        font-size: 12px; color: var(--ink-quiet, #6f6a5e); line-height: 1.5; margin-bottom: 10px;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .carto-admin-meta { font-size: 11px; color: var(--ink-quiet, #8a8276); margin-bottom: 10px; }
+    .carto-admin-actions { display: flex; gap: 8px; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--ink-quiet, #6f6a5e); }
+    .empty-state .icon {
+        width: 52px; height: 52px; border-radius: 50%; background: rgba(122,114,102,0.1);
+        color: var(--ink-quiet, #7a7266); display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 14px; font-size: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+    {% if cartes %}
+    <div class="carto-admin-grid">
+      {% for c in cartes %}
+      <div class="carto-admin-card">
+        <div class="carto-admin-thumb">
+          <img src="{{ c.image.url }}" alt="{{ c.titre }}">
+        </div>
+        <div class="carto-admin-body">
+          <h4>{{ c.titre }}</h4>
+          <div class="carto-admin-explication">{{ c.explication }}</div>
+          <div class="carto-admin-meta">Ordre : {{ c.ordre }} · Ajoutée le {{ c.date_ajout|date:"d/m/Y" }}</div>
+          <div class="carto-admin-actions">
+            <a href="{% url 'dashboard_cartotheque_update' c.pk %}" class="btn btn-outline btn-sm" style="flex:1;"><i class="fa-solid fa-pen"></i> Modifier</a>
+            <a href="{% url 'dashboard_cartotheque_delete' c.pk %}" class="btn btn-outline btn-sm" style="flex:1;"><i class="fa-solid fa-trash"></i></a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon"><i class="fa-solid fa-map-location-dot"></i></div>
+      Aucune carte dans la cartothèque pour le moment.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -27,7 +27,10 @@ import json
 from .widgets import LeafletPolygonWidget
 from .sms import envoyer_sms
 from .permissions import role_requis, a_role, libelle_role
-from .permissions import GROUPE_SUPERVISEUR, GROUPE_FISCAL, GROUPE_TECHNIQUE, ROLE_VERS_GROUPE
+from .permissions import (
+    GROUPE_SUPERVISEUR, GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE,
+    GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL, ROLE_VERS_GROUPE,
+)
 from .models import (
     Parcelle,
     Propriétaire,
@@ -51,6 +54,7 @@ from .models import (
     PlanPaiement,
     EcheancePlanPaiement,
     DemandeMutation,
+    DemandeMorcellementFusion,
 )
 
 from django.conf import settings
@@ -299,7 +303,7 @@ def dashboard_parcelle_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+@role_requis('gestionnaire_technique')
 def dashboard_parcelle_create(request):
     if request.method == "POST":
         form = ParcelleForm(request.POST)
@@ -345,7 +349,7 @@ def dashboard_parcelle_update(request, pk):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+@role_requis('chef_technique')
 def dashboard_parcelle_delete(request, pk):
     parcelle = get_object_or_404(Parcelle, pk=pk)
 
@@ -795,7 +799,7 @@ class ProfilCitoyenForm(forms.ModelForm):
         fields = ["user", "contribuable", "actif"]
 
 
-def _crud_views(model, form_class, list_url_name, titre, str_field="pk", roles=()):
+def _crud_views(model, form_class, list_url_name, titre, str_field="pk", roles=(), roles_delete=None, roles_create=None):
     """Génère (create, update, delete) génériques pour un modèle simple, pour éviter
     de dupliquer 6 fois le même squelette de vues."""
 
@@ -843,39 +847,50 @@ def _crud_views(model, form_class, list_url_name, titre, str_field="pk", roles=(
         })
 
     if roles:
-        create_view = role_requis(*roles)(create_view)
         update_view = role_requis(*roles)(update_view)
-        delete_view = role_requis(*roles)(delete_view)
+    roles_creation = roles_create if roles_create else roles
+    if roles_creation:
+        create_view = role_requis(*roles_creation)(create_view)
+    roles_suppression = roles_delete if roles_delete else roles
+    if roles_suppression:
+        delete_view = role_requis(*roles_suppression)(delete_view)
 
     return create_view, update_view, delete_view
 
 
 dashboard_proprietaire_create, dashboard_proprietaire_update, dashboard_proprietaire_delete = _crud_views(
-    Propriétaire, ProprietaireForm, "dashboard_proprietaire_list", "Propriétaire", roles=('technique',)
+    Propriétaire, ProprietaireForm, "dashboard_proprietaire_list", "Propriétaire",
+    roles=('technique',), roles_delete=('chef_technique',), roles_create=('gestionnaire_technique',),
 )
 
 _, dashboard_zone_update, dashboard_zone_delete = _crud_views(
-    Zone, ZoneRenameForm, "dashboard_zone_list", "Zone", roles=('technique',)
+    Zone, ZoneRenameForm, "dashboard_zone_list", "Zone",
+    roles=('technique',), roles_delete=('chef_technique',), roles_create=('gestionnaire_technique',),
 )
 
 dashboard_contribuable_create, dashboard_contribuable_update, dashboard_contribuable_delete = _crud_views(
-    Contribuable, ContribuableForm, "dashboard_contribuable_list", "Contribuable", roles=('fiscal',)
+    Contribuable, ContribuableForm, "dashboard_contribuable_list", "Contribuable",
+    roles=('fiscal',), roles_delete=('chef_fiscal',), roles_create=('gestionnaire_fiscal',),
 )
 
 dashboard_typetaxe_create, dashboard_typetaxe_update, dashboard_typetaxe_delete = _crud_views(
-    TypeTaxe, TypeTaxeForm, "dashboard_typetaxe_list", "Type de taxe", roles=('fiscal',)
+    TypeTaxe, TypeTaxeForm, "dashboard_typetaxe_list", "Type de taxe",
+    roles=('fiscal',), roles_delete=('chef_fiscal',), roles_create=('gestionnaire_fiscal',),
 )
 
 dashboard_taxation_create, dashboard_taxation_update, dashboard_taxation_delete = _crud_views(
-    Taxation, TaxationForm, "dashboard_taxation_list", "Taxation", roles=('fiscal',)
+    Taxation, TaxationForm, "dashboard_taxation_list", "Taxation",
+    roles=('fiscal',), roles_delete=('chef_fiscal',), roles_create=('gestionnaire_fiscal',),
 )
 
 dashboard_paiement_create, dashboard_paiement_update, dashboard_paiement_delete = _crud_views(
-    Paiement, PaiementForm, "dashboard_paiement_list", "Paiement", roles=('fiscal',)
+    Paiement, PaiementForm, "dashboard_paiement_list", "Paiement",
+    roles=('fiscal',), roles_delete=('chef_fiscal',), roles_create=('gestionnaire_fiscal',),
 )
 
 dashboard_profil_create, dashboard_profil_update, dashboard_profil_delete = _crud_views(
-    ProfilCitoyen, ProfilCitoyenForm, "dashboard_profil_list", "Profil citoyen", roles=('fiscal',)
+    ProfilCitoyen, ProfilCitoyenForm, "dashboard_profil_list", "Profil citoyen",
+    roles=('fiscal',), roles_delete=('chef_fiscal',), roles_create=('gestionnaire_fiscal',),
 )
 
 
@@ -936,7 +951,7 @@ def dashboard_categorie_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+@role_requis('gestionnaire_technique')
 def dashboard_categorie_create(request):
     if request.method == "POST":
         form = CategorieInfrastructureForm(request.POST)
@@ -972,7 +987,7 @@ def dashboard_categorie_update(request, pk):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+@role_requis('chef_technique')
 def dashboard_categorie_delete(request, pk):
     categorie = get_object_or_404(CategorieInfrastructure, pk=pk)
 
@@ -1021,7 +1036,7 @@ def dashboard_infrastructure_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+@role_requis('gestionnaire_technique')
 def dashboard_infrastructure_create(request):
     if request.method == "POST":
         form = InfrastructureForm(request.POST)
@@ -1057,7 +1072,7 @@ def dashboard_infrastructure_update(request, pk):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+@role_requis('chef_technique')
 def dashboard_infrastructure_delete(request, pk):
     infra = get_object_or_404(Infrastructure, pk=pk)
 
@@ -1102,7 +1117,7 @@ def dashboard_actualite_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+@role_requis('gestionnaire_technique')
 def dashboard_actualite_create(request):
     if request.method == "POST":
         form = ActualiteForm(request.POST, request.FILES)
@@ -1138,7 +1153,7 @@ def dashboard_actualite_update(request, pk):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+@role_requis('chef_technique')
 def dashboard_actualite_delete(request, pk):
     actu = get_object_or_404(Actualite, pk=pk)
 
@@ -1165,7 +1180,7 @@ class TraitementDemandeForm(forms.ModelForm):
 
     class Meta:
         model = DemandeService
-        fields = ["statut", "commentaire_agent", "agent_traitant"]
+        fields = ["statut", "statut_paiement", "commentaire_agent", "agent_traitant"]
         widgets = {
             "commentaire_agent": forms.Textarea(attrs={
                 "rows": 4,
@@ -1174,6 +1189,7 @@ class TraitementDemandeForm(forms.ModelForm):
         }
         labels = {
             "statut": "Statut du dossier",
+            "statut_paiement": "Statut du paiement",
             "commentaire_agent": "Message pour le citoyen",
         }
 
@@ -1404,9 +1420,11 @@ def _est_superviseur(user):
 class AttribuerRoleForm(forms.Form):
     ROLE_CHOICES = [
         ("", "Aucun rôle spécifique (accès complet, compte historique)"),
-        ("superviseur", "Superviseur (accès à tout)"),
-        ("fiscal", "Agent fiscal (contribuables, taxations, paiements)"),
-        ("technique", "Agent technique (parcelles, infrastructures, signalements)"),
+        ("superviseur", "Superviseur (accès à tout — Maire)"),
+        ("chef_technique", "Chef du Service Cadastre (validation, suppression, signature)"),
+        ("technique", "Gestionnaire Cadastre (parcelles, infrastructures, opérations courantes)"),
+        ("chef_fiscal", "Chef du Service Fiscalité (validation, suppression, signature)"),
+        ("fiscal", "Gestionnaire Fiscalité (contribuables, taxations, paiements, opérations courantes)"),
     ]
     role = forms.ChoiceField(choices=ROLE_CHOICES, required=False, label="Rôle")
 
@@ -1438,9 +1456,18 @@ def dashboard_agent_update(request, pk):
         raise PermissionDenied("Seuls les superviseurs peuvent gérer les rôles des agents.")
 
     agent = get_object_or_404(User, pk=pk, is_staff=True)
-    noms_groupes_roles = {GROUPE_SUPERVISEUR, GROUPE_FISCAL, GROUPE_TECHNIQUE}
+    noms_groupes_roles = {
+        GROUPE_SUPERVISEUR, GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE,
+        GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL,
+    }
     role_actuel = ""
-    for nom, cle in [(GROUPE_SUPERVISEUR, "superviseur"), (GROUPE_FISCAL, "fiscal"), (GROUPE_TECHNIQUE, "technique")]:
+    for nom, cle in [
+        (GROUPE_SUPERVISEUR, "superviseur"),
+        (GROUPE_CHEF_TECHNIQUE, "chef_technique"),
+        (GROUPE_GESTIONNAIRE_TECHNIQUE, "technique"),
+        (GROUPE_CHEF_FISCAL, "chef_fiscal"),
+        (GROUPE_GESTIONNAIRE_FISCAL, "fiscal"),
+    ]:
         if agent.groups.filter(name=nom).exists():
             role_actuel = cle
             break
@@ -1469,8 +1496,8 @@ def dashboard_agent_update(request, pk):
 
 @staff_member_required(login_url='dashboard_login')
 def dashboard_journal_audit_list(request):
-    if not _est_superviseur(request.user):
-        raise PermissionDenied("Seuls les superviseurs peuvent consulter le journal d'audit.")
+    if not (_est_superviseur(request.user) or a_role(request.user, 'chef_technique', 'chef_fiscal')):
+        raise PermissionDenied("Seuls le Maire et les chefs de service peuvent consulter le journal d'audit.")
 
     from .models import JournalAudit
 
@@ -1649,7 +1676,7 @@ def dashboard_declaration_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('fiscal')
+@role_requis('chef_fiscal')
 def dashboard_declaration_traiter(request, pk):
     """Examen d'une declaration : validation (calcule et emet la
     taxation correspondante) ou rejet (avec motif)."""
@@ -1728,7 +1755,7 @@ def dashboard_recours_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('fiscal')
+@role_requis('chef_fiscal')
 def dashboard_recours_traiter(request, pk):
     """Examen d'un recours/redressement : acceptation (corrige le
     montant de la taxation) ou rejet (avec explication)."""
@@ -1784,7 +1811,7 @@ def dashboard_recours_traiter(request, pk):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('fiscal')
+@role_requis('chef_fiscal')
 def dashboard_paiement_valider(request, pk):
     """Valide un paiement encore 'En attente' (typiquement issu du
     backend de demonstration 'manuel') : le passe a 'Confirme', ce qui
@@ -1862,7 +1889,7 @@ def dashboard_immatriculation_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('fiscal')
+@role_requis('chef_fiscal')
 def dashboard_immatriculation_traiter(request, pk):
     """Examen d'une demande d'immatriculation : validation (cree le
     proprietaire, rattache la parcelle, cree le contribuable avec un
@@ -1969,7 +1996,7 @@ def dashboard_exoneration_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('fiscal')
+@role_requis('chef_fiscal')
 def dashboard_exoneration_traiter(request, pk):
     """Examen d'une demande d'exoneration : validation (passe la
     parcelle au statut fiscal EXONERE) ou rejet (avec motif)."""
@@ -2038,7 +2065,7 @@ def dashboard_plan_paiement_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('fiscal')
+@role_requis('chef_fiscal')
 def dashboard_plan_paiement_traiter(request, pk):
     """Examen d'une demande de plan de paiement : validation (genere
     les echeances, montants egaux, une par mois) ou rejet (avec motif)."""
@@ -2130,7 +2157,7 @@ def dashboard_mutation_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('fiscal')
+@role_requis('chef_fiscal')
 def dashboard_mutation_traiter(request, pk):
     """
     Examen d'une demande de mutation : validation (cree le nouveau
@@ -2170,6 +2197,14 @@ def dashboard_mutation_traiter(request, pk):
                 nom=demande.nouveau_nom,
                 prenom=demande.nouveau_prenom,
                 telephone=demande.nouveau_telephone,
+            )
+
+            # Transfere les taxations EXISTANTES de cette parcelle au
+            # nouveau contribuable, pour que la parcelle disparaisse de
+            # "Ma fiscalite" chez l'ancien proprietaire (historique de
+            # paiement conserve, seul le titulaire change).
+            Taxation.objects.filter(parcelle=demande.parcelle).update(
+                contribuable=nouveau_contribuable
             )
 
             demande.statut = DemandeMutation.STATUT_VALIDEE
@@ -2217,4 +2252,376 @@ def dashboard_mutation_traiter(request, pk):
         "active_section": "mutations",
         "demande": demande,
         "ancien_contribuable": ancien_contribuable,
+    })
+
+
+# ============================================================
+# MORCELLEMENT / FUSION (cote agent) — examen des demandes de
+# division ou de regroupement de parcelles.
+# ============================================================
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_morcellement_fusion_list(request):
+    """Liste des demandes de morcellement/fusion, filtrable par statut."""
+    statut_filtre = request.GET.get("statut", "")
+    qs = (
+        DemandeMorcellementFusion.objects
+        .select_related("demandeur")
+        .prefetch_related("parcelles_concernees", "parcelles_resultantes")
+        .order_by("-date_soumission")
+    )
+    if statut_filtre:
+        qs = qs.filter(statut=statut_filtre)
+
+    return render(request, "dashboard/morcellement_fusion_list.html", {
+        "active_section": "morcellement_fusion",
+        "demandes": qs,
+        "statut_filtre": statut_filtre,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('chef_technique')
+def dashboard_morcellement_fusion_traiter(request, pk):
+    """
+    Examen d'une demande de morcellement/fusion :
+    - FUSION : validation = calcule automatiquement l'union des
+      geometries (PostGIS), cree la nouvelle parcelle, desactive les
+      anciennes.
+    - MORCELLEMENT : validation = desactive la parcelle d'origine ;
+      l'agent doit ensuite creer manuellement les nouvelles parcelles
+      via l'admin Django, en leur assignant cette demande comme
+      'demande_origine'.
+    """
+    from django.contrib.gis.db.models import Union
+    import datetime
+
+    demande = get_object_or_404(
+        DemandeMorcellementFusion.objects
+        .select_related("demandeur")
+        .prefetch_related("parcelles_concernees", "parcelles_resultantes"),
+        pk=pk,
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "valider":
+            parcelles = list(demande.parcelles_concernees.all())
+
+            if demande.type_operation == DemandeMorcellementFusion.TYPE_FUSION:
+                resultat = demande.parcelles_concernees.aggregate(geom_union=Union("geom"))
+                nouvelle_geom = resultat["geom_union"]
+
+                if nouvelle_geom is None:
+                    messages.error(request, "Impossible de calculer l'union des géométries (données manquantes).")
+                    return redirect("dashboard_morcellement_fusion_traiter", pk=pk)
+
+                superficie_totale = sum(p.superficie or 0 for p in parcelles)
+                premiere = parcelles[0]
+                nouveau_nicad = f"FUS-{datetime.date.today().year}-{demande.pk}"
+
+                nouvelle_parcelle = Parcelle.objects.create(
+                    nicad=nouveau_nicad,
+                    proprietaire=premiere.proprietaire,
+                    zone=premiere.zone,
+                    superficie=superficie_totale,
+                    type_document=premiere.type_document,
+                    adresse_parcelle=premiere.adresse_parcelle,
+                    occupation_sol=premiere.occupation_sol,
+                    geom=nouvelle_geom,
+                    demande_origine=demande,
+                )
+
+                demande.parcelles_concernees.update(parcelle_active=False)
+
+                messages.success(
+                    request,
+                    f"Fusion validée — nouvelle parcelle {nouveau_nicad} créée "
+                    f"({superficie_totale:.0f} m²), {len(parcelles)} ancienne(s) parcelle(s) désactivée(s)."
+                )
+            else:
+                demande.parcelles_concernees.update(parcelle_active=False)
+                messages.success(
+                    request,
+                    "Morcellement validé — la parcelle d'origine a été désactivée. "
+                    "Créez maintenant les nouvelles parcelles via l'admin (en leur assignant "
+                    "cette demande comme « Demande d'origine »)."
+                )
+
+            demande.statut = DemandeMorcellementFusion.STATUT_VALIDEE
+            demande.traite_par = request.user
+            demande.date_traitement = timezone.now()
+            demande.save()
+
+            return redirect("dashboard_morcellement_fusion_list")
+
+        elif action == "rejeter":
+            motif = request.POST.get("motif_rejet", "").strip()
+            if not motif:
+                messages.error(request, "Merci d'indiquer un motif de rejet.")
+            else:
+                demande.statut = DemandeMorcellementFusion.STATUT_REJETEE
+                demande.motif_rejet = motif
+                demande.traite_par = request.user
+                demande.date_traitement = timezone.now()
+                demande.save()
+                messages.info(request, "Demande rejetée.")
+                return redirect("dashboard_morcellement_fusion_list")
+
+    return render(request, "dashboard/morcellement_fusion_traiter.html", {
+        "active_section": "morcellement_fusion",
+        "demande": demande,
+    })
+
+# ============================================================
+# ESPACE JEUNES (cote agent) — examen des projets soumis par les
+# jeunes de la commune (voir jeunesse/views.py pour le depot public).
+# Aucune restriction de role : accessible a tout agent, comme les
+# Demarches en ligne et les Messages de contact.
+# ============================================================
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_jeunesse_list(request):
+    from jeunesse.models import ProjetJeune
+
+    statut_filtre = request.GET.get("statut", "").strip()
+    secteur_filtre = request.GET.get("secteur", "").strip()
+
+    projets = ProjetJeune.objects.order_by("-date_soumission")
+    if statut_filtre:
+        projets = projets.filter(statut=statut_filtre)
+    if secteur_filtre:
+        projets = projets.filter(secteur=secteur_filtre)
+
+    lignes = [
+        {
+            "pk": p.pk,
+            "cellules": [
+                p.titre_projet,
+                p.nom_porteur,
+                p.get_secteur_display(),
+                p.get_statut_display(),
+                p.date_soumission.strftime("%d/%m/%Y"),
+            ],
+        }
+        for p in projets
+    ]
+
+    return render(request, "dashboard/generic_list_stub.html", {
+        "active_section": "jeunesse",
+        "titre": "Projets Jeunes",
+        "colonnes": ["Projet", "Porteur", "Secteur", "Statut", "Déposé le"],
+        "objets": lignes,
+        "update_url_name": "dashboard_jeunesse_detail",
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_jeunesse_detail(request, pk):
+    from jeunesse.models import ProjetJeune, MessageProjet
+
+    projet = get_object_or_404(ProjetJeune, pk=pk)
+
+    if request.method == "POST":
+        nouveau_statut = request.POST.get("statut", "").strip()
+        if nouveau_statut in dict(ProjetJeune.STATUT_CHOICES):
+            projet.statut = nouveau_statut
+        projet.motif_rejet = request.POST.get("motif_rejet", "").strip()
+        projet.contacte = request.POST.get("contacte") == "on"
+        projet.traite_par = request.user
+        projet.date_traitement = timezone.now()
+        projet.save()
+
+        message_texte = request.POST.get("message", "").strip()
+        if message_texte:
+            MessageProjet.objects.create(
+                projet=projet, contenu=message_texte, envoye_par=request.user
+            )
+            if projet.email:
+                try:
+                    send_mail(
+                        subject=f"[KEUR MASSAR NORD] Votre projet « {projet.titre_projet} »",
+                        message=message_texte,
+                        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                        recipient_list=[projet.email],
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+
+        messages.success(request, "Projet mis à jour.")
+        return redirect("dashboard_jeunesse_list")
+
+    return render(request, "dashboard/jeunesse_detail.html", {
+        "active_section": "jeunesse",
+        "projet": projet,
+        "messages_projet": projet.messages.all(),
+    })
+
+
+# ============================================================
+# GALERIE PHOTO (cote agent) — gestion des photos affichees sur la
+# page publique "La commune en images" (foncier/views.py:galerie).
+# ============================================================
+
+class PhotoGalerieForm(forms.ModelForm):
+    class Meta:
+        from .models import PhotoGalerie
+        model = PhotoGalerie
+        fields = ["titre", "photo", "ordre"]
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('technique')
+def dashboard_galerie_list(request):
+    from .models import PhotoGalerie
+    photos = PhotoGalerie.objects.order_by("ordre", "-date_ajout")
+    return render(request, "dashboard/galerie_list.html", {
+        "active_section": "galerie",
+        "photos": photos,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('gestionnaire_technique')
+def dashboard_galerie_create(request):
+    if request.method == "POST":
+        form = PhotoGalerieForm(request.POST, request.FILES)
+        if form.is_valid():
+            photo_obj = form.save()
+            messages.success(request, f"Photo « {photo_obj.titre} » ajoutée avec succès.")
+            return redirect("dashboard_galerie_list")
+        messages.error(request, "Le formulaire contient des erreurs. Merci de vérifier les champs.")
+    else:
+        form = PhotoGalerieForm()
+
+    return render(request, "dashboard/galerie_form.html", {
+        "active_section": "galerie", "form": form, "mode": "create",
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('technique')
+def dashboard_galerie_update(request, pk):
+    from .models import PhotoGalerie
+    photo_obj = get_object_or_404(PhotoGalerie, pk=pk)
+
+    if request.method == "POST":
+        form = PhotoGalerieForm(request.POST, request.FILES, instance=photo_obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Photo « {photo_obj.titre} » mise à jour.")
+            return redirect("dashboard_galerie_list")
+        messages.error(request, "Le formulaire contient des erreurs. Merci de vérifier les champs.")
+    else:
+        form = PhotoGalerieForm(instance=photo_obj)
+
+    return render(request, "dashboard/galerie_form.html", {
+        "active_section": "galerie", "form": form, "mode": "update", "photo_obj": photo_obj,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('chef_technique')
+def dashboard_galerie_delete(request, pk):
+    from .models import PhotoGalerie
+    photo_obj = get_object_or_404(PhotoGalerie, pk=pk)
+
+    if request.method == "POST":
+        titre = photo_obj.titre
+        photo_obj.delete()
+        messages.success(request, f"Photo « {titre} » supprimée.")
+        return redirect("dashboard_galerie_list")
+
+    return render(request, "dashboard/generic_confirm_delete.html", {
+        "active_section": "galerie",
+        "titre": "Photo",
+        "list_url_name": "dashboard_galerie_list",
+        "objet_str": str(photo_obj),
+    })
+
+
+# ============================================================
+# CARTOTHEQUE (cote agent) — gestion des cartes thematiques affichees
+# sur la page publique "Cartotheque" (foncier/views.py:cartotheque).
+# ============================================================
+
+class CarteThematiqueForm(forms.ModelForm):
+    class Meta:
+        from .models import CarteThematique
+        model = CarteThematique
+        fields = ["titre", "explication", "image", "ordre"]
+        widgets = {
+            "explication": forms.Textarea(attrs={"rows": 4}),
+        }
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('technique')
+def dashboard_cartotheque_list(request):
+    from .models import CarteThematique
+    cartes = CarteThematique.objects.order_by("ordre", "-date_ajout")
+    return render(request, "dashboard/cartotheque_list.html", {
+        "active_section": "cartotheque",
+        "cartes": cartes,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('gestionnaire_technique')
+def dashboard_cartotheque_create(request):
+    if request.method == "POST":
+        form = CarteThematiqueForm(request.POST, request.FILES)
+        if form.is_valid():
+            carte = form.save()
+            messages.success(request, f"Carte « {carte.titre} » ajoutée avec succès.")
+            return redirect("dashboard_cartotheque_list")
+        messages.error(request, "Le formulaire contient des erreurs. Merci de vérifier les champs.")
+    else:
+        form = CarteThematiqueForm()
+
+    return render(request, "dashboard/cartotheque_form.html", {
+        "active_section": "cartotheque", "form": form, "mode": "create",
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('technique')
+def dashboard_cartotheque_update(request, pk):
+    from .models import CarteThematique
+    carte = get_object_or_404(CarteThematique, pk=pk)
+
+    if request.method == "POST":
+        form = CarteThematiqueForm(request.POST, request.FILES, instance=carte)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Carte « {carte.titre} » mise à jour.")
+            return redirect("dashboard_cartotheque_list")
+        messages.error(request, "Le formulaire contient des erreurs. Merci de vérifier les champs.")
+    else:
+        form = CarteThematiqueForm(instance=carte)
+
+    return render(request, "dashboard/cartotheque_form.html", {
+        "active_section": "cartotheque", "form": form, "mode": "update", "carte": carte,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('chef_technique')
+def dashboard_cartotheque_delete(request, pk):
+    from .models import CarteThematique
+    carte = get_object_or_404(CarteThematique, pk=pk)
+
+    if request.method == "POST":
+        titre = carte.titre
+        carte.delete()
+        messages.success(request, f"Carte « {titre} » supprimée.")
+        return redirect("dashboard_cartotheque_list")
+
+    return render(request, "dashboard/generic_confirm_delete.html", {
+        "active_section": "cartotheque",
+        "titre": "Carte",
+        "list_url_name": "dashboard_cartotheque_list",
+        "objet_str": str(carte),
     })

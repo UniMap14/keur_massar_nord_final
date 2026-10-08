@@ -2,339 +2,534 @@
 {% block title %}Géoportail - KEUR MASSAR NORD Foncier{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
 <style>
-  .sidebar-left { flex: 2; min-height: 700px; position: relative; }
-  .sidebar-right { flex: 1; max-height: 700px; overflow-y: auto; }
-  .sidebar-right .card { margin-bottom: 16px; border-radius: 8px; }
-  .filter-section { padding: 12px; border-bottom: 1px solid #e9ecef; }
-  .filter-section:last-child { border-bottom: none; }
-  .filter-section h5 {
+  .grille-densite-label {
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    font-size: 11px !important; font-weight: 700 !important; color: #2b1e16 !important;
+  }
+  .grille-densite-label::before { display: none !important; }
+  #legendeDensite {
+    position: absolute; top: 14px; left: 14px; z-index: 1100; display: none;
+    background: rgba(255,255,255,0.97); border: 1px solid #e6ded0; border-radius: 10px;
+    padding: 10px 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  }
+
+  :root {
+    --geo-brun: #6b4a35;
+    --geo-brun-fonce: #3c2a20;
+    --geo-or: #c9982e;
+    --geo-vert: #2f7a4f;
+    --geo-vert-fonce: #26603e;
+    --geo-rouge: #b23b2e;
+    --geo-texte-mute: #766c5d;
+    --geo-bordure: #e6ded0;
+  }
+
+  .geo-page-section {
+    max-width: 100% !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .geo-wrap {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr) 280px;
+    gap: 16px;
+    min-height: 700px;
+  }
+
+  .geo-sidebar-left, .geo-sidebar-right {
+    max-height: 760px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .geo-panel {
+    background: #fff;
+    border: 1px solid var(--geo-bordure);
+    border-radius: 12px;
+    padding: 16px 16px;
+  }
+  .geo-panel-title {
     font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
+    font-weight: 700;
+    color: var(--geo-brun-fonce);
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     cursor: pointer;
-    transition: color 0.2s;
+    transition: color .15s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 100%;
+    text-align: left;
   }
-  .filter-section h5:hover,
-  .filter-section h5:focus-visible {
-    color: var(--green);
+  .geo-panel-title:hover, .geo-panel-title:focus-visible {
+    color: var(--geo-vert);
   }
-  .filter-section h5:focus-visible {
-    outline: 2px solid var(--green);
+  .geo-panel-title:focus-visible {
+    outline: 2px solid var(--geo-vert);
     outline-offset: 3px;
     border-radius: 4px;
   }
-  .filter-section h5 i:first-child {
-    margin-right: 4px;
-  }
-  .stats-value { font-size: 20px; font-weight: 700; color: var(--green); }
-  .stats-label { font-size: 12px; color: #6c757d; margin-bottom: 8px; }
-  .control-toggle { display: flex; gap: 8px; margin: 8px 0; }
-  .control-toggle label { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 0; cursor: pointer; }
-  .search-input { width: 100%; padding: 8px; font-size: 13px; border: 1px solid #dee2e6; border-radius: 4px; }
-  .export-btn { width: 100%; padding: 8px; font-size: 13px; margin: 4px 0; cursor: pointer; }
+  .geo-panel-title i { color: var(--geo-or); font-size: 13px; }
 
-  .map-loader {
-    position: absolute;
-    inset: 0;
-    background: rgba(245, 239, 226, 0.85);
-    display: flex;
-    flex-direction: column;
+  .geo-field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--geo-texte-mute);
+    margin: 10px 0 6px;
+  }
+  .geo-field-label:first-of-type { margin-top: 0; }
+  .geo-field-select, .geo-field-input {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 13.5px;
+    border: 1px solid #dcd4c4;
+    border-radius: 8px;
+    background: #fdfcf9;
+    color: var(--geo-brun-fonce);
+  }
+  .geo-field-select:focus, .geo-field-input:focus {
+    outline: none;
+    border-color: var(--geo-or);
+  }
+
+  .geo-btn {
+    padding: 10px 14px;
+    font-size: 13.5px;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    z-index: 1200;
-    transition: opacity 0.3s ease;
+    gap: 7px;
+    transition: all .15s ease;
+    text-decoration: none;
   }
-  .map-loader.hidden {
-    opacity: 0;
-    pointer-events: none;
-  }
-  .map-loader-spinner {
-    width: 38px;
-    height: 38px;
-    border: 4px solid rgba(107, 74, 53, 0.15);
-    border-top-color: var(--green);
-    border-radius: 50%;
-    animation: spinLoader 0.8s linear infinite;
-  }
-  @keyframes spinLoader {
-    to { transform: rotate(360deg); }
-  }
-  .map-loader p {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 500;
-  }
+  .geo-btn-block { width: 100%; }
+  .geo-btn-primary { background: var(--geo-or); color: var(--geo-brun-fonce); }
+  .geo-btn-primary:hover { background: #d9ad4f; }
+  .geo-btn-ghost { background: #fff; border-color: #dcd4c4; color: var(--geo-brun-fonce); }
+  .geo-btn-ghost:hover { background: #faf6ec; }
+  .geo-form-actions { display: flex; gap: 8px; margin-top: 12px; }
 
-  .zoom-hint {
-    position: absolute;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(30, 26, 20, 0.88);
-    color: #fff;
-    padding: 10px 18px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    z-index: 900;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  .geo-layer-list { display: flex; flex-direction: column; gap: 9px; }
+  .geo-layer-item { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--geo-brun-fonce); cursor: pointer; margin: 0; }
+  .geo-layer-item input { accent-color: var(--geo-vert); width: 15px; height: 15px; }
+  .geo-layer-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+  .geo-tool-result { font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+
+  .geo-stat-card { padding: 10px 0; border-bottom: 1px solid #f0ebe0; }
+  .geo-stat-card:last-child { border-bottom: none; }
+  .geo-stat-label { font-size: 12px; color: var(--geo-texte-mute); margin-bottom: 4px; }
+  .geo-stat-value { font-size: 20px; font-weight: 700; color: var(--geo-brun-fonce); }
+
+  /* ===== Colonne carte ===== */
+  .geo-map-col { position: relative; border-radius: 16px; overflow: hidden; border: 1px solid var(--geo-bordure); min-height: 700px; box-shadow: 0 2px 10px rgba(60,42,32,0.06); }
+  #map { height: 100%; width: 100%; min-height: 700px; }
+
+  .geo-map-toolbar { position: absolute; top: 14px; right: 14px; z-index: 1100; display: flex; align-items: center; gap: 8px; }
+  .geo-basemap-switch { display: flex; background: rgba(255,255,255,0.97); border-radius: 999px; padding: 3px; box-shadow: 0 4px 14px rgba(0,0,0,0.14); border: 1px solid var(--geo-bordure); }
+  .geo-basemap-chip { border: none; background: transparent; padding: 6px 13px; font-size: 12px; font-weight: 600; border-radius: 999px; cursor: pointer; color: var(--geo-texte-mute); transition: all .15s ease; }
+  .geo-basemap-chip.active { background: var(--geo-brun); color: #fff; }
+  .geo-fullscreen-btn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--geo-bordure); background: rgba(255,255,255,0.97); color: var(--geo-brun-fonce); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.14); font-size: 13px; }
+  .geo-fullscreen-btn:hover { background: #faf6ec; }
+
+  /* ===== Outils de mesure ===== */
+  .geo-measure-group { display: flex; gap: 8px; margin-top: 10px; }
+  .geo-measure-btn { flex: 1; padding: 9px 6px; font-size: 12px; font-weight: 700; border-radius: 10px; border: 1.5px solid #dcd4c4; background: #fff; color: var(--geo-brun-fonce); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all .15s ease; }
+  .geo-measure-btn.active { background: var(--geo-or); border-color: var(--geo-or); }
+  .geo-measure-btn:hover { background: #faf6ec; }
+  .geo-measure-result { margin-top: 10px; padding: 10px 12px; background: #fdf8ee; border: 1px dashed var(--geo-or); border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--geo-brun-fonce); text-align: center; display: none; }
+
+  /* ===== Stats ===== */
+  .geo-stat-card { padding: 10px 0; border-bottom: 1px solid #f0ebe0; }
+  .geo-stat-card:last-child { border-bottom: none; }
+  .geo-stat-label { font-size: 12px; color: var(--geo-texte-mute); margin-bottom: 4px; }
+  .geo-stat-value { font-size: 20px; font-weight: 700; color: var(--geo-brun-fonce); }
+
+  /* ===== Rayon de couverture ===== */
+  .geo-radius-value { font-size: 13px; font-weight: 700; color: var(--geo-brun-fonce); text-align: center; margin-top: 6px; }
+  .geo-field-range { width: 100%; accent-color: var(--geo-or); margin-top: 8px; }
+
+  /* ===== Proximite ===== */
+  .geo-proximite-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0ebe0; font-size: 12.5px; }
+  .geo-proximite-item:last-child { border-bottom: none; }
+  .geo-proximite-item .nom { font-weight: 600; color: var(--geo-brun-fonce); }
+  .geo-proximite-item .dist { color: var(--geo-vert); font-weight: 700; white-space: nowrap; margin-left: 8px; }
+
+  .geo-map-toolbar { position: absolute; top: 14px; right: 14px; z-index: 1100; display: flex; align-items: center; gap: 8px; }
+  .geo-basemap-switch { display: flex; background: rgba(255,255,255,0.97); border-radius: 999px; padding: 3px; box-shadow: 0 4px 14px rgba(0,0,0,0.14); border: 1px solid var(--geo-bordure); }
+  .geo-basemap-chip { border: none; background: transparent; padding: 6px 13px; font-size: 12px; font-weight: 600; border-radius: 999px; cursor: pointer; color: var(--geo-texte-mute); transition: all .15s ease; }
+  .geo-basemap-chip.active { background: var(--geo-brun); color: #fff; }
+  .geo-fullscreen-btn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--geo-bordure); background: rgba(255,255,255,0.97); color: var(--geo-brun-fonce); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.14); font-size: 13px; }
+  .geo-fullscreen-btn:hover { background: #faf6ec; }
+
+  .geo-measure-group { display: flex; gap: 8px; margin-top: 10px; }
+  .geo-measure-btn { flex: 1; padding: 9px 6px; font-size: 12px; font-weight: 700; border-radius: 10px; border: 1.5px solid #dcd4c4; background: #fff; color: var(--geo-brun-fonce); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all .15s ease; }
+  .geo-measure-btn.active { background: var(--geo-or); border-color: var(--geo-or); }
+  .geo-measure-btn:hover { background: #faf6ec; }
+  .geo-measure-result { margin-top: 10px; padding: 10px 12px; background: #fdf8ee; border: 1px dashed var(--geo-or); border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--geo-brun-fonce); text-align: center; display: none; }
+
+  .map-loader {
+    position: absolute; inset: 0; background: rgba(245, 239, 226, 0.85);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; z-index: 1200; transition: opacity 0.3s ease;
   }
-  .zoom-hint i { color: var(--gold); }
+  .map-loader.hidden { opacity: 0; pointer-events: none; }
+  .map-loader-spinner {
+    width: 38px; height: 38px; border: 4px solid rgba(107, 74, 53, 0.15);
+    border-top-color: var(--geo-vert); border-radius: 50%; animation: spinLoader 0.8s linear infinite;
+  }
+  @keyframes spinLoader { to { transform: rotate(360deg); } }
+  .map-loader p { font-size: 13px; color: var(--geo-texte-mute); font-weight: 500; }
 
   .map-legend {
-    position: absolute;
-    bottom: 14px;
-    left: 14px;
-    z-index: 1100;
-    background: rgba(245, 239, 226, 0.95);
-    border: 1px solid rgba(201, 152, 46, 0.35);
-    border-radius: 10px;
-    padding: 12px 14px;
-    box-shadow: var(--shadow-sm);
-    font-size: 12px;
+    position: absolute; bottom: 14px; left: 14px; z-index: 1100;
+    background: rgba(255,255,255,0.97); border: 1px solid var(--geo-bordure); border-radius: 12px;
+    padding: 12px 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); font-size: 12px; max-width: 200px;
     cursor: pointer;
-    max-width: 200px;
   }
-  .map-legend:focus-visible {
-    outline: 2px solid var(--green);
-    outline-offset: 3px;
-  }
-  .map-legend h6 {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 8px;
-  }
-  .map-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 5px;
-  }
-  .map-legend-item:last-child {
-    margin-bottom: 0;
-  }
-  .map-legend-swatch {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
+  .map-legend:focus-visible { outline: 2px solid var(--geo-vert); outline-offset: 3px; }
+  .map-legend h6 { font-size: 12.5px; font-weight: 700; color: var(--geo-brun-fonce); margin-bottom: 8px; }
+  .map-legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .map-legend-item:last-child { margin-bottom: 0; }
+  .map-legend-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
   @media (max-width: 900px) {
-    .map-legend {
-      max-width: 160px;
-      font-size: 11px;
-      padding: 10px 12px;
-    }
-  }
-
-  .filter-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-  }
-  .filter-actions button {
-    flex: 1;
+    .map-legend { max-width: 160px; font-size: 11px; padding: 10px 12px; }
   }
 
   /* Fiche de parcelle (popup) : carte blanche épurée */
   .leaflet-popup.fiche-parcelle .leaflet-popup-content-wrapper {
-    padding: 0;
-    border-radius: 14px;
-    box-shadow: 0 12px 34px rgba(43, 33, 26, 0.18);
-    overflow: hidden;
+    padding: 0; border-radius: 14px; box-shadow: 0 12px 34px rgba(43, 33, 26, 0.18); overflow: hidden;
   }
   .leaflet-popup.fiche-parcelle .leaflet-popup-content { margin: 0; min-width: 260px; }
   .leaflet-popup.fiche-parcelle .leaflet-popup-close-button { display: none; }
   .leaflet-popup.fiche-parcelle .leaflet-popup-tip { box-shadow: 0 12px 34px rgba(43, 33, 26, 0.18); }
   .fp-card { padding: 18px 20px; font-family: 'DM Sans', Arial, sans-serif; }
-  .fp-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
-  }
-  .fp-head h4 {
-    font-size: 15px; font-weight: 700; color: var(--text); margin: 0;
-  }
-  .fp-close {
-    border: none; background: none; cursor: pointer; color: var(--text-muted);
-    font-size: 15px; line-height: 1; padding: 2px 4px;
-  }
-  .fp-close:hover { color: var(--text); }
-  .fp-row {
-    display: flex; justify-content: space-between; align-items: baseline;
-    padding: 6px 0; font-size: 13px; border-bottom: 1px solid rgba(0,0,0,0.06);
-  }
+  .fp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .fp-head h4 { font-size: 15px; font-weight: 700; color: var(--geo-brun-fonce); margin: 0; }
+  .fp-close { border: none; background: none; cursor: pointer; color: var(--geo-texte-mute); font-size: 15px; line-height: 1; padding: 2px 4px; }
+  .fp-close:hover { color: var(--geo-brun-fonce); }
+  .fp-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; font-size: 13px; border-bottom: 1px solid rgba(0,0,0,0.06); }
   .fp-row:last-of-type { border-bottom: none; }
-  .fp-row .fp-label { color: var(--text-muted); }
-  .fp-row .fp-value { font-weight: 600; color: var(--text); text-align: right; }
-  .fp-link {
-    display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 600;
-    color: var(--green); text-decoration: none;
-  }
+  .fp-row .fp-label { color: var(--geo-texte-mute); }
+  .fp-row .fp-value { font-weight: 600; color: var(--geo-brun-fonce); text-align: right; }
+  .fp-link { display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--geo-vert); text-decoration: none; }
   .fp-link:hover { text-decoration: underline; }
 
-  @media (max-width: 900px) {
-    .page-section > .container > div[style*="display: flex"] {
-      flex-direction: column !important;
-      min-height: auto !important;
-    }
-    .sidebar-left {
-      min-height: 420px;
-      flex: none;
-      width: 100%;
-    }
-    .sidebar-right {
-      max-height: none;
-      overflow-y: visible;
-      width: 100%;
-    }
+  /* ===== Sélection spatiale, échelle, boussole, coordonnées (NOUVEAU) ===== */
+  .geo-selection-liste { max-height: 170px; overflow-y: auto; margin-top: 8px; border-top: 1px solid #f0ebe0; }
+  .geo-selection-item { display: flex; justify-content: space-between; gap: 8px; padding: 7px 2px; border-bottom: 1px solid #f0ebe0; font-size: 12px; cursor: pointer; }
+  .geo-selection-item:hover { background: #fdf8ee; }
+  .geo-selection-item .nom { font-weight: 600; color: var(--geo-brun-fonce); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .geo-selection-item .val { color: var(--geo-vert); font-weight: 700; white-space: nowrap; }
+  .geo-selection-plus { font-size: 11.5px; color: var(--geo-texte-mute); padding: 6px 0; text-align: center; }
+  .geo-coord-control { background: rgba(255,255,255,0.96); border: 1px solid var(--geo-bordure); border-radius: 8px; padding: 4px 5px 4px 10px; font-size: 11.5px; font-weight: 600; color: var(--geo-brun-fonce); display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); font-variant-numeric: tabular-nums; }
+  .geo-coord-toggle { border: none; background: var(--geo-brun); color: #fff; border-radius: 999px; font-size: 10.5px; font-weight: 700; padding: 3px 9px; cursor: pointer; }
+  .geo-coord-toggle:hover { background: var(--geo-brun-fonce); }
+  .geo-boussole { background: none; border: none; box-shadow: none; }
+  .geo-boussole svg { display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.22)); }
+
+  /* ===== Statistiques par quartier (NOUVEAU) ===== */
+  .geo-quartier-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:12px; cursor:pointer; }
+  .geo-quartier-bar-label { width: 92px; flex-shrink:0; color:var(--geo-brun-fonce); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .geo-quartier-bar-track { flex:1; background:#f0ebe0; border-radius:6px; height:14px; overflow:hidden; }
+  .geo-quartier-bar-fill { height:100%; background:var(--geo-or); border-radius:6px; }
+  .geo-quartier-bar-value { width:34px; text-align:right; font-weight:700; font-size:11.5px; color:var(--geo-brun-fonce); }
+  .geo-quartier-scroll { max-height: 190px; overflow-y: auto; padding-right: 4px; }
+  .geo-quartier-voir-plus { display:none; width:100%; margin-top:8px; padding:7px; font-size:12px; font-weight:700; color:var(--geo-brun-fonce); background:#faf6ec; border:1px solid #dcd4c4; border-radius:8px; cursor:pointer; }
+  .geo-quartier-voir-plus:hover { background:#f3ecd9; }
+  .geo-quartier-top3 { display:flex; flex-direction:column; gap:6px; }
+  .geo-quartier-top3-item { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+  .geo-quartier-top3-rank { width:20px; height:20px; border-radius:50%; background:var(--geo-or); color:#fff; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  @media (max-width: 1150px) {
+    .geo-wrap { grid-template-columns: 1fr; }
+    .geo-map-col { min-height: 460px; }
+    .geo-sidebar-left, .geo-sidebar-right { max-height: none; }
   }
 </style>
 {% endblock %}
 {% block content %}
-<section class="page-banner">
-  <div class="container">
-    <div class="banner-breadcrumb">
-      <a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a>
-      <i class="fa-solid fa-chevron-right"></i>
-      <span>Géoportail</span>
-    </div>
-    <div class="banner-badge"><span class="badge-dot"></span>Cartographie foncière</div>
-    <h1>Visualisez les parcelles de la commune en un seul lieu.</h1>
-    <p>Accédez à une carte interactive avec filtres, recherche et export de données.</p>
-    <a href="{% url 'recherche_cadastrale' %}" class="btn btn-outline" style="margin-top:14px; display:inline-flex; align-items:center; gap:8px;">
-      <i class="fa-solid fa-magnifying-glass"></i> Rechercher une parcelle par NICAD ou adresse
-    </a>
-  </div>
-</section>
-<section class="container page-section">
-  <div style="display: flex; gap: 16px; min-height: 700px;">
+<section class="container page-section geo-page-section" style="margin-top:0; padding-top:16px;">
+  <div class="geo-wrap">
 
-    <div class="sidebar-left">
-      <div class="card border-0 shadow-sm overflow-hidden" style="height: 100%;">
-        <div id="map" style="height: 100%;"></div>
+    <!-- ===================== COLONNE GAUCHE : RECHERCHER / FILTRES ===================== -->
+    <div class="geo-sidebar-left">
 
-        <div id="mapLoader" class="map-loader">
-          <div class="map-loader-spinner"></div>
-          <p>Chargement de la carte...</p>
-        </div>
-        <div
-          class="map-legend"
-          tabindex="0"
-          role="button"
-          aria-label="En savoir plus sur la légende de la carte"
-          id="legendBtn"
-        >
-          <h6><i class="fa-solid fa-book"></i> Légende</h6>
-          <div class="map-legend-item">
-            <span class="map-legend-swatch" style="background:#6b4a35; border: 1px dashed #6b4a35;"></span>
-            <span>Zone/Quartier</span>
-          </div>
-          <div class="map-legend-item">
-            <span class="map-legend-swatch" style="background:#c9982e;"></span>
-            <span>Parcelle</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="sidebar-right">
-
-      <div class="card border-0 shadow-sm">
-        <div class="filter-section">
-          <h5 tabindex="0" role="button" id="couchesTitle">
-            <i class="fa-solid fa-layer-group"></i> Couches
-          </h5>
-          <div class="control-toggle">
-            <label>
-              <input type="checkbox" id="toggle-zones" checked>
-              <span>Zones/Quartiers</span>
-            </label>
-          </div>
-          <div class="control-toggle">
-            <label>
-              <input type="checkbox" id="toggle-parcelles" checked>
-              <span>Parcelles</span>
-            </label>
-          </div>
-        </div>
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="rechercheTitle">
+          <i class="fa-solid fa-magnifying-glass"></i> Rechercher
+        </button>
+        <label class="geo-field-label" for="search-nicad">Numéro NICAD</label>
+        <input type="text" id="search-nicad" class="geo-field-input" placeholder="Entrer NICAD...">
+        <button id="btnSearchParcelle" class="geo-btn geo-btn-primary geo-btn-block" style="margin-top:10px;">
+          <i class="fa-solid fa-magnifying-glass"></i> Rechercher
+        </button>
+        <div id="search-result" class="geo-tool-result" aria-live="polite"></div>
       </div>
 
-      <div class="card border-0 shadow-sm">
-        <div class="filter-section">
-          <h5 tabindex="0" role="button" id="itineraireTitle">
-            <i class="fa-solid fa-location-crosshairs"></i> Itinéraire
-          </h5>
-          <button id="btnGeolocaliser" class="btn btn-sm btn-primary" style="width:100%;">
-            <i class="fa-solid fa-location-dot"></i> Me géolocaliser
-          </button>
-          <div id="position-status" style="margin-top:8px; font-size:12px;" aria-live="polite"></div>
-          <div id="route-info" style="margin-top:8px; font-size:13px; display:none;">
-            <div><b>Distance :</b> <span id="route-distance"></span></div>
-            <div><b>Durée estimée :</b> <span id="route-duree"></span></div>
-            <button id="btnEffacerItineraire" class="btn btn-sm btn-outline-danger" style="width:100%; margin-top:6px;">
-              <i class="fa-solid fa-xmark"></i> Effacer l'itinéraire
-            </button>
-          </div>
-        </div>
-      </div>
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="filtresTitle">
+          <i class="fa-solid fa-filter"></i> Filtres
+        </button>
 
-      <div class="card border-0 shadow-sm">
-        <div class="filter-section">
-          <h5 tabindex="0" role="button" id="rechercheTitle">
-            <i class="fa-solid fa-magnifying-glass"></i> Rechercher
-          </h5>
-          <input type="text" id="search-nicad" class="search-input" placeholder="Entrer NICAD...">
-          <button id="btnSearchParcelle" class="btn btn-sm btn-primary" style="width:100%; margin-top:8px;">Rechercher</button>
-          <div id="search-result" style="margin-top:8px; font-size:12px;" aria-live="polite"></div>
-        </div>
-      </div>
+        <label class="geo-field-label" for="search-infra">Rechercher une infrastructure</label>
+        <input type="text" id="search-infra" class="geo-field-input" placeholder="Nom de l'infrastructure...">
+        <button id="btnSearchInfra" class="geo-btn geo-btn-primary geo-btn-block" style="margin-top:8px;">
+          <i class="fa-solid fa-magnifying-glass"></i> Rechercher
+        </button>
+        <div id="search-infra-result" class="geo-tool-result"></div>
 
-      <div class="card border-0 shadow-sm">
-        <div class="filter-section">
-          <h5 tabindex="0" role="button" id="filtresTitle">
-            <i class="fa-solid fa-filter"></i> Filtres
-          </h5>
+        <label class="geo-field-label" for="filter-infra-categorie">Type d'infrastructure</label>
+        <select id="filter-infra-categorie" class="geo-field-select">
+          <option value="">-- Tous les types --</option>
+        </select>
 
-          <label for="filter-zone" style="font-size:13px; font-weight:500; margin-top:8px; display:block;">Zone/Quartier</label>
-          <select id="filter-zone" class="search-input">
-            <option value="">-- Toutes les zones --</option>
-          </select>
+        <label class="geo-layer-item" style="margin-top:10px;">
+          <input type="checkbox" id="toggle-carte-chaleur">
+          <span>Grille de densité (mailles)</span>
+        </label>
 
-          <label for="filter-occupation" style="font-size:13px; font-weight:500; margin-top:8px; display:block;">Occupation du sol</label>
-          <select id="filter-occupation" class="search-input">
-            <option value="">-- Toutes --</option>
-          </select>
+        <label class="geo-field-label" for="filter-occupation">Occupation du sol</label>
+        <select id="filter-occupation" class="geo-field-select">
+          <option value="">-- Toutes --</option>
+        </select>
 
-          <div class="filter-actions">
-            <button id="btnReinitialiser" class="btn btn-sm btn-outline-secondary">
-              <i class="fa-solid fa-rotate-left"></i> Réinitialiser
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card border-0 shadow-sm">
-        <div class="filter-section">
-          <h5 tabindex="0" role="button" id="exportTitle">
-            <i class="fa-solid fa-download"></i> Exporter
-          </h5>
-          <button id="btnExportCSV" class="btn btn-sm btn-success export-btn">
-            <i class="fa-solid fa-file-csv"></i> CSV
-          </button>
-          <button id="btnExportGeoJSON" class="btn btn-sm btn-info export-btn">
-            <i class="fa-solid fa-map"></i> GeoJSON
+        <div class="geo-form-actions">
+          <button id="btnReinitialiser" class="geo-btn geo-btn-ghost geo-btn-block">
+            <i class="fa-solid fa-rotate-left"></i> Réinitialiser
           </button>
         </div>
       </div>
 
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="rayonTitle">
+          <i class="fa-solid fa-circle-dot"></i> Rayon de couverture
+        </button>
+        <label class="geo-field-label" for="rayon-infra-select">Centrer sur une infrastructure</label>
+        <select id="rayon-infra-select" class="geo-field-select">
+          <option value="">Choisir une infrastructure...</option>
+        </select>
+        <label class="geo-field-label">Rayon</label>
+        <input type="range" id="rayon-slider" min="100" max="3000" step="100" value="500" class="geo-field-range">
+        <div class="geo-radius-value"><span id="rayon-value">500</span> m</div>
+        <div id="rayon-result" class="geo-tool-result"></div>
+      </div>
+
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="sousDesservisTitle">
+          <i class="fa-solid fa-triangle-exclamation"></i> Zones sous-desservies
+        </button>
+        <label class="geo-field-label">Distance seuil</label>
+        <select id="seuil-desserte" class="geo-field-select">
+          <option value="300">300 m</option>
+          <option value="500" selected>500 m</option>
+          <option value="1000">1 km</option>
+        </select>
+        <button id="btnAnalyserDesserte" class="geo-btn geo-btn-primary geo-btn-block" style="margin-top:8px;">
+          <i class="fa-solid fa-magnifying-glass-chart"></i> Analyser
+        </button>
+        <div id="sousDesservisResult" class="geo-tool-result"></div>
+      </div>
+
+      <!-- ===== NOUVEAU : Statistiques par quartier ===== -->
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="quartierTitle">
+          <i class="fa-solid fa-map-location-dot"></i> Statistiques par quartier
+        </button>
+        <label class="geo-field-label" for="quartier-select">Sélectionner un quartier</label>
+        <select id="quartier-select" class="geo-field-select">
+          <option value="">-- Tous les quartiers --</option>
+        </select>
+        <div id="quartier-fiche" style="display:none; margin-top:6px;">
+          <div class="geo-stat-card"><div class="geo-stat-label">Parcelles</div><div class="geo-stat-value" id="qNbParcelles">--</div></div>
+          <div class="geo-stat-card"><div class="geo-stat-label">Superficie du quartier</div><div class="geo-stat-value" id="qSuperficieQuartier">--</div></div>
+          <div class="geo-stat-card"><div class="geo-stat-label">Superficie occupée (parcelles)</div><div class="geo-stat-value" id="qSuperficieParcelles">--</div></div>
+          <div class="geo-stat-card"><div class="geo-stat-label">Taux d'occupation</div><div class="geo-stat-value" id="qTauxOccupation">--</div></div>
+        </div>
+        <label class="geo-layer-item" style="margin-top:10px;">
+          <input type="checkbox" id="toggle-choropleth">
+          <span>Carte de pression foncière (densité de parcelles)</span>
+        </label>
+      </div>
+
+      <!-- ===== NOUVEAU : Comparaison des quartiers ===== -->
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="comparaisonTitle">
+          <i class="fa-solid fa-chart-column"></i> Comparaison des quartiers
+        </button>
+        <div id="quartiers-classement" class="geo-quartier-top3"></div>
+        <div id="quartiers-barchart" style="margin-top:12px;"></div>
+        <button type="button" id="quartiers-voir-plus" class="geo-quartier-voir-plus"></button>
+      </div>
+
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="voronoiTitle">
+          <i class="fa-solid fa-diagram-project"></i> Zones de desserte (Voronoï)
+        </button>
+        <label class="geo-layer-item">
+          <input type="checkbox" id="toggle-voronoi">
+          <span>Afficher les zones de desserte</span>
+        </label>
+        <div id="voronoiResult" class="geo-tool-result"></div>
+      </div>
+
     </div>
+
+    <!-- ===================== COLONNE CENTRALE : CARTE ===================== -->
+    <div class="geo-map-col" id="mapFrame">
+      <div id="map"></div>
+
+      <div class="geo-map-toolbar">
+        <div class="geo-basemap-switch" id="basemapSwitch">
+          <button type="button" class="geo-basemap-chip active" data-basemap="osm">Plan</button>
+          <button type="button" class="geo-basemap-chip" data-basemap="sat">Satellite</button>
+          <button type="button" class="geo-basemap-chip" data-basemap="light">Carto Light</button>
+        </div>
+        <button type="button" class="geo-fullscreen-btn" id="btnFullscreen" title="Plein écran">
+          <i class="fa-solid fa-expand"></i>
+        </button>
+      </div>
+
+      <div id="legendeDensite"></div>
+      <div id="mapLoader" class="map-loader">
+        <div class="map-loader-spinner"></div>
+        <p>Chargement de la carte...</p>
+      </div>
+      <div class="map-legend" tabindex="0" role="button" aria-label="En savoir plus sur la légende de la carte" id="legendBtn">
+        <h6><i class="fa-solid fa-book"></i> Légende</h6>
+        <div class="map-legend-item">
+          <span class="map-legend-swatch" style="background:#6b4a35; border: 1px dashed #6b4a35;"></span>
+          <span>Zone/Quartier</span>
+        </div>
+        <div class="map-legend-item">
+          <span class="map-legend-swatch" style="background:#c9982e;"></span>
+          <span>Parcelle</span>
+        </div>
+        <div class="map-legend-item">
+          <span class="map-legend-swatch" style="background:#7b3fa0;"></span>
+          <span>Parcelle avec infrastructure</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== COLONNE DROITE : STATS / COUCHES / ITINERAIRE / EXPORT ===================== -->
+    <div class="geo-sidebar-right">
+
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="statistiquesTitle">
+          <i class="fa-solid fa-chart-simple"></i> Statistiques
+        </button>
+        <div class="geo-stat-card">
+          <div class="geo-stat-label">Parcelles affichées</div>
+          <div class="geo-stat-value" id="statParcelles">--</div>
+        </div>
+        <div class="geo-stat-card">
+          <div class="geo-stat-label">Superficie totale</div>
+          <div class="geo-stat-value" id="statSuperficie">--</div>
+        </div>
+        <div class="geo-stat-card">
+          <div class="geo-stat-label">Infrastructures affichées</div>
+          <div class="geo-stat-value" id="statInfra">--</div>
+        </div>
+      </div>
+
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="couchesTitle">
+          <i class="fa-solid fa-layer-group"></i> Couches SIG
+        </button>
+        <div class="geo-layer-list">
+          <label class="geo-layer-item"><input type="checkbox" id="toggle-zones" checked><span>Zones/Quartiers</span></label>
+          <label class="geo-layer-item"><input type="checkbox" id="toggle-parcelles" checked><span>Parcelles</span></label>
+          <label class="geo-layer-item"><input type="checkbox" id="toggle-sections"><span>Sections cadastrales</span></label>
+          <label class="geo-layer-item"><input type="checkbox" id="toggle-limites" checked><span>Limites administratives</span></label>
+        </div>
+      </div>
+
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="selectionTitle">
+          <i class="fa-solid fa-draw-polygon"></i> Sélection spatiale
+        </button>
+        <div class="geo-measure-group" style="margin-top:0;">
+          <button type="button" class="geo-measure-btn" id="btnDessinPolygone"><i class="fa-solid fa-draw-polygon"></i> Polygone</button>
+          <button type="button" class="geo-measure-btn" id="btnDessinRectangle"><i class="fa-regular fa-square"></i> Rectangle</button>
+          <button type="button" class="geo-measure-btn" id="btnDessinCercle"><i class="fa-regular fa-circle"></i> Cercle</button>
+        </div>
+        <div id="selection-aide" class="geo-tool-result">Choisissez une forme, puis dessinez-la sur la carte.</div>
+        <div id="selection-resultat" style="display:none;">
+          <div class="geo-stat-card"><div class="geo-stat-label">Parcelles sélectionnées</div><div class="geo-stat-value" id="selNbParcelles">--</div></div>
+          <div class="geo-stat-card"><div class="geo-stat-label">Superficie cumulée</div><div class="geo-stat-value" id="selSuperficie">--</div></div>
+          <div id="selOccupation" class="geo-tool-result" style="color:#766c5d;"></div>
+          <div id="selection-liste" class="geo-selection-liste"></div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button type="button" id="btnSelectionCSV" class="geo-btn geo-btn-ghost geo-btn-block"><i class="fa-solid fa-file-csv"></i> CSV</button>
+            <button type="button" id="btnSelectionGeoJSON" class="geo-btn geo-btn-ghost geo-btn-block"><i class="fa-solid fa-map"></i> GeoJSON</button>
+          </div>
+          <button type="button" id="btnSelectionEffacer" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px;"><i class="fa-solid fa-trash"></i> Effacer la sélection</button>
+        </div>
+      </div>
+
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="itineraireTitle">
+          <i class="fa-solid fa-location-crosshairs"></i> Itinéraire
+        </button>
+        <button id="btnGeolocaliser" class="geo-btn geo-btn-ghost geo-btn-block">
+          <i class="fa-solid fa-location-dot"></i> Me géolocaliser
+        </button>
+        <div id="position-status" style="margin-top:8px; font-size:12px;" aria-live="polite"></div>
+
+        <div id="proximite-section" style="margin-top:12px; display:none;">
+          <label class="geo-field-label" style="margin-top:0;">Infrastructures les plus proches</label>
+          <div id="proximite-liste"></div>
+        </div>
+
+        <div class="geo-measure-group">
+          <button type="button" class="geo-measure-btn" id="btnMesureDistance">
+            <i class="fa-solid fa-ruler"></i> Distance
+          </button>
+          <button type="button" class="geo-measure-btn" id="btnMesureSurface">
+            <i class="fa-solid fa-vector-square"></i> Surface
+          </button>
+        </div>
+        <div class="geo-measure-result" id="measureResult"></div>
+
+        <div id="route-info" style="margin-top:8px; font-size:13px; display:none;">
+          <div><b>Distance :</b> <span id="route-distance"></span></div>
+          <div><b>Durée estimée :</b> <span id="route-duree"></span></div>
+          <button id="btnEffacerItineraire" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px;">
+            <i class="fa-solid fa-xmark"></i> Effacer l'itinéraire
+          </button>
+        </div>
+      </div>
+
+      <div class="geo-panel">
+        <button type="button" class="geo-panel-title" id="exportTitle">
+          <i class="fa-solid fa-download"></i> Exporter
+        </button>
+        <button id="btnExportCSV" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-bottom:8px;">
+          <i class="fa-solid fa-file-csv"></i> Exporter en CSV
+        </button>
+        <button id="btnExportGeoJSON" class="geo-btn geo-btn-ghost geo-btn-block">
+          <i class="fa-solid fa-map"></i> Exporter en GeoJSON
+        </button>
+      </div>
+
+    </div>
+
   </div>
 </section>
 {% endblock %}
@@ -348,31 +543,45 @@
       de votre choix, en cliquant sur le bouton itinéraire dans sa fiche.`,
     recherche: `Le panneau recherche vous permet de retrouver instantanément une parcelle
       en tapant son numéro NICAD. La carte se centre alors automatiquement dessus.`,
-    filtres: `Le panneau filtres vous permet d'afficher uniquement les parcelles d'une zone
-      ou d'un quartier précis, ou selon leur occupation du sol.`,
+    filtres: `Le panneau filtres vous permet d'afficher uniquement les infrastructures d'un type
+      choisi, ou les parcelles selon leur occupation du sol.`,
+    rayon: `Le panneau rayon de couverture vous permet de choisir une infrastructure et de
+      voir combien de parcelles se trouvent dans un rayon donné autour d'elle.`,
+    sousDesservis: `Le panneau zones sous-desservies colore en rouge les secteurs du territoire
+      qui se trouvent au-delà d'une distance choisie de toute infrastructure recensée.`,
+    voronoi: `Le panneau zones de desserte divise le territoire en polygones, chacun représentant
+      la zone la plus proche d'une infrastructure donnée plutôt que de toute autre.`,
     statistiques: `Le panneau statistiques affiche en temps réel le nombre de parcelles
-      actuellement affichées, ainsi que leur superficie totale.`,
+      et d'infrastructures actuellement visibles sur la carte, ainsi que leur superficie totale.`,
     export: `Le panneau export vous permet de télécharger les données des parcelles affichées,
       au format C S V pour un tableur, ou au format Géo J S O N pour un logiciel cartographique.`,
     legende: `La légende explique le code couleur de la carte : brun en pointillé pour les zones
       et quartiers, doré pour les parcelles.`,
+    selection: `Le panneau sélection spatiale vous permet de dessiner un polygone, un rectangle ou un cercle
+      sur la carte. Toutes les parcelles touchées par cette forme sont alors comptées, leur superficie
+      cumulée est calculée, et vous pouvez exporter la sélection.`,
+    quartier: `Le panneau statistiques par quartier vous permet de choisir un quartier et de voir
+      son nombre de parcelles, sa superficie totale et sa superficie occupée. La carte se centre
+      automatiquement sur le quartier choisi et masque les autres.`,
+    comparaison: `Le panneau comparaison affiche le classement des quartiers selon leur nombre
+      de parcelles, avec les trois quartiers les plus représentés en tête. Cliquez sur une barre
+      pour vous rendre directement sur ce quartier.`,
   };
 
   if (typeof VoiceGuide !== 'undefined') {
     VoiceGuide.setPageText(`
       Vous êtes sur le géoportail. Cette carte interactive affiche toutes les parcelles
-      de la commune. À droite, plusieurs panneaux vous permettent de filtrer,
+      de la commune. À gauche, plusieurs panneaux vous permettent de filtrer,
       rechercher, exporter les données ou calculer un itinéraire. Cliquez sur le titre
       d'un panneau à tout moment pour en savoir plus sur son fonctionnement.
     `.replace(/\s+/g, ' ').trim());
   }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script>
-  // La commune a ~40 000 parcelles : au chargement (zoom large), on
-  // affiche TOUTES les parcelles en géométrie allégée (api_parcelles_
-  // toutes). Dès qu'on zoome suffisamment, on bascule sur les parcelles
-  // en détail complet, limitées à la zone visible (bbox).
   let bboxReloadTimer = null;
 
   // ============================================================
@@ -380,9 +589,11 @@
   // ============================================================
 
   let map;
-  let coucheZones, coucheParcelles, coucheItineraire, userMarker;
-  let zonesVisible = true, parcellesVisible = true;
+  let coucheZones, coucheParcelles, coucheItineraire, userMarker, coucheSections, coucheLimites;
+  let zonesVisible = true, parcellesVisible = true, sectionsVisible = false, limitesVisible = true;
   let allZones = { type: 'FeatureCollection', features: [] };
+  let allSections = { type: 'FeatureCollection', features: [] };
+  let allLimites = { type: 'FeatureCollection', features: [] };
   let allParcelles = { type: 'FeatureCollection', features: [] };
   let filteredParcelles = [];
   let selectedFeature = null;
@@ -404,29 +615,89 @@
     return feature && feature.properties ? feature.properties.nicad : null;
   }
 
+  // Une parcelle dans la sélection spatiale est colorée en bleu (sauf si elle est la parcelle active)
   function styleParcelle(feature) {
+    if (selectionSet.size > 0 && selectionSet.has(feature) && idDeFeature(feature) !== idDeFeature(selectedFeature)) {
+      return { renderer: renduCanvas, color: '#3468a8', weight: 1.5, fillColor: '#3468a8', fillOpacity: 0.6 };
+    }
+    return styleParcelleBase(feature);
+  }
+
+  function styleParcelleBase(feature) {
     const estSelectionnee = idDeFeature(feature) === idDeFeature(selectedFeature);
+    const infras = feature.properties.infrastructures;
+    const aUneInfrastructure = infras && infras.length > 0;
+
+    if (estSelectionnee) {
+      return {
+        renderer: renduCanvas,
+        color: '#2f7a4f',
+        weight: 2,
+        fillColor: '#2f7a4f',
+        fillOpacity: 0.7,
+      };
+    }
+    if (aUneInfrastructure) {
+      const couleurCategorie = infras[0].couleur || '#7b3fa0';
+      return {
+        renderer: renduCanvas,
+        color: couleurCategorie,
+        weight: 1.5,
+        fillColor: couleurCategorie,
+        fillOpacity: 0.30,
+      };
+    }
     return {
       renderer: renduCanvas,
-      color: estSelectionnee ? '#2f7a4f' : '#c9982e',
-      weight: estSelectionnee ? 2 : 1,
-      fillColor: estSelectionnee ? '#2f7a4f' : '#c9982e',
-      fillOpacity: estSelectionnee ? 0.7 : 0.35,
+      color: '#c9982e',
+      weight: 1,
+      fillColor: '#c9982e',
+      fillOpacity: 0.35,
     };
   }
 
-  function styleZone() {
+  // ===== NOUVEAU : style de zone avec surbrillance / atténuation / choroplèthe =====
+  function nomZone(feature) {
+    return (feature.properties && feature.properties.nom) || 'Sans nom';
+  }
+
+  function couleurChoropleth(ratio) {
+    const paliers = ['#fdf2da', '#f3d999', '#e3b256', '#c9982e', '#9c6b1f', '#6b4a35'];
+    return paliers[Math.min(paliers.length - 1, Math.floor(ratio * (paliers.length - 1)))];
+  }
+
+  function styleZoneAvecEtat(feature) {
+    const nom = nomZone(feature);
+    const estSelectionnee = quartierSelectionne && nom === quartierSelectionne;
+    const estAtenuee = quartierSelectionne && !estSelectionnee;
+
+    if (modeChoroplethActif) {
+      const q = statsParQuartier.find(function (s) { return s.nom === nom; });
+      const maxDensite = maxDensiteQuartiers;
+      const ratio = maxDensite > 0 && q ? q.densite / maxDensite : 0;
+      return { renderer: renduCanvas, color: '#6b4a35', weight: estSelectionnee ? 3 : 1.5, fillColor: couleurChoropleth(ratio), fillOpacity: estAtenuee ? 0.15 : 0.65 };
+    }
+    if (estSelectionnee) {
+      return { renderer: renduCanvas, color: '#2f7a4f', weight: 3, fillColor: '#2f7a4f', fillOpacity: 0.18 };
+    }
     return {
       renderer: renduCanvas,
       color: '#6b4a35',
       weight: 2,
       dashArray: '4 3',
       fillColor: '#6b4a35',
-      fillOpacity: 0.08,
+      fillOpacity: estAtenuee ? 0.03 : 0.08,
     };
   }
 
+  // Regroupe les redessins successifs en un seul (évite de reconstruire ~40 000 formes 5 fois au démarrage)
+  let redessinTimer = null;
   function redessinerCouches() {
+    if (redessinTimer) return;
+    redessinTimer = setTimeout(function () { redessinTimer = null; redessinerCouchesImmediat(); }, 60);
+  }
+
+  function redessinerCouchesImmediat() {
     const parcellesAffichees = filteredParcelles.length > 0 ? filteredParcelles : (allParcelles.features || []);
 
     if (coucheParcelles) map.removeLayer(coucheParcelles);
@@ -434,6 +705,7 @@
       style: styleParcelle,
       onEachFeature: function (feature, layer) {
         layer.on('click', function (e) {
+          if (modeDessinActif) return;
           selectedFeature = feature;
           const props = feature.properties;
           fermerPopup();
@@ -452,7 +724,20 @@
               (props.occupation_sol ? '<div class="fp-row"><span class="fp-label">Occupation du sol</span><span class="fp-value">' + props.occupation_sol + '</span></div>' : '') +
               (props.zone_nom ? '<div class="fp-row"><span class="fp-label">Zone</span><span class="fp-value">' + props.zone_nom + '</span></div>' : '') +
               (props.adresse_parcelle ? '<div class="fp-row"><span class="fp-label">Secteur</span><span class="fp-value">' + props.adresse_parcelle + '</span></div>' : '') +
-              '<a class="fp-link" href="{% url "recherche_cadastrale" %}?q=' + encodeURIComponent(props.nicad || '') + '">Voir la fiche complète →</a>' +
+              ((props.infrastructures && props.infrastructures.length > 0) ?
+                '<div class="fp-row" style="flex-direction:column; align-items:flex-start; gap:4px;">' +
+                  '<span class="fp-label" style="color:#7b3fa0;"><i class="fa-solid fa-building"></i> Infrastructure(s) sur cette parcelle</span>' +
+                  props.infrastructures.map(function (i) {
+                    return '<span class="fp-value" style="font-size:12.5px;">' + i.nom + ' <em style="color:#766c5d;">(' + i.categorie + ')</em></span>';
+                  }).join('') +
+                '</div>'
+              : '') +
+              '<div style="display:flex; gap:10px; align-items:center; margin-top:12px;">' +
+                '<a class="fp-link" style="margin-top:0;" href="{% url "recherche_cadastrale" %}?q=' + encodeURIComponent(props.nicad || '') + '">Voir la fiche complète →</a>' +
+                '<button type="button" class="fp-link" id="fpShareBtn" style="margin-top:0; margin-left:auto; border:none; background:none; cursor:pointer;">' +
+                  '<i class="fa-solid fa-share-nodes"></i> Partager' +
+                '</button>' +
+              '</div>' +
             '</div>';
 
           popupActif = L.popup({ className: 'fiche-parcelle', closeButton: false, maxWidth: 300 })
@@ -463,6 +748,16 @@
           setTimeout(function () {
             const closeBtn = document.getElementById('fpCloseBtn');
             if (closeBtn) closeBtn.addEventListener('click', fermerFicheParcelle);
+            const shareBtn = document.getElementById('fpShareBtn');
+            if (shareBtn) shareBtn.addEventListener('click', function () {
+              const lien = window.location.origin + window.location.pathname + '?q=' + encodeURIComponent(props.nicad || '');
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(lien).then(function () {
+                  shareBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
+                  setTimeout(function () { shareBtn.innerHTML = '<i class="fa-solid fa-share-nodes"></i> Partager'; }, 2000);
+                });
+              }
+            });
           }, 0);
           redessinerCouches();
         });
@@ -472,9 +767,17 @@
 
     if (coucheZones) map.removeLayer(coucheZones);
     coucheZones = L.geoJSON(allZones, {
-      style: styleZone,
+      style: styleZoneAvecEtat,
       onEachFeature: function (feature, layer) {
+        layer.on('mouseover', function () {
+          if (!modeChoroplethActif) layer.setStyle({ weight: 3, color: '#2f7a4f' });
+        });
+        layer.on('mouseout', function () { coucheZones.resetStyle(layer); });
         layer.on('click', function (e) {
+          if (modeDessinActif) return;
+          const nom = nomZone(feature);
+          document.getElementById('quartier-select').value = nom;
+          selectionnerQuartier(nom);
           fermerPopup();
           popupActif = L.popup()
             .setLatLng(e.latlng)
@@ -485,22 +788,763 @@
     });
     if (zonesVisible) coucheZones.addTo(map);
 
+    if (coucheSections) map.removeLayer(coucheSections);
+    coucheSections = L.geoJSON(allSections, {
+      style: function () {
+        return { renderer: renduCanvas, color: '#3468a8', weight: 2, dashArray: '2 6', fillOpacity: 0 };
+      },
+      onEachFeature: function (feature, layer) {
+        layer.on('click', function (e) {
+          fermerPopup();
+          popupActif = L.popup()
+            .setLatLng(e.latlng)
+            .setContent('<strong>Section cadastrale n°' + (feature.properties.numero || '') + '</strong>')
+            .openOn(map);
+        });
+      }
+    });
+    if (sectionsVisible) coucheSections.addTo(map);
+
+    if (coucheLimites) map.removeLayer(coucheLimites);
+    coucheLimites = L.geoJSON(allLimites, {
+      style: function () {
+        return { renderer: renduCanvas, color: '#3c2a20', weight: 3, fillOpacity: 0 };
+      },
+      onEachFeature: function (feature, layer) {
+        layer.on('click', function (e) {
+          fermerPopup();
+          popupActif = L.popup()
+            .setLatLng(e.latlng)
+            .setContent('<strong>' + (feature.properties.nom || '') + '</strong>')
+            .openOn(map);
+        });
+      }
+    });
+    if (limitesVisible) coucheLimites.addTo(map);
+
+    // Les parcelles restent au-dessus des zones/sections/limites : sinon ces couches (qui ont un remplissage
+    // invisible) interceptent le clic et affichent le nom de la commune au lieu de la fiche parcelle.
+    if (parcellesVisible && coucheParcelles && !modeChaleurActif) coucheParcelles.bringToFront();
+
     if (coucheItineraire) { map.removeLayer(coucheItineraire); coucheItineraire = null; }
+
+    mettreAJourStats(parcellesAffichees);
+  }
+
+  function mettreAJourStats(features) {
+    const elParcelles = document.getElementById('statParcelles');
+    if (elParcelles) elParcelles.textContent = features.length.toLocaleString('fr-FR');
+
+    let superficieTotale = 0;
+    features.forEach(function (f) { superficieTotale += (f.properties.superficie || 0); });
+    const elSuperficie = document.getElementById('statSuperficie');
+    if (elSuperficie) {
+      elSuperficie.textContent = superficieTotale >= 10000
+        ? (superficieTotale / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' ha'
+        : Math.round(superficieTotale).toLocaleString('fr-FR') + ' m²';
+    }
+
+    let totalInfra = infraSansParcelle.length;
+    features.forEach(function (f) { totalInfra += (f.properties.infrastructures || []).length; });
+    const elInfra = document.getElementById('statInfra');
+    if (elInfra) elInfra.textContent = totalInfra.toLocaleString('fr-FR');
+  }
+
+  const basemaps = {
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, subdomains: 'abc', referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }),
+    sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, attribution: 'Tiles &copy; Esri'
+    }),
+    light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+    }),
+  };
+  let basemapActif = 'osm';
+
+  function changerFondDeCarte(cle) {
+    if (!basemaps[cle] || cle === basemapActif) return;
+    map.removeLayer(basemaps[basemapActif]);
+    basemaps[cle].addTo(map);
+    basemapActif = cle;
+    document.querySelectorAll('.geo-basemap-chip').forEach(function (chip) {
+      chip.classList.toggle('active', chip.getAttribute('data-basemap') === cle);
+    });
+  }
+
+  function basculerPleinEcran() {
+    const frame = document.getElementById('mapFrame');
+    if (!document.fullscreenElement) {
+      if (frame.requestFullscreen) frame.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  }
+
+  document.addEventListener('fullscreenchange', function () {
+    const icone = document.querySelector('#btnFullscreen i');
+    if (!icone) return;
+    icone.className = document.fullscreenElement ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+    setTimeout(function () { if (map) map.invalidateSize(); }, 150);
+  });
+
+  // ===== Outils de mesure (distance / surface) =====
+  let modeMesure = null;
+  let pointsMesure = [];
+  let coucheMesure = null;
+
+  function calculerAireProjetee(latlngs) {
+    const crs = map.options.crs;
+    const pts = latlngs.map(function (ll) { return crs.project(ll); });
+    let aire = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      aire += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    }
+    return Math.abs(aire / 2);
+  }
+
+  function afficherResultatMesure(texte) {
+    const el = document.getElementById('measureResult');
+    el.textContent = texte;
+    el.style.display = 'block';
+  }
+
+  function redessinerMesure() {
+    if (coucheMesure) { map.removeLayer(coucheMesure); coucheMesure = null; }
+    if (pointsMesure.length < 2) return;
+
+    if (modeMesure === 'distance') {
+      coucheMesure = L.polyline(pointsMesure, { color: '#c9982e', weight: 3, dashArray: '6 4' }).addTo(map);
+      let total = 0;
+      for (let i = 1; i < pointsMesure.length; i++) {
+        total += pointsMesure[i - 1].distanceTo(pointsMesure[i]);
+      }
+      afficherResultatMesure(total >= 1000 ? (total / 1000).toFixed(2) + ' km' : Math.round(total) + ' m');
+    } else if (modeMesure === 'surface' && pointsMesure.length >= 3) {
+      coucheMesure = L.polygon(pointsMesure, { color: '#c9982e', weight: 2, fillColor: '#c9982e', fillOpacity: 0.2 }).addTo(map);
+      const aire = calculerAireProjetee(pointsMesure);
+      afficherResultatMesure(aire >= 10000 ? (aire / 10000).toFixed(2) + ' ha' : Math.round(aire) + ' m²');
+    } else if (modeMesure === 'surface') {
+      coucheMesure = L.polyline(pointsMesure, { color: '#c9982e', weight: 2, dashArray: '4 3' }).addTo(map);
+    }
+  }
+
+  function activerModeMesure(mode) {
+    modeMesure = (modeMesure === mode) ? null : mode;
+    pointsMesure = [];
+    if (coucheMesure) { map.removeLayer(coucheMesure); coucheMesure = null; }
+    document.getElementById('measureResult').style.display = 'none';
+    document.getElementById('btnMesureDistance').classList.toggle('active', modeMesure === 'distance');
+    document.getElementById('btnMesureSurface').classList.toggle('active', modeMesure === 'surface');
+    map.getContainer().style.cursor = modeMesure ? 'crosshair' : '';
+  }
+
+  // ===== Rayon de couverture =====
+  let coucheRayon = null;
+
+  function mettreAJourRayon() {
+    const select = document.getElementById('rayon-infra-select');
+    const opt = select.options[select.selectedIndex];
+    const result = document.getElementById('rayon-result');
+
+    if (coucheRayon) { map.removeLayer(coucheRayon); coucheRayon = null; }
+
+    if (!opt || !opt.value) {
+      if (result) result.textContent = '';
+      return;
+    }
+
+    const lat = parseFloat(opt.dataset.lat);
+    const lng = parseFloat(opt.dataset.lng);
+    const rayon = parseInt(document.getElementById('rayon-slider').value, 10);
+    const centre = L.latLng(lat, lng);
+
+    coucheRayon = L.circle(centre, {
+      radius: rayon,
+      color: '#b23b2e',
+      weight: 2.5,
+      fillColor: '#b23b2e',
+      fillOpacity: 0.15,
+    }).addTo(map);
+
+    map.flyTo(centre, 15);
+
+    let compte = 0;
+    (allParcelles.features || []).forEach(function (f) {
+      if (!f.geometry) return;
+      const centreParcelle = L.geoJSON(f).getBounds().getCenter();
+      if (centre.distanceTo(centreParcelle) <= rayon) compte++;
+    });
+
+    if (result) {
+      result.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-circle-check"></i> ' + compte + ' parcelle' + (compte > 1 ? 's' : '') + ' dans ce rayon</span>';
+    }
+  }
+
+  // ===== Zones sous-desservies =====
+  let coucheSousDesservis = null;
+
+  function analyserZonesSousDesservies() {
+    const seuil = parseInt(document.getElementById('seuil-desserte').value, 10);
+    const resultEl = document.getElementById('sousDesservisResult');
+
+    if (coucheSousDesservis) { map.removeLayer(coucheSousDesservis); coucheSousDesservis = null; }
+
+    const infras = toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle })
+      .filter(function (i) { return i.latitude != null && i.longitude != null; });
+
+    if (infras.length === 0) {
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Aucune infrastructure à analyser.</span>';
+      return;
+    }
+
+    resultEl.textContent = 'Calcul en cours...';
+
+    setTimeout(function () {
+      const bounds = (coucheParcelles && coucheParcelles.getBounds().isValid()) ? coucheParcelles.getBounds() : map.getBounds();
+      const pas = 0.0018; // environ 180 m a cette latitude
+      const groupe = L.layerGroup();
+      let cellulesSousDesservies = 0;
+      let totalCellules = 0;
+
+      for (let lat = bounds.getSouth(); lat <= bounds.getNorth(); lat += pas) {
+        for (let lng = bounds.getWest(); lng <= bounds.getEast(); lng += pas) {
+          totalCellules++;
+          const point = L.latLng(lat, lng);
+          let distMin = Infinity;
+          for (let i = 0; i < infras.length; i++) {
+            const d = point.distanceTo(L.latLng(infras[i].latitude, infras[i].longitude));
+            if (d < distMin) distMin = d;
+          }
+          if (distMin > seuil) {
+            cellulesSousDesservies++;
+            L.rectangle(
+              [[lat - pas / 2, lng - pas / 2], [lat + pas / 2, lng + pas / 2]],
+              { color: 'transparent', fillColor: '#b23b2e', fillOpacity: 0.35, weight: 0 }
+            ).addTo(groupe);
+          }
+        }
+      }
+
+      coucheSousDesservis = groupe;
+      coucheSousDesservis.addTo(map);
+
+      const pct = totalCellules > 0 ? Math.round((cellulesSousDesservies / totalCellules) * 100) : 0;
+      const seuilTxt = seuil >= 1000 ? (seuil / 1000) + ' km' : seuil + ' m';
+      resultEl.innerHTML = '<span style="color:#b23b2e;"><i class="fa-solid fa-triangle-exclamation"></i> ' + pct + '% du territoire affiché est à plus de ' + seuilTxt + ' de toute infrastructure</span>';
+    }, 50);
+  }
+
+  // ===== Zones de desserte (Voronoi / Thiessen) =====
+  let coucheVoronoi = null;
+
+  function basculerVoronoi(active) {
+    if (coucheVoronoi) { map.removeLayer(coucheVoronoi); coucheVoronoi = null; }
+    const resultEl = document.getElementById('voronoiResult');
+    if (!active) { resultEl.textContent = ''; return; }
+
+    if (typeof turf === 'undefined') {
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Bibliothèque Turf.js indisponible.</span>';
+      return;
+    }
+
+    const infras = toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle })
+      .filter(function (i) { return i.latitude != null && i.longitude != null; });
+
+    if (infras.length < 3) {
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Il faut au moins 3 infrastructures pour calculer des zones de desserte.</span>';
+      return;
+    }
+
+    try {
+      const points = turf.featureCollection(
+        infras.map(function (i) { return turf.point([i.longitude, i.latitude], { nom: i.nom, categorie: i.categorie, couleur: i.couleur }); })
+      );
+      const bounds = (coucheParcelles && coucheParcelles.getBounds().isValid()) ? coucheParcelles.getBounds() : map.getBounds();
+      const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+
+      const voronoiPolygones = turf.voronoi(points, { bbox: bbox });
+
+      coucheVoronoi = L.geoJSON(voronoiPolygones, {
+        style: function () {
+          return { color: '#6b4a35', weight: 1.3, fillColor: '#c9982e', fillOpacity: 0.06, dashArray: '3 4' };
+        },
+        onEachFeature: function (feature, layer) {
+          const idx = voronoiPolygones.features.indexOf(feature);
+          const infra = infras[idx];
+          if (infra) {
+            layer.bindPopup('<strong>Zone de desserte</strong><br>' + infra.nom + '<br><span style="color:#766c5d; font-size:12px;">' + infra.categorie + '</span>');
+          }
+        }
+      }).addTo(map);
+
+      resultEl.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-circle-check"></i> ' + infras.length + ' zones de desserte calculées</span>';
+    } catch (e) {
+      console.error('Erreur Voronoi:', e);
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Erreur lors du calcul des zones de desserte.</span>';
+    }
+  }
+
+  // ===== NOUVEAU : Statistiques par quartier =====
+  let statsParQuartier = [];
+  let parcellesParZone = {};
+  let maxDensiteQuartiers = 0;
+  let comparaisonDeployee = false;
+  let quartierSelectionne = null;
+  let modeChoroplethActif = false;
+
+  function calculerStatsQuartiers() {
+    parcellesParZone = {};
+    (allParcelles.features || []).forEach(function (f) {
+      const z = f.properties.zone_nom || '';
+      (parcellesParZone[z] = parcellesParZone[z] || []).push(f);
+    });
+    statsParQuartier = (allZones.features || []).map(function (zoneFeature) {
+      const nom = nomZone(zoneFeature);
+      let superficieQuartier = 0;
+      try { if (typeof turf !== 'undefined') superficieQuartier = turf.area(zoneFeature); } catch (e) {}
+
+      const parcellesDuQuartier = parcellesParZone[nom] || [];
+      let superficieParcelles = 0;
+      parcellesDuQuartier.forEach(function (f) { superficieParcelles += (f.properties.superficie || 0); });
+
+      return {
+        nom: nom,
+        feature: zoneFeature,
+        nbParcelles: parcellesDuQuartier.length,
+        superficieQuartier: superficieQuartier,
+        superficieParcelles: superficieParcelles,
+        densite: superficieQuartier > 0 ? parcellesDuQuartier.length / (superficieQuartier / 10000) : 0
+      };
+    });
+    statsParQuartier.sort(function (a, b) { return b.nbParcelles - a.nbParcelles; });
+    maxDensiteQuartiers = statsParQuartier.reduce(function (m, s) { return Math.max(m, s.densite); }, 0);
+  }
+
+  function formaterSurface(valeur) {
+    if (!valeur) return '0 m²';
+    return valeur >= 10000
+      ? (valeur / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' ha'
+      : Math.round(valeur).toLocaleString('fr-FR') + ' m²';
+  }
+
+  function remplirSelectQuartiers() {
+    const select = document.getElementById('quartier-select');
+    if (!select) return;
+    const valeurActuelle = select.value;
+    select.querySelectorAll('option:not(:first-child)').forEach(function (o) { o.remove(); });
+    statsParQuartier.slice().sort(function (a, b) { return a.nom.localeCompare(b.nom); }).forEach(function (q) {
+      const opt = document.createElement('option');
+      opt.value = q.nom; opt.textContent = q.nom;
+      select.appendChild(opt);
+    });
+    select.value = valeurActuelle;
+  }
+
+  function afficherFicheQuartier(nomQuartier) {
+    const fiche = document.getElementById('quartier-fiche');
+    if (!fiche) return;
+    const q = statsParQuartier.find(function (s) { return s.nom === nomQuartier; });
+    if (!q) { fiche.style.display = 'none'; return; }
+    document.getElementById('qNbParcelles').textContent = q.nbParcelles.toLocaleString('fr-FR');
+    document.getElementById('qSuperficieQuartier').textContent = formaterSurface(q.superficieQuartier);
+    document.getElementById('qSuperficieParcelles').textContent = formaterSurface(q.superficieParcelles);
+    const taux = q.superficieQuartier > 0 ? Math.min(100, (q.superficieParcelles / q.superficieQuartier) * 100) : 0;
+    document.getElementById('qTauxOccupation').textContent = taux.toFixed(1) + ' %';
+    fiche.style.display = 'block';
+  }
+
+  function selectionnerQuartier(nomQuartier) {
+    quartierSelectionne = nomQuartier || null;
+    if (quartierSelectionne) {
+      afficherFicheQuartier(quartierSelectionne);
+      const q = statsParQuartier.find(function (s) { return s.nom === quartierSelectionne; });
+      if (q) {
+        const coucheTemp = L.geoJSON(q.feature);
+        if (coucheTemp.getBounds().isValid()) map.fitBounds(coucheTemp.getBounds(), { padding: [30, 30] });
+        filteredParcelles = parcellesParZone[quartierSelectionne] || [];
+      }
+    } else {
+      const fiche = document.getElementById('quartier-fiche');
+      if (fiche) fiche.style.display = 'none';
+      filteredParcelles = [];
+    }
+    redessinerCouches();
+  }
+
+  function basculerChoropleth(active) {
+    modeChoroplethActif = active;
+    redessinerCouches();
+  }
+
+  function construireBarChartQuartiers() {
+    const conteneur = document.getElementById('quartiers-barchart');
+    const classement = document.getElementById('quartiers-classement');
+    const btnPlus = document.getElementById('quartiers-voir-plus');
+    if (!conteneur || !classement) return;
+    if (statsParQuartier.length === 0) {
+      conteneur.innerHTML = '<div style="font-size:12px; color:#766c5d;">Aucune donnée de quartier.</div>';
+      classement.innerHTML = '';
+      if (btnPlus) btnPlus.style.display = 'none';
+      return;
+    }
+    const maxNb = Math.max.apply(null, statsParQuartier.map(function (s) { return s.nbParcelles; }));
+
+    classement.innerHTML = statsParQuartier.slice(0, 3).map(function (q, idx) {
+      return '<div class="geo-quartier-top3-item"><span class="geo-quartier-top3-rank">' + (idx + 1) + '</span>' +
+        '<span style="flex:1; font-weight:600; color:var(--geo-brun-fonce);">' + q.nom + '</span>' +
+        '<span style="font-weight:700; color:var(--geo-vert);">' + q.nbParcelles + '</span></div>';
+    }).join('');
+
+    const LIMITE_COMPACTE = 5;
+    const liste = comparaisonDeployee ? statsParQuartier : statsParQuartier.slice(0, LIMITE_COMPACTE);
+    conteneur.className = comparaisonDeployee ? 'geo-quartier-scroll' : '';
+    conteneur.innerHTML = liste.map(function (q) {
+      const largeur = maxNb > 0 ? Math.round((q.nbParcelles / maxNb) * 100) : 0;
+      return '<div class="geo-quartier-bar-row" data-nom="' + q.nom.replace(/"/g, '&quot;') + '">' +
+        '<span class="geo-quartier-bar-label" title="' + q.nom.replace(/"/g, '&quot;') + '">' + q.nom + '</span>' +
+        '<span class="geo-quartier-bar-track"><span class="geo-quartier-bar-fill" style="width:' + largeur + '%;"></span></span>' +
+        '<span class="geo-quartier-bar-value">' + q.nbParcelles + '</span></div>';
+    }).join('');
+
+    if (btnPlus) {
+      if (statsParQuartier.length > LIMITE_COMPACTE) {
+        btnPlus.style.display = 'block';
+        btnPlus.textContent = comparaisonDeployee ? 'Réduire' : 'Voir tout (' + statsParQuartier.length + ' quartiers)';
+      } else {
+        btnPlus.style.display = 'none';
+      }
+    }
+
+    conteneur.querySelectorAll('.geo-quartier-bar-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        const nom = row.getAttribute('data-nom');
+        document.getElementById('quartier-select').value = nom;
+        selectionnerQuartier(nom);
+      });
+    });
+  }
+
+    function actualiserQuartiers() {
+    calculerStatsQuartiers();
+    remplirSelectQuartiers();
+    construireBarChartQuartiers();
+    if (quartierSelectionne) afficherFicheQuartier(quartierSelectionne);
+  }
+
+  // ===== NOUVEAU : Échelle, boussole et coordonnées (WGS84 / UTM 28N) =====
+  let systemeCoord = 'wgs84';
+  let dernierePosition = null;
+
+  // Conversion WGS84 -> UTM zone 28 Nord (EPSG:32628), méridien central -15°
+  function versUTM28N(lat, lng) {
+    const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996;
+    const e2 = f * (2 - f), e4 = e2 * e2, e6 = e4 * e2, ep2 = e2 / (1 - e2);
+    const phi = lat * Math.PI / 180;
+    const dLam = (lng + 15) * Math.PI / 180;
+    const sin = Math.sin(phi), cos = Math.cos(phi), tan = Math.tan(phi);
+    const N = a / Math.sqrt(1 - e2 * sin * sin);
+    const T = tan * tan, C = ep2 * cos * cos, A = dLam * cos;
+    const M = a * ((1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256) * phi
+      - (3 * e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024) * Math.sin(2 * phi)
+      + (15 * e4 / 256 + 45 * e6 / 1024) * Math.sin(4 * phi)
+      - (35 * e6 / 3072) * Math.sin(6 * phi));
+    const x = k0 * N * (A + (1 - T + C) * Math.pow(A, 3) / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * Math.pow(A, 5) / 120) + 500000;
+    const y = k0 * (M + N * tan * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * Math.pow(A, 4) / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * Math.pow(A, 6) / 720));
+    return { x: x, y: y };
+  }
+
+  function formaterCoordonnees(ll) {
+    if (systemeCoord === 'utm') {
+      const u = versUTM28N(ll.lat, ll.lng);
+      return 'X ' + Math.round(u.x).toLocaleString('fr-FR') + '   Y ' + Math.round(u.y).toLocaleString('fr-FR');
+    }
+    return ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5);
+  }
+
+  function majAffichageCoord() {
+    const texte = document.getElementById('coordTexte');
+    const bouton = document.getElementById('coordToggle');
+    if (texte) texte.textContent = dernierePosition ? formaterCoordonnees(dernierePosition) : 'Survolez la carte';
+    if (bouton) bouton.textContent = systemeCoord === 'utm' ? 'UTM 28N' : 'WGS84';
+  }
+
+  function ajouterControlesCarte() {
+    L.control.scale({ position: 'bottomright', metric: true, imperial: false, maxWidth: 140 }).addTo(map);
+
+    const ControleCoord = L.Control.extend({
+      options: { position: 'bottomright' },
+      onAdd: function () {
+        const div = L.DomUtil.create('div', 'geo-coord-control');
+        div.innerHTML = '<span id="coordTexte">Survolez la carte</span>' +
+          '<button type="button" id="coordToggle" class="geo-coord-toggle" title="Changer de système de coordonnées">WGS84</button>';
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+        return div;
+      }
+    });
+    new ControleCoord().addTo(map);
+
+    const Boussole = L.Control.extend({
+      options: { position: 'topleft' },
+      onAdd: function () {
+        const div = L.DomUtil.create('div', 'geo-boussole');
+        div.title = 'Nord';
+        div.innerHTML = '<svg viewBox="0 0 48 56" width="42" height="49" aria-label="Nord">' +
+          '<text x="24" y="11" text-anchor="middle" font-size="12" font-weight="700" fill="#3c2a20" font-family="Arial, sans-serif">N</text>' +
+          '<circle cx="24" cy="34" r="18" fill="rgba(255,255,255,0.96)" stroke="#e6ded0"/>' +
+          '<polygon points="24,19 29,34 24,31 19,34" fill="#b23b2e"/>' +
+          '<polygon points="24,49 29,34 24,31 19,34" fill="#3c2a20" opacity="0.85"/>' +
+          '</svg>';
+        return div;
+      }
+    });
+    new Boussole().addTo(map);
+
+    document.getElementById('coordToggle').addEventListener('click', function () {
+      systemeCoord = systemeCoord === 'wgs84' ? 'utm' : 'wgs84';
+      majAffichageCoord();
+    });
+    let rafEnAttente = false;
+    map.on('mousemove', function (e) {
+      dernierePosition = e.latlng;
+      if (rafEnAttente) return;
+      rafEnAttente = true;
+      requestAnimationFrame(function () { rafEnAttente = false; majAffichageCoord(); });
+    });
+    majAffichageCoord();
+  }
+
+  // ===== NOUVEAU : Sélection spatiale par dessin (polygone / rectangle / cercle) =====
+  let gestionnaireDessin = null;
+  let typeDessinActif = null;
+  let modeDessinActif = false;
+  let coucheFormeSelection = null;
+  let rendererSelection = null;
+  let selectionFeatures = [];
+  let selectionSet = new Set();
+  const cacheBbox = new WeakMap();
+  const LIMITE_LISTE_SELECTION = 50;
+  const STYLE_FORME_SELECTION = { color: '#3468a8', weight: 2, dashArray: '6 4', fillColor: '#3468a8', fillOpacity: 0.12 };
+
+  function echapperHtml(valeur) {
+    return String(valeur === null || valeur === undefined ? '' : valeur)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function definirAideSelection(message, couleur) {
+    const aide = document.getElementById('selection-aide');
+    if (!aide) return;
+    aide.textContent = message || '';
+    aide.style.color = couleur || '';
+  }
+
+  function majBoutonsDessin(type) {
+    [['polygon', 'btnDessinPolygone'], ['rectangle', 'btnDessinRectangle'], ['circle', 'btnDessinCercle']].forEach(function (p) {
+      const el = document.getElementById(p[1]);
+      if (el) el.classList.toggle('active', p[0] === type);
+    });
+  }
+
+  function arreterDessin() {
+    if (gestionnaireDessin) { try { gestionnaireDessin.disable(); } catch (e) {} }
+    gestionnaireDessin = null;
+    typeDessinActif = null;
+    modeDessinActif = false;
+    majBoutonsDessin(null);
+  }
+
+  function demarrerDessin(type) {
+    if (typeof L.Draw === 'undefined') { definirAideSelection("Outil de dessin indisponible (Leaflet.draw non chargé).", '#b23b2e'); return; }
+    const memeType = modeDessinActif && typeDessinActif === type;
+    arreterDessin();
+    if (memeType) { definirAideSelection('Dessin annulé.'); return; }
+    if (modeMesure) activerModeMesure(modeMesure);
+    fermerPopup();
+
+    const forme = { color: '#3468a8', weight: 2, fillColor: '#3468a8', fillOpacity: 0.15 };
+    if (type === 'polygon') {
+      gestionnaireDessin = new L.Draw.Polygon(map, {
+        allowIntersection: false, showArea: false, shapeOptions: forme,
+        drawError: { color: '#b23b2e', message: 'Les côtés ne doivent pas se croiser.' }
+      });
+    } else if (type === 'rectangle') {
+      gestionnaireDessin = new L.Draw.Rectangle(map, { showArea: false, shapeOptions: forme });
+    } else {
+      gestionnaireDessin = new L.Draw.Circle(map, { showRadius: true, metric: true, feet: false, shapeOptions: forme });
+    }
+    typeDessinActif = type;
+    gestionnaireDessin.enable();
+    modeDessinActif = true;
+    majBoutonsDessin(type);
+    definirAideSelection(type === 'polygon' ? 'Cliquez pour poser les points, puis cliquez sur le premier point pour terminer. Échap pour annuler.'
+      : 'Cliquez et faites glisser sur la carte. Échap pour annuler.');
+  }
+
+  function initialiserDessin() {
+    if (typeof L.drawLocal !== 'undefined') {
+      const h = L.drawLocal.draw.handlers;
+      h.polygon.tooltip = { start: 'Cliquez pour commencer le polygone.', cont: 'Cliquez pour continuer le polygone.', end: 'Cliquez sur le premier point pour terminer.' };
+      h.rectangle.tooltip = { start: 'Cliquez et faites glisser pour dessiner un rectangle.' };
+      h.circle.tooltip = { start: 'Cliquez et faites glisser pour dessiner un cercle.' };
+      h.circle.radius = 'Rayon';
+      h.simpleshape.tooltip = { end: 'Relâchez la souris pour terminer.' };
+    }
+    map.on('draw:created', surFormeDessinee);
+    map.on('draw:drawstop', function () {
+      gestionnaireDessin = null; typeDessinActif = null; modeDessinActif = false; majBoutonsDessin(null);
+    });
+    // Pas de popup de parcelle/zone qui s'ouvre pendant le dessin
+    map.on('popupopen', function () { if (modeDessinActif) map.closePopup(); });
+  }
+
+  function surFormeDessinee(e) {
+    if (typeof turf === 'undefined') { definirAideSelection('Turf.js indisponible.', '#b23b2e'); return; }
+    let forme;
+    if (e.layerType === 'circle') {
+      const c = e.layer.getLatLng();
+      forme = turf.circle([c.lng, c.lat], e.layer.getRadius() / 1000, { steps: 64, units: 'kilometers' });
+    } else {
+      forme = e.layer.toGeoJSON();
+    }
+    if (coucheFormeSelection) { map.removeLayer(coucheFormeSelection); coucheFormeSelection = null; }
+    if (!rendererSelection) rendererSelection = L.svg({ padding: 0.5 });
+    coucheFormeSelection = L.geoJSON(forme, {
+      renderer: rendererSelection,
+      interactive: false,
+      style: function () { return STYLE_FORME_SELECTION; }
+    }).addTo(map);
+    calculerSelection(forme);
+  }
+
+  function calculerSelection(forme) {
+    definirAideSelection('Calcul en cours...');
+    setTimeout(function () {
+      const bb = turf.bbox(forme);
+      const trouvees = [];
+      (allParcelles.features || []).forEach(function (f) {
+        if (!f.geometry) return;
+        let b = cacheBbox.get(f);
+        if (!b) { b = turf.bbox(f); cacheBbox.set(f, b); }
+        if (b[0] > bb[2] || b[2] < bb[0] || b[1] > bb[3] || b[3] < bb[1]) return;
+        try { if (turf.booleanIntersects(f, forme)) trouvees.push(f); } catch (err) {}
+      });
+      selectionFeatures = trouvees;
+      selectionSet = new Set(trouvees);
+      afficherResultatSelection();
+      redessinerCouches();
+    }, 30);
+  }
+
+  function afficherResultatSelection() {
+    const bloc = document.getElementById('selection-resultat');
+    const liste = document.getElementById('selection-liste');
+    if (!bloc || !liste) return;
+    definirAideSelection('');
+    bloc.style.display = 'block';
+
+    let total = 0;
+    const compteOcc = {};
+    selectionFeatures.forEach(function (f) {
+      total += (f.properties.superficie || 0);
+      const o = f.properties.occupation_sol || 'Non renseigné';
+      compteOcc[o] = (compteOcc[o] || 0) + 1;
+    });
+    document.getElementById('selNbParcelles').textContent = selectionFeatures.length.toLocaleString('fr-FR');
+    document.getElementById('selSuperficie').textContent = formaterSurface(total);
+    document.getElementById('selOccupation').textContent = Object.keys(compteOcc)
+      .sort(function (a, b) { return compteOcc[b] - compteOcc[a]; }).slice(0, 3)
+      .map(function (o) { return o + ' : ' + compteOcc[o]; }).join(' · ');
+
+    if (selectionFeatures.length === 0) {
+      liste.innerHTML = '<div class="geo-selection-plus">Aucune parcelle dans cette zone.</div>';
+      return;
+    }
+    const tries = selectionFeatures.slice().sort(function (a, b) { return (b.properties.superficie || 0) - (a.properties.superficie || 0); });
+    let html = tries.slice(0, LIMITE_LISTE_SELECTION).map(function (f) {
+      const p = f.properties;
+      return '<div class="geo-selection-item" data-nicad="' + echapperHtml(p.nicad) + '">' +
+        '<span class="nom">' + echapperHtml(p.nicad || '—') + '</span>' +
+        '<span class="val">' + (p.superficie ? Math.round(p.superficie).toLocaleString('fr-FR') + ' m²' : '—') + '</span></div>';
+    }).join('');
+    if (tries.length > LIMITE_LISTE_SELECTION) {
+      html += '<div class="geo-selection-plus">+ ' + (tries.length - LIMITE_LISTE_SELECTION).toLocaleString('fr-FR') + ' autres (inclus dans l\'export)</div>';
+    }
+    liste.innerHTML = html;
+    liste.querySelectorAll('.geo-selection-item').forEach(function (el) {
+      el.addEventListener('click', function () {
+        const nicad = el.getAttribute('data-nicad');
+        const f = selectionFeatures.find(function (x) { return x.properties.nicad === nicad; });
+        if (!f) return;
+        selectedFeature = f;
+        map.fitBounds(L.geoJSON(f).getBounds(), { padding: [60, 60], maxZoom: 19 });
+        redessinerCouches();
+      });
+    });
+  }
+
+  function effacerSelection() {
+    arreterDessin();
+    if (coucheFormeSelection) { map.removeLayer(coucheFormeSelection); coucheFormeSelection = null; }
+    selectionFeatures = [];
+    selectionSet = new Set();
+    const bloc = document.getElementById('selection-resultat');
+    if (bloc) bloc.style.display = 'none';
+    definirAideSelection('Choisissez une forme, puis dessinez-la sur la carte.');
+    redessinerCouches();
+  }
+
+  function exportSelectionCSV() {
+    if (!selectionFeatures.length) return;
+    const fiscal = (typeof peutFiscal !== 'undefined') && peutFiscal;
+    let csv = 'NICAD,Adresse,Superficie,Occupation du sol' + (fiscal ? ',Statut fiscal,Taxe annuelle,Valeur locative,Propriétaire' : '') + '\n';
+    selectionFeatures.forEach(function (f) {
+      const p = f.properties;
+      let ligne = [csvEscape(p.nicad), csvEscape(p.adresse_parcelle), csvEscape(p.superficie), csvEscape(p.occupation_sol)];
+      if (fiscal) ligne = ligne.concat([csvEscape(p.statut_fiscal), csvEscape(p.montant_taxe_annuelle), csvEscape(p.valeur_locative), csvEscape(p.proprietaire)]);
+      csv += ligne.join(',') + '\n';
+    });
+    downloadFile(csv, 'selection_parcelles.csv', 'text/csv');
+  }
+
+  function exportSelectionGeoJSON() {
+    if (!selectionFeatures.length) return;
+    downloadFile(JSON.stringify({ type: 'FeatureCollection', features: selectionFeatures }, null, 2), 'selection_parcelles.geojson', 'application/json');
   }
 
   function initMap() {
     map = L.map('map', { preferCanvas: true }).setView([14.79, -17.31], 13);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      subdomains: 'abc',
-      referrerPolicy: 'strict-origin-when-cross-origin',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+    basemaps.osm.addTo(map);
+    ajouterControlesCarte();
+    initialiserDessin();
 
-    Promise.all([loadZones(), loadParcelles()]).finally(function () {
+    map.on('click', function (e) {
+      if (!modeMesure) return;
+      pointsMesure.push(e.latlng);
+      redessinerMesure();
+    });
+
+    Promise.all([loadZones(), loadParcelles(), loadSections(), loadLimites()]).finally(function () {
       const loader = document.getElementById('mapLoader');
       if (loader) loader.classList.add('hidden');
+      map.invalidateSize();
+      actualiserQuartiers();
+    });
+
+    if (window.ResizeObserver) {
+      const conteneurCarte = document.getElementById('map');
+      const resizeObserver = new ResizeObserver(function () {
+        map.invalidateSize();
+      });
+      resizeObserver.observe(conteneurCarte);
+    }
+
+    window.addEventListener('resize', function () {
+      if (map) map.invalidateSize();
     });
   }
 
@@ -514,14 +1558,263 @@
       .catch(function (e) { console.error('Erreur zones:', e); });
   }
 
+  function loadSections() {
+    return fetch('{% url "api_sections" %}')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        allSections = data;
+        redessinerCouches();
+      })
+      .catch(function (e) { console.error('Erreur sections:', e); });
+  }
+
+  function loadLimites() {
+    return fetch('{% url "api_limites" %}')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        allLimites = data;
+        redessinerCouches();
+      })
+      .catch(function (e) { console.error('Erreur limites:', e); });
+  }
+
+  let coucheInfrastructures = null;
+
+  let categoriesInfraVues = {};
+  let filtreInfraCategorie = '';
+  let infraSansParcelle = [];
+
+  function apparenceInfra(infra) {
+    if (infra.sous_type === 'Pharmacie') {
+      return { couleur: '#2f7a4f', icone: 'fa-plus' };
+    }
+    return { couleur: infra.couleur || '#7b3fa0', icone: infra.icone || 'fa-map-pin' };
+  }
+
+  function construirePopupInfra(infra) {
+    let html = '<div style="min-width:190px;">';
+    html += '<strong>' + infra.nom + '</strong>';
+    html += '<br><span style="color:#766c5d; font-size:12px;">' + (infra.sous_type || infra.categorie) + '</span>';
+    const details = infra.details || {};
+    const cles = Object.keys(details);
+    if (cles.length > 0) {
+      html += '<table style="font-size:12px; width:100%; margin-top:6px; border-top:1px solid #eee; padding-top:6px;">';
+      cles.forEach(function (cle) {
+        html += '<tr><td style="color:#766c5d; padding-right:10px; vertical-align:top;">' + cle + '</td><td style="font-weight:600;">' + details[cle] + '</td></tr>';
+      });
+      html += '</table>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function toutesLesInfrastructures(data) {
+    const liste = [];
+    (data.features || []).forEach(function (f) {
+      (f.properties.infrastructures || []).forEach(function (infra) { liste.push(infra); });
+    });
+    (data.infrastructures_hors_parcelle || []).forEach(function (infra) { liste.push(infra); });
+    return liste;
+  }
+
+  function populateInfraFilter() {
+    categoriesInfraVues = {};
+    toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle }).forEach(function (infra) {
+      if (!categoriesInfraVues[infra.categorie]) {
+        categoriesInfraVues[infra.categorie] = { couleur: infra.couleur, icone: infra.icone };
+      }
+    });
+
+    const select = document.getElementById('filter-infra-categorie');
+    if (!select) return;
+    const valeurActuelle = select.value;
+    select.querySelectorAll('option:not(:first-child)').forEach(function (o) { o.remove(); });
+    Object.keys(categoriesInfraVues).sort().forEach(function (cat) {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
+    select.value = valeurActuelle;
+
+    const selectRayon = document.getElementById('rayon-infra-select');
+    if (selectRayon) {
+      selectRayon.querySelectorAll('option:not(:first-child)').forEach(function (o) { o.remove(); });
+      toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle })
+        .filter(function (i) { return i.latitude != null && i.longitude != null && i.nom; })
+        .sort(function (a, b) { return a.nom.localeCompare(b.nom); })
+        .forEach(function (infra, idx) {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.textContent = infra.nom + ' (' + (infra.sous_type || infra.categorie) + ')';
+          opt.dataset.lat = infra.latitude;
+          opt.dataset.lng = infra.longitude;
+          selectRayon.appendChild(opt);
+        });
+    }
+  }
+
+  let coucheChaleur = null;
+  let modeChaleurActif = false;
+  let dernieresDonneesInfra = null;
+
+  const PALIERS_DENSITE = [
+    { max: 0, couleur: '#ffffff', label: '0' },
+    { max: 0.25, couleur: '#e8958a', label: 'Faible' },
+    { max: 0.5, couleur: '#d94a3a', label: 'Moyen' },
+    { max: 0.75, couleur: '#a11d12', label: 'Élevé' },
+    { max: 1, couleur: '#5c0f08', label: 'Très élevé' },
+  ];
+
+  function couleurPalier(n, maxCompte) {
+    if (n === 0) return PALIERS_DENSITE[0].couleur;
+    const ratio = n / Math.max(maxCompte, 1);
+    if (ratio <= 0.25) return PALIERS_DENSITE[1].couleur;
+    if (ratio <= 0.5) return PALIERS_DENSITE[2].couleur;
+    if (ratio <= 0.75) return PALIERS_DENSITE[3].couleur;
+    return PALIERS_DENSITE[4].couleur;
+  }
+
+  function celluleDansLaCommune(latCentre, lngCentre) {
+    if (!allLimites || !allLimites.features || allLimites.features.length === 0) return true;
+    if (typeof turf === 'undefined') return true;
+    const point = turf.point([lngCentre, latCentre]);
+    for (let i = 0; i < allLimites.features.length; i++) {
+      try {
+        if (turf.booleanPointInPolygon(point, allLimites.features[i])) return true;
+      } catch (e) { /* geometrie invalide, on ignore cette entite */ }
+    }
+    return false;
+  }
+
+  function afficherLegendeDensite(maxCompte) {
+    const conteneur = document.getElementById('legendeDensite');
+    if (!conteneur) return;
+    if (!maxCompte) { conteneur.style.display = 'none'; return; }
+
+    const seuil1 = Math.max(1, Math.ceil(maxCompte * 0.25));
+    const seuil2 = Math.max(seuil1 + 1, Math.ceil(maxCompte * 0.5));
+    const seuil3 = Math.max(seuil2 + 1, Math.ceil(maxCompte * 0.75));
+
+    conteneur.innerHTML =
+      '<div style="font-size:11px; font-weight:700; color:#3c2a20; margin-bottom:6px;">Densité (nb. infra / case)</div>' +
+      '<div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-bottom:3px;"><span style="width:14px; height:14px; background:#ffffff; border:1px solid #999; display:inline-block;"></span> 0</div>' +
+      '<div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-bottom:3px;"><span style="width:14px; height:14px; background:#f6c6bd; border:1px solid #999; display:inline-block;"></span> 1 – ' + seuil1 + '</div>' +
+      '<div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-bottom:3px;"><span style="width:14px; height:14px; background:#ea7a68; border:1px solid #999; display:inline-block;"></span> ' + (seuil1+1) + ' – ' + seuil2 + '</div>' +
+      '<div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-bottom:3px;"><span style="width:14px; height:14px; background:#d43a2a; border:1px solid #999; display:inline-block;"></span> ' + (seuil2+1) + ' – ' + seuil3 + '</div>' +
+      '<div style="display:flex; align-items:center; gap:6px; font-size:11px;"><span style="width:14px; height:14px; background:#8f1d10; border:1px solid #999; display:inline-block;"></span> ' + (seuil3+1) + ' et +</div>';
+    conteneur.style.display = 'block';
+  }
+
+  function afficherGrilleDensite(infras) {
+    if (coucheChaleur) { map.removeLayer(coucheChaleur); coucheChaleur = null; }
+    afficherLegendeDensite(0);
+    if (!infras || infras.length === 0) return;
+
+    const bounds = (coucheParcelles && coucheParcelles.getBounds().isValid()) ? coucheParcelles.getBounds() : map.getBounds();
+    const pas = 0.0045;
+
+    const compteurs = {};
+    let maxCompte = 0;
+    infras.forEach(function (infra) {
+      const cy = Math.floor(infra.latitude / pas);
+      const cx = Math.floor(infra.longitude / pas);
+      const cle = cy + '_' + cx;
+      compteurs[cle] = (compteurs[cle] || 0) + 1;
+      if (compteurs[cle] > maxCompte) maxCompte = compteurs[cle];
+    });
+
+    const groupe = L.layerGroup();
+    for (let lat = bounds.getSouth(); lat <= bounds.getNorth(); lat += pas) {
+      for (let lng = bounds.getWest(); lng <= bounds.getEast(); lng += pas) {
+        const centreLat = lat + pas / 2;
+        const centreLng = lng + pas / 2;
+        if (!celluleDansLaCommune(centreLat, centreLng)) continue;
+
+        const cy = Math.floor(lat / pas);
+        const cx = Math.floor(lng / pas);
+        const cle = cy + '_' + cx;
+        const n = compteurs[cle] || 0;
+
+        const rect = L.rectangle(
+          [[lat, lng], [lat + pas, lng + pas]],
+          { color: '#8a8276', weight: 1, fillColor: couleurPalier(n, maxCompte), fillOpacity: 0.75 }
+        );
+        rect.bindTooltip(String(n), {
+          permanent: true, direction: 'center', className: 'grille-densite-label', interactive: false,
+        });
+        rect.addTo(groupe);
+      }
+    }
+    coucheChaleur = groupe;
+    coucheChaleur.addTo(map);
+    afficherLegendeDensite(maxCompte);
+  }
+
+  function infrastructuresFiltrees(data) {
+    return toutesLesInfrastructures(data).filter(function (infra) {
+      if (infra.latitude == null || infra.longitude == null) return false;
+      if (filtreInfraCategorie && infra.categorie !== filtreInfraCategorie) return false;
+      return true;
+    });
+  }
+
+  function afficherIconesInfrastructures(data) {
+    dernieresDonneesInfra = data;
+
+    if (coucheInfrastructures) map.removeLayer(coucheInfrastructures);
+    if (coucheChaleur) map.removeLayer(coucheChaleur);
+    coucheInfrastructures = L.layerGroup();
+
+    const infrasAffichees = infrastructuresFiltrees(data);
+
+    infrasAffichees.forEach(function (infra) {
+      const apparence = apparenceInfra(infra);
+      const icone = L.divIcon({
+        className: '',
+        html:
+          '<div style="background:' + apparence.couleur + '; width:24px; height:24px; ' +
+          'border-radius:50%; border:2px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.4); ' +
+          'display:flex; align-items:center; justify-content:center;">' +
+            '<i class="fa-solid ' + apparence.icone + '" style="color:white; font-size:11px;"></i>' +
+          '</div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+
+      L.marker([infra.latitude, infra.longitude], { icon: icone })
+        .bindPopup(construirePopupInfra(infra))
+        .addTo(coucheInfrastructures);
+    });
+
+    if (modeChaleurActif) {
+      afficherGrilleDensite(infrasAffichees);
+    } else {
+      coucheInfrastructures.addTo(map);
+    }
+  }
+
+  function basculerCarteChaleur(active) {
+    modeChaleurActif = active;
+    if (active) {
+      if (coucheParcelles) map.removeLayer(coucheParcelles);
+      if (coucheZones) map.removeLayer(coucheZones);
+    } else {
+      redessinerCouches();
+    }
+    if (dernieresDonneesInfra) afficherIconesInfrastructures(dernieresDonneesInfra);
+  }
+
   function loadParcelles() {
     return fetch('{% url "api_parcelles_toutes" %}')
       .then(function (r) { return r.json(); })
       .then(function (data) {
         allParcelles = data;
-        redessinerCouches();
-        populateZoneFilter();
+        infraSansParcelle = data.infrastructures_hors_parcelle || [];
+        redessinerCouchesImmediat();
+        populateInfraFilter();
         populateOccupationFilter();
+        afficherIconesInfrastructures(data);
         if (coucheParcelles && coucheParcelles.getBounds().isValid()) {
           map.fitBounds(coucheParcelles.getBounds(), { padding: [20, 20] });
         }
@@ -536,45 +1829,12 @@
     if (!q) return;
 
     document.getElementById('search-nicad').value = q;
-
-    const zoneSelect = document.getElementById('filter-zone');
-    const zoneMatch = Array.from(zoneSelect.options).find(function (opt) {
-      return opt.value.toLowerCase() === q.toLowerCase();
-    });
-
-    if (zoneMatch) {
-      zoneSelect.value = zoneMatch.value;
-      applyFilters();
-      if (filteredParcelles.length) {
-        const coucheTemp = L.geoJSON(filteredParcelles);
-        map.fitBounds(coucheTemp.getBounds(), { padding: [50, 50] });
-      }
-    } else {
-      searchParcelle();
-    }
+    searchParcelle();
   }
 
   function zoneLabelDe(feature) {
     const p = feature.properties || {};
     return p.zone_nom || p.adresse_parcelle || null;
-  }
-
-  function populateZoneFilter() {
-    const zones = new Set();
-    if (allParcelles.features) {
-      allParcelles.features.forEach(function (f) {
-        const label = zoneLabelDe(f);
-        if (label) zones.add(label);
-      });
-    }
-    const select = document.getElementById('filter-zone');
-    select.querySelectorAll('option:not(:first-child)').forEach(function (o) { o.remove(); });
-    Array.from(zones).sort().forEach(function (zone) {
-      const opt = document.createElement('option');
-      opt.value = zone;
-      opt.textContent = zone;
-      select.appendChild(opt);
-    });
   }
 
   function populateOccupationFilter() {
@@ -595,15 +1855,14 @@
   }
 
   function applyFilters() {
-    const zoneFilter = document.getElementById('filter-zone').value;
     const occupationFilter = document.getElementById('filter-occupation').value;
 
     let filtered = allParcelles.features || [];
-    if (zoneFilter) {
-      filtered = filtered.filter(function (f) { return zoneLabelDe(f) === zoneFilter; });
-    }
     if (occupationFilter) {
       filtered = filtered.filter(function (f) { return f.properties.occupation_sol === occupationFilter; });
+    }
+    if (quartierSelectionne) {
+      filtered = filtered.filter(function (f) { return (f.properties.zone_nom || '') === quartierSelectionne; });
     }
 
     filteredParcelles = filtered;
@@ -634,11 +1893,41 @@
     }
   }
 
+  function searchInfrastructure() {
+    const requete = document.getElementById('search-infra').value.toLowerCase().trim();
+    const result = document.getElementById('search-infra-result');
+
+    if (!requete) {
+      result.textContent = '';
+      return;
+    }
+
+    const trouvee = toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle })
+      .find(function (infra) { return infra.nom && infra.nom.toLowerCase().includes(requete); });
+
+    if (trouvee && trouvee.latitude != null && trouvee.longitude != null) {
+      result.innerHTML = '<span style="color:green;"><i class="fa-solid fa-check"></i> Trouvée : ' + trouvee.nom + '</span>';
+      map.flyTo([trouvee.latitude, trouvee.longitude], 17);
+      L.popup().setLatLng([trouvee.latitude, trouvee.longitude]).setContent(construirePopupInfra(trouvee)).openOn(map);
+    } else {
+      result.innerHTML = '<span style="color:red;"><i class="fa-solid fa-times"></i> Non trouvée</span>';
+    }
+  }
+
   function reinitialiserFiltres() {
-    document.getElementById('filter-zone').value = '';
+    document.getElementById('filter-infra-categorie').value = '';
+    filtreInfraCategorie = '';
+    document.getElementById('search-infra').value = '';
+    document.getElementById('search-infra-result').textContent = '';
+    afficherIconesInfrastructures(allParcelles);
     document.getElementById('filter-occupation').value = '';
     document.getElementById('search-nicad').value = '';
     document.getElementById('search-result').textContent = '';
+    document.getElementById('quartier-select').value = '';
+    quartierSelectionne = null;
+    const ficheQ = document.getElementById('quartier-fiche');
+    if (ficheQ) ficheQ.style.display = 'none';
+    effacerSelection();
     filteredParcelles = [];
     redessinerCouches();
   }
@@ -682,6 +1971,45 @@
     URL.revokeObjectURL(url);
   }
 
+  function afficherInfrastructuresProches() {
+    if (!userLatLng) return;
+    const origine = L.latLng(userLatLng[0], userLatLng[1]);
+    const section = document.getElementById('proximite-section');
+    const liste = document.getElementById('proximite-liste');
+    if (!section || !liste) return;
+
+    const proches = toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle })
+      .filter(function (i) { return i.latitude != null && i.longitude != null; })
+      .map(function (i) {
+        return { infra: i, distance: origine.distanceTo(L.latLng(i.latitude, i.longitude)) };
+      })
+      .sort(function (a, b) { return a.distance - b.distance; })
+      .slice(0, 5);
+
+    if (proches.length === 0) {
+      liste.innerHTML = '<div style="font-size:12px; color:#766c5d;">Aucune infrastructure recensee.</div>';
+    } else {
+      liste.innerHTML = proches.map(function (p) {
+        const distTxt = p.distance >= 1000 ? (p.distance / 1000).toFixed(1) + ' km' : Math.round(p.distance) + ' m';
+        return '<div class="geo-proximite-item" data-lat="' + p.infra.latitude + '" data-lng="' + p.infra.longitude + '">' +
+          '<span class="nom">' + p.infra.nom + '</span>' +
+          '<span class="dist">' + distTxt + '</span>' +
+          '</div>';
+      }).join('');
+
+      liste.querySelectorAll('.geo-proximite-item').forEach(function (el) {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', function () {
+          const lat = parseFloat(el.getAttribute('data-lat'));
+          const lng = parseFloat(el.getAttribute('data-lng'));
+          map.flyTo([lat, lng], 17);
+        });
+      });
+    }
+
+    section.style.display = 'block';
+  }
+
   function localiserMoi() {
     const status = document.getElementById('position-status');
 
@@ -707,6 +2035,7 @@
         userMarker = L.marker(userLatLng, { icon: icone }).addTo(map).bindPopup('Vous êtes ici');
         map.flyTo(userLatLng, 15);
         status.innerHTML = '<span style="color:green;"><i class="fa-solid fa-check"></i> Position trouvée.</span>';
+        afficherInfrastructuresProches();
       },
       function (err) {
         status.innerHTML = '<span style="color:red;">Impossible de récupérer votre position (' + err.message + ').</span>';
@@ -774,7 +2103,6 @@
       }
     }
 
-
     onEvent('btnGeolocaliser', 'click', localiserMoi);
     onEvent('btnEffacerItineraire', 'click', effacerItineraire);
 
@@ -783,8 +2111,18 @@
       if (e.key === 'Enter') { e.preventDefault(); searchParcelle(); }
     });
 
-    onEvent('filter-zone', 'change', applyFilters);
     onEvent('filter-occupation', 'change', applyFilters);
+    onEvent('filter-infra-categorie', 'change', function (e) {
+      filtreInfraCategorie = e.target.value;
+      afficherIconesInfrastructures(allParcelles);
+    });
+    onEvent('toggle-carte-chaleur', 'change', function (e) {
+      basculerCarteChaleur(e.target.checked);
+    });
+    onEvent('btnSearchInfra', 'click', searchInfrastructure);
+    onEvent('search-infra', 'keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); searchInfrastructure(); }
+    });
     onEvent('btnReinitialiser', 'click', reinitialiserFiltres);
 
     onEvent('btnExportCSV', 'click', exportCSV);
@@ -800,25 +2138,63 @@
       redessinerCouches();
     });
 
+    onEvent('toggle-sections', 'change', function (e) {
+      sectionsVisible = e.target.checked;
+      redessinerCouches();
+    });
+
+    onEvent('toggle-limites', 'change', function (e) {
+      limitesVisible = e.target.checked;
+      redessinerCouches();
+    });
+
+    onEvent('btnFullscreen', 'click', basculerPleinEcran);
+    document.querySelectorAll('.geo-basemap-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        changerFondDeCarte(chip.getAttribute('data-basemap'));
+      });
+    });
+    onEvent('btnMesureDistance', 'click', function () { activerModeMesure('distance'); });
+    onEvent('btnMesureSurface', 'click', function () { activerModeMesure('surface'); });
+
+    onEvent('rayon-infra-select', 'change', mettreAJourRayon);
+    onEvent('rayon-slider', 'input', function (e) {
+      document.getElementById('rayon-value').textContent = e.target.value;
+      mettreAJourRayon();
+    });
+    onEvent('btnAnalyserDesserte', 'click', analyserZonesSousDesservies);
+    onEvent('toggle-voronoi', 'change', function (e) {
+      basculerVoronoi(e.target.checked);
+    });
+    onEvent('quartier-select', 'change', function (e) { selectionnerQuartier(e.target.value); });
+    onEvent('toggle-choropleth', 'change', function (e) { basculerChoropleth(e.target.checked); });
+    onEvent('btnDessinPolygone', 'click', function () { demarrerDessin('polygon'); });
+    onEvent('btnDessinRectangle', 'click', function () { demarrerDessin('rectangle'); });
+    onEvent('btnDessinCercle', 'click', function () { demarrerDessin('circle'); });
+    onEvent('btnSelectionCSV', 'click', exportSelectionCSV);
+    onEvent('btnSelectionGeoJSON', 'click', exportSelectionGeoJSON);
+    onEvent('btnSelectionEffacer', 'click', effacerSelection);
+    onEvent('quartiers-voir-plus', 'click', function () { comparaisonDeployee = !comparaisonDeployee; construireBarChartQuartiers(); });
+
     // Titres de panneaux : guide vocal au clic et au clavier
     [
       { id: 'couchesTitle', key: 'couches' },
       { id: 'itineraireTitle', key: 'itineraire' },
       { id: 'rechercheTitle', key: 'recherche' },
       { id: 'filtresTitle', key: 'filtres' },
+      { id: 'rayonTitle', key: 'rayon' },
+      { id: 'sousDesservisTitle', key: 'sousDesservis' },
+      { id: 'voronoiTitle', key: 'voronoi' },
       { id: 'statistiquesTitle', key: 'statistiques' },
-      { id: 'exportTitle', key: 'export' }
+      { id: 'exportTitle', key: 'export' },
+      { id: 'quartierTitle', key: 'quartier' },
+      { id: 'comparaisonTitle', key: 'comparaison' },
+      { id: 'selectionTitle', key: 'selection' }
     ].forEach(function (item) {
       const el = document.getElementById(item.id);
       if (!el) return;
       el.addEventListener('click', function () {
         if (typeof VoiceGuide !== 'undefined') VoiceGuide.speakSection(voiceTextesGeo[item.key]);
-      });
-      el.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          if (typeof VoiceGuide !== 'undefined') VoiceGuide.speakSection(voiceTextesGeo[item.key]);
-        }
       });
     });
 

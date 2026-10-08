@@ -107,7 +107,7 @@
             </div>
           </td>
           <td>{{ actu.get_categorie_display }}</td>
-          <td>{{ actu.date_publication|date:"d/m/Y H:i" }}</td>
+          <td>{{ actu.date_publication|date:"d/m/Y" }}</td>
           <td>
             {% if actu.publie %}
               <span class="badge badge-ok"><i class="fa-solid fa-check"></i> Publiée</span>

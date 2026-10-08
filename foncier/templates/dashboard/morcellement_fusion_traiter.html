@@ -1,0 +1,140 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Traiter la demande{% endblock %}
+{% block header_title %}{{ demande.demandeur.username }}{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ demande.get_type_operation_display }}</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+  .mf-view-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0ebe0;
+    font-size: 14px;
+  }
+  .mf-view-row:last-of-type { border-bottom: none; }
+  .mf-view-row .label {
+    color: #766c5d; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .03em; flex-shrink: 0;
+  }
+  .mf-view-row .value { text-align: right; font-weight: 600; color: #24201a; }
+
+  .mf-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .mf-actions form { flex: 1; min-width: 240px; }
+
+  .btn-block { width: 100%; }
+  textarea.form-control {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-family: inherit; font-size: 13px; resize: vertical;
+  }
+
+  .info-fusion {
+    background: rgba(52,104,168,0.10); color: #3468a8; border-radius: 8px;
+    padding: 12px 14px; font-size: 13px; margin-bottom: 16px;
+  }
+  .info-morcellement {
+    background: rgba(185,116,11,0.10); color: #b9740b; border-radius: 8px;
+    padding: 12px 14px; font-size: 13px; margin-bottom: 16px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if demande.type_operation == 'FUSION' %}
+  <div class="info-fusion">
+    <i class="fa-solid fa-circle-info"></i>
+    À la validation, une nouvelle parcelle sera créée automatiquement (union des géométries, superficie totale), et les parcelles listées ci-dessous seront désactivées.
+  </div>
+{% else %}
+  <div class="info-morcellement">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    À la validation, la parcelle d'origine sera désactivée. Vous devrez ensuite créer manuellement les nouvelles parcelles via l'admin (module Foncier → Parcelles), en leur assignant cette demande comme « Demande d'origine ».
+  </div>
+{% endif %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-object-ungroup"></i> Détail de la demande</h2>
+  </div>
+  <div class="panel-body">
+    <div class="mf-view-row">
+      <span class="label">Demandeur</span>
+      <span class="value">{{ demande.demandeur.username }}</span>
+    </div>
+    <div class="mf-view-row">
+      <span class="label">Type d'opération</span>
+      <span class="value">{{ demande.get_type_operation_display }}</span>
+    </div>
+    <div class="mf-view-row">
+      <span class="label">Parcelle(s) concernée(s)</span>
+      <span class="value">
+        {% for p in demande.parcelles_concernees.all %}{{ p.nicad }} ({{ p.superficie|floatformat:0 }} m²){% if not forloop.last %}, {% endif %}{% endfor %}
+      </span>
+    </div>
+    <div class="mf-view-row">
+      <span class="label">Motif</span>
+      <span class="value" style="font-weight:400;">{{ demande.justification }}</span>
+    </div>
+    <div class="mf-view-row">
+      <span class="label">Pièce justificative</span>
+      <span class="value"><a href="{{ demande.piece_jointe.url }}" target="_blank" rel="noopener">Voir le fichier</a></span>
+    </div>
+    <div class="mf-view-row">
+      <span class="label">Déposée le</span>
+      <span class="value">{{ demande.date_soumission|date:"d/m/Y à H:i" }}</span>
+    </div>
+    <div class="mf-view-row">
+      <span class="label">Statut</span>
+      <span class="value">{{ demande.get_statut_display }}</span>
+    </div>
+    {% if demande.statut == 'VALIDEE' and demande.parcelles_resultantes.all %}
+      <div class="mf-view-row">
+        <span class="label">Parcelle(s) issue(s)</span>
+        <span class="value">
+          {% for p in demande.parcelles_resultantes.all %}{{ p.nicad }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </span>
+      </div>
+    {% endif %}
+    {% if demande.statut == 'REJETEE' %}
+      <div class="mf-view-row">
+        <span class="label">Motif du rejet</span>
+        <span class="value" style="font-weight:400;">{{ demande.motif_rejet }}</span>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if demande.statut == 'SOUMISE' or demande.statut == 'EN_EXAMEN' %}
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-gavel"></i> Décision</h2>
+  </div>
+  <div class="panel-body">
+    <div class="mf-actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="valider">
+        <button type="submit" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-check"></i> Valider
+        </button>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="rejeter">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Motif du rejet</label>
+        <textarea name="motif_rejet" class="form-control" rows="3" placeholder="Expliquez pourquoi cette demande est rejetée…" required></textarea>
+        <button type="submit" class="btn btn-outline btn-block" style="margin-top:10px; border-color:#b3261e; color:#b3261e;">
+          <i class="fa-solid fa-xmark"></i> Rejeter
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<a href="{% url 'dashboard_morcellement_fusion_list' %}" class="btn btn-outline btn-sm">
+  <i class="fa-solid fa-arrow-left"></i> Retour à la liste
+</a>
+
+{% endblock %}

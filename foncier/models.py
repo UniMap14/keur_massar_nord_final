@@ -23,6 +23,48 @@ class Zone(models.Model):
         return f"{self.nom} ({self.layer})"
 
 
+class QuartierOfficiel(models.Model):
+    """Quartiers/villages officiels (zones de recensement)."""
+    nom = models.CharField(max_length=255, verbose_name="Nom du quartier")
+    geom = models.MultiPolygonField(srid=4326, verbose_name="Géométrie du quartier")
+
+    class Meta:
+        verbose_name = "Quartier officiel"
+        verbose_name_plural = "Quartiers officiels"
+        ordering = ['nom']
+
+    def __str__(self):
+        return self.nom
+
+
+class SectionCadastrale(models.Model):
+    """Sections cadastrales officielles."""
+    numero = models.CharField(max_length=10, verbose_name="Numéro de section")
+    geom = models.MultiPolygonField(srid=4326, verbose_name="Géométrie de la section")
+
+    class Meta:
+        verbose_name = "Section cadastrale"
+        verbose_name_plural = "Sections cadastrales"
+        ordering = ['numero']
+
+    def __str__(self):
+        return f"Section {self.numero}"
+
+
+class LimiteAdministrative(models.Model):
+    """Limite officielle de la commune (ou autre entite administrative)."""
+    nom = models.CharField(max_length=255, verbose_name="Nom de l'entite")
+    geom = models.MultiPolygonField(srid=4326, verbose_name="Géométrie de la limite")
+
+    class Meta:
+        verbose_name = "Limite administrative"
+        verbose_name_plural = "Limites administratives"
+        ordering = ['nom']
+
+    def __str__(self):
+        return self.nom
+
+
 class Propriétaire(models.Model):
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
@@ -81,6 +123,17 @@ class Parcelle(models.Model):
 
     # --- SECTION GÉOGRAPHIQUE (POSTGIS) ---
     geom = models.MultiPolygonField(srid=4326)
+
+    # --- MORCELLEMENT / FUSION ---
+    parcelle_active = models.BooleanField(
+        default=True, verbose_name="Parcelle active",
+        help_text="Décoché automatiquement si cette parcelle a été fusionnée ou morcelée (remplacée par une ou plusieurs nouvelles parcelles).",
+    )
+    demande_origine = models.ForeignKey(
+        'DemandeMorcellementFusion', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='parcelles_resultantes',
+        help_text="Demande de morcellement/fusion à l'origine de cette parcelle, le cas échéant.",
+    )
 
     def __str__(self):
         return f"Parcelle {self.nicad} - {self.adresse_parcelle}"
@@ -519,10 +572,24 @@ class Infrastructure(models.Model):
     nom = models.CharField(max_length=200)
     quartier = models.CharField(max_length=150, blank=True)
     statut = models.CharField(max_length=20, choices=STATUTS, default='FONCTIONNEL')
+    sous_type = models.CharField(
+        max_length=150, blank=True,
+        help_text="Sous-categorie precise (ex: Pharmacie, Poste de sante, Centre de sante...).",
+    )
+    details = models.JSONField(
+        default=dict, blank=True,
+        help_text="Attributs specifiques au type d'infrastructure (horaires, telephone, "
+                   "nombre d'employes, services, etc.), sous forme libelle -> valeur.",
+    )
 
     # Coordonnées facultatives, pour un jour les afficher sur le géoportail
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
+    parcelle = models.ForeignKey(
+        Parcelle, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="infrastructures",
+        help_text="Parcelle qui contient cette infrastructure (déterminée automatiquement par croisement spatial).",
+    )
 
     notes = models.TextField(blank=True)
     date_ajout = models.DateTimeField(auto_now_add=True)
@@ -534,6 +601,52 @@ class Infrastructure(models.Model):
 
     def __str__(self):
         return f"{self.nom} ({self.categorie.label})"
+
+
+class PhotoGalerie(models.Model):
+    """Une photo affichee dans la galerie publique du site (page 'La commune
+    en images'). Geree depuis le tableau de bord, sans toucher au code."""
+
+    titre = models.CharField(max_length=200, verbose_name="Titre / légende")
+    photo = models.ImageField(upload_to='galerie/', verbose_name="Photo")
+    ordre = models.PositiveIntegerField(
+        default=0,
+        help_text="Détermine l'ordre d'affichage (les plus petits nombres en premier).",
+    )
+    date_ajout = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Photo de la galerie"
+        verbose_name_plural = "Photos de la galerie"
+        ordering = ['ordre', '-date_ajout']
+
+    def __str__(self):
+        return self.titre
+
+
+class CarteThematique(models.Model):
+    """Une carte d'analyse (MNT, pente, densite...) affichee sur la page
+    publique 'Cartotheque'. Geree depuis le tableau de bord."""
+
+    titre = models.CharField(max_length=200, verbose_name="Titre de la carte")
+    explication = models.TextField(
+        verbose_name="Explication / signification",
+        help_text="Quelques phrases expliquant ce que montre cette carte et pourquoi elle est utile.",
+    )
+    image = models.ImageField(upload_to='cartotheque/', verbose_name="Image de la carte")
+    ordre = models.PositiveIntegerField(
+        default=0,
+        help_text="Détermine l'ordre d'affichage (les plus petits nombres en premier).",
+    )
+    date_ajout = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Carte thématique"
+        verbose_name_plural = "Cartothèque (cartes thématiques)"
+        ordering = ['ordre', '-date_ajout']
+
+    def __str__(self):
+        return self.titre
 # ============================================================
 # À AJOUTER DANS : foncier/models.py (à la fin du fichier)
 # ============================================================
@@ -618,6 +731,11 @@ class TypeDemande(models.Model):
         default=False,
         help_text="Cocher si cette démarche concerne une parcelle précise (ex : extrait cadastral)."
     )
+    tarif = models.DecimalField(
+        max_digits=10, decimal_places=0, default=0,
+        verbose_name="Tarif (FCFA)",
+        help_text="0 = démarche gratuite. Si > 0, le paiement est exigé avant délivrance du document.",
+    )
     actif = models.BooleanField(default=True)
 
     class Meta:
@@ -659,6 +777,20 @@ class DemandeService(models.Model):
     )
     objet = models.TextField("Précisions sur la demande", blank=True)
     piece_jointe = models.FileField(upload_to='', blank=True, null=True, storage=stockage_pieces_jointes)
+
+    STATUT_PAIEMENT_NON_REQUIS = "NON_REQUIS"
+    STATUT_PAIEMENT_EN_ATTENTE = "EN_ATTENTE"
+    STATUT_PAIEMENT_CONFIRME = "CONFIRME"
+    STATUT_PAIEMENT_CHOICES = [
+        (STATUT_PAIEMENT_NON_REQUIS, "Non requis (démarche gratuite)"),
+        (STATUT_PAIEMENT_EN_ATTENTE, "En attente de validation"),
+        (STATUT_PAIEMENT_CONFIRME, "Confirmé"),
+    ]
+    statut_paiement = models.CharField(
+        max_length=15, choices=STATUT_PAIEMENT_CHOICES, default=STATUT_PAIEMENT_NON_REQUIS
+    )
+    montant_paye = models.DecimalField(max_digits=10, decimal_places=0, null=True, blank=True)
+    reference_paiement = models.CharField(max_length=100, blank=True)
 
     statut = models.CharField(max_length=15, choices=STATUT_CHOICES, default=STATUT_RECUE)
     commentaire_agent = models.TextField(blank=True)
@@ -1135,3 +1267,64 @@ class DemandeMutation(models.Model):
 
     def __str__(self):
         return f"Mutation {self.parcelle.nicad} → {self.nouveau_nom} {self.nouveau_prenom} ({self.get_statut_display()})"
+
+
+class DemandeMorcellementFusion(models.Model):
+    """
+    Demande de morcellement (division d'une parcelle en plusieurs) ou
+    de fusion (regroupement de plusieurs parcelles en une seule).
+
+    - FUSION : la nouvelle geometrie est calculee automatiquement
+      (union des contours existants) a la validation.
+    - MORCELLEMENT : la decoupe geometrique precise necessite le plan
+      d'un geometre-expert (piece jointe obligatoire) -- l'agent cree
+      manuellement les nouvelles parcelles (via l'admin, ou en leur
+      liant cette demande via 'demande_origine') avant de cloturer.
+    """
+    TYPE_MORCELLEMENT = "MORCELLEMENT"
+    TYPE_FUSION = "FUSION"
+    TYPE_CHOICES = [
+        (TYPE_MORCELLEMENT, "Morcellement (diviser une parcelle)"),
+        (TYPE_FUSION, "Fusion (regrouper plusieurs parcelles)"),
+    ]
+
+    STATUT_SOUMISE = "SOUMISE"
+    STATUT_EN_EXAMEN = "EN_EXAMEN"
+    STATUT_VALIDEE = "VALIDEE"
+    STATUT_REJETEE = "REJETEE"
+    STATUT_CHOICES = [
+        (STATUT_SOUMISE, "Soumise"),
+        (STATUT_EN_EXAMEN, "En cours d'examen"),
+        (STATUT_VALIDEE, "Validée"),
+        (STATUT_REJETEE, "Rejetée"),
+    ]
+
+    demandeur = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="demandes_morcellement_fusion"
+    )
+    type_operation = models.CharField(max_length=15, choices=TYPE_CHOICES)
+    parcelles_concernees = models.ManyToManyField(
+        Parcelle, related_name="demandes_morcellement_fusion_origine"
+    )
+    justification = models.TextField(verbose_name="Motif de la demande")
+    piece_jointe = models.FileField(
+        upload_to="morcellement_fusion/",
+        help_text="Plan du géomètre-expert ou tout document justificatif (obligatoire).",
+    )
+
+    statut = models.CharField(max_length=15, choices=STATUT_CHOICES, default=STATUT_SOUMISE)
+    date_soumission = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    traite_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="morcellements_fusions_traites",
+    )
+    motif_rejet = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Demande de morcellement/fusion"
+        verbose_name_plural = "Demandes de morcellement/fusion"
+        ordering = ["-date_soumission"]
+
+    def __str__(self):
+        return f"{self.get_type_operation_display()} — {self.get_statut_display()}"

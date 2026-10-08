@@ -263,6 +263,27 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    /* ===== SOUS-MENU REPLIABLE (regroupe les procedures fiscales) ===== */
+    .sidebar-subgroup { margin-bottom: 2px; }
+    .sidebar-subgroup summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: rgba(255,255,255,0.78);
+      font-size: 13.5px;
+      transition: background .15s ease, color .15s ease;
+    }
+    .sidebar-subgroup summary::-webkit-details-marker { display: none; }
+    .sidebar-subgroup summary::marker { content: ""; }
+    .sidebar-subgroup summary:hover { background: rgba(255,255,255,0.07); color: #fff; }
+    .sidebar-subgroup summary i.nav-icon { width: 18px; text-align: center; font-size: 14px; opacity: 0.7; flex-shrink: 0; }
+    .sidebar-subgroup summary .chevron { margin-left: auto; font-size: 10px; transition: transform .2s ease; opacity: 0.55; }
+    .sidebar-subgroup[open] summary .chevron { transform: rotate(90deg); }
+    .sidebar-subgroup[open] summary { color: #fff; }
+    .sidebar-subgroup .sidebar-nav { padding-left: 16px; margin-top: 2px; }
+
     /* ===== micro-interaction générale sur les liens de la sidebar "autre" ===== */
     a[target="_blank"].sidebar-link i.nav-icon {
       transition: transform .2s ease;
@@ -338,6 +359,11 @@
       <li><a href="{% url 'dashboard_zone_list' %}" class="sidebar-link {% if active_section == 'zones' %}active{% endif %}">
         <i class="fa-solid fa-draw-polygon nav-icon"></i> Zones
       </a></li>
+    </ul>
+    {% endif %}
+
+    {% if peut_technique or peut_fiscal %}
+    <ul class="sidebar-nav">
       <li><a href="{% url 'geoportail_admin' %}" class="sidebar-link {% if active_section == 'geoportail' %}active{% endif %}">
         <i class="fa-solid fa-earth-africa nav-icon"></i> Géoportail
       </a></li>
@@ -347,24 +373,6 @@
     {% if peut_fiscal %}
     <div class="sidebar-section-label">Fiscalité</div>
     <ul class="sidebar-nav">
-      <li><a href="{% url 'dashboard_declaration_list' %}" class="sidebar-link {% if active_section == 'declarations' %}active{% endif %}">
-        <i class="fa-solid fa-file-signature nav-icon"></i> Déclarations fiscales
-      </a></li>
-      <li><a href="{% url 'dashboard_recours_list' %}" class="sidebar-link {% if active_section == 'recours' %}active{% endif %}">
-        <i class="fa-solid fa-scale-balanced nav-icon"></i> Recours fiscaux
-      </a></li>
-      <li><a href="{% url 'dashboard_immatriculation_list' %}" class="sidebar-link {% if active_section == 'immatriculations' %}active{% endif %}">
-        <i class="fa-solid fa-user-plus nav-icon"></i> Premières immatriculations
-      </a></li>
-      <li><a href="{% url 'dashboard_exoneration_list' %}" class="sidebar-link {% if active_section == 'exonerations' %}active{% endif %}">
-        <i class="fa-solid fa-house-circle-check nav-icon"></i> Exonérations fiscales
-      </a></li>
-      <li><a href="{% url 'dashboard_plan_paiement_list' %}" class="sidebar-link {% if active_section == 'plans_paiement' %}active{% endif %}">
-        <i class="fa-solid fa-calendar-days nav-icon"></i> Plans de paiement
-      </a></li>
-      <li><a href="{% url 'dashboard_mutation_list' %}" class="sidebar-link {% if active_section == 'mutations' %}active{% endif %}">
-        <i class="fa-solid fa-right-left nav-icon"></i> Mutations fiscales
-      </a></li>
       <li><a href="{% url 'dashboard_contribuable_list' %}" class="sidebar-link {% if active_section == 'contribuables' %}active{% endif %}">
         <i class="fa-solid fa-id-card nav-icon"></i> Contribuables
       </a></li>
@@ -377,6 +385,37 @@
       <li><a href="{% url 'dashboard_typetaxe_list' %}" class="sidebar-link {% if active_section == 'types_taxe' %}active{% endif %}">
         <i class="fa-solid fa-tags nav-icon"></i> Types de taxe
       </a></li>
+      <li>
+        <details class="sidebar-subgroup" {% if active_section == 'declarations' or active_section == 'recours' or active_section == 'immatriculations' or active_section == 'exonerations' or active_section == 'plans_paiement' or active_section == 'mutations' or active_section == 'morcellement_fusion' %}open{% endif %}>
+          <summary>
+            <i class="fa-solid fa-folder-tree nav-icon"></i> Procédures &amp; validations
+            <i class="fa-solid fa-chevron-right chevron"></i>
+          </summary>
+          <ul class="sidebar-nav">
+            <li><a href="{% url 'dashboard_declaration_list' %}" class="sidebar-link {% if active_section == 'declarations' %}active{% endif %}">
+              <i class="fa-solid fa-file-signature nav-icon"></i> Déclarations fiscales
+            </a></li>
+            <li><a href="{% url 'dashboard_recours_list' %}" class="sidebar-link {% if active_section == 'recours' %}active{% endif %}">
+              <i class="fa-solid fa-scale-balanced nav-icon"></i> Recours fiscaux
+            </a></li>
+            <li><a href="{% url 'dashboard_immatriculation_list' %}" class="sidebar-link {% if active_section == 'immatriculations' %}active{% endif %}">
+              <i class="fa-solid fa-user-plus nav-icon"></i> Premières immatriculations
+            </a></li>
+            <li><a href="{% url 'dashboard_exoneration_list' %}" class="sidebar-link {% if active_section == 'exonerations' %}active{% endif %}">
+              <i class="fa-solid fa-house-circle-check nav-icon"></i> Exonérations fiscales
+            </a></li>
+            <li><a href="{% url 'dashboard_plan_paiement_list' %}" class="sidebar-link {% if active_section == 'plans_paiement' %}active{% endif %}">
+              <i class="fa-solid fa-calendar-days nav-icon"></i> Plans de paiement
+            </a></li>
+            <li><a href="{% url 'dashboard_mutation_list' %}" class="sidebar-link {% if active_section == 'mutations' %}active{% endif %}">
+              <i class="fa-solid fa-right-left nav-icon"></i> Mutations fiscales
+            </a></li>
+            <li><a href="{% url 'dashboard_morcellement_fusion_list' %}" class="sidebar-link {% if active_section == 'morcellement_fusion' %}active{% endif %}">
+              <i class="fa-solid fa-object-ungroup nav-icon"></i> Morcellement / Fusion
+            </a></li>
+          </ul>
+        </details>
+      </li>
     </ul>
     {% endif %}
 
@@ -405,19 +444,25 @@
         {% if nb_signalements_en_cours %}<span class="count count-alert">{{ nb_signalements_en_cours }}</span>{% endif %}
       </a></li>
       {% endif %}
+      <li><a href="{% url 'dashboard_jeunesse_list' %}" class="sidebar-link {% if active_section == 'jeunesse' %}active{% endif %}">
+        <i class="fa-solid fa-seedling nav-icon"></i> Espace Jeunes
+      </a></li>
     </ul>
 
     {% if peut_technique %}
     <div class="sidebar-section-label">Contenu public</div>
     <ul class="sidebar-nav">
-      <li><a href="{% url 'dashboard_infrastructure_list' %}" class="sidebar-link {% if active_section == 'infrastructures' %}active{% endif %}">
-        <i class="fa-solid fa-building nav-icon"></i> Infrastructures
-      </a></li>
       <li><a href="{% url 'dashboard_categorie_list' %}" class="sidebar-link {% if active_section == 'categories_infra' %}active{% endif %}">
         <i class="fa-solid fa-layer-group nav-icon"></i> Catégories d'infra.
       </a></li>
       <li><a href="{% url 'dashboard_actualite_list' %}" class="sidebar-link {% if active_section == 'actualites' %}active{% endif %}">
         <i class="fa-solid fa-newspaper nav-icon"></i> Actualités
+      </a></li>
+      <li><a href="{% url 'dashboard_galerie_list' %}" class="sidebar-link {% if active_section == 'galerie' %}active{% endif %}">
+        <i class="fa-solid fa-images nav-icon"></i> Galerie photo
+      </a></li>
+      <li><a href="{% url 'dashboard_cartotheque_list' %}" class="sidebar-link {% if active_section == 'cartotheque' %}active{% endif %}">
+        <i class="fa-solid fa-map-location-dot nav-icon"></i> Cartothèque
       </a></li>
     </ul>
     {% endif %}

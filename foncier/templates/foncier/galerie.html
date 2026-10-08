@@ -1,0 +1,185 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Galerie - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+    .gal-page{
+        --gp-brown-dark:#2B1B14;
+        --gp-brown:#3A2419;
+        --gp-brown-light:#5a3d2c;
+        --gp-gold:#D9A52B;
+        --gp-gold-muted:#B98520;
+        --gp-gold-light:#e6bc5c;
+        --gp-cream:#F7F2E8;
+        --gp-cream-2:#E9DFCC;
+        --gp-border:#e3d7bc;
+        --gp-radius:16px;
+        --gp-radius-sm:10px;
+        --gp-shadow-md:0 8px 24px rgba(43,27,20,.12);
+        --gp-shadow-lg:0 16px 40px rgba(43,27,20,.2);
+        background: var(--gp-cream);
+        padding-bottom: 80px;
+    }
+    .gal-page *{ box-sizing:border-box; }
+
+    /* ---- Grille de photos ---- */
+    .gal-grid-section{ max-width:1320px; margin:0 auto; padding:56px 60px 0; }
+    .gal-grid{
+        display:grid; grid-template-columns: repeat(3, 1fr); gap:22px;
+    }
+    .gal-card{
+        background:#fff; border:1px solid var(--gp-border); border-radius:var(--gp-radius);
+        overflow:hidden; cursor:pointer; text-align:left; padding:0;
+        transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+        display:flex; flex-direction:column;
+    }
+    .gal-card:hover{ transform:translateY(-6px); box-shadow: var(--gp-shadow-lg); border-color: var(--gp-gold); }
+    .gal-card-img{ position:relative; height:220px; overflow:hidden; }
+    .gal-card-img img{ width:100%; height:100%; object-fit:cover; display:block; transition: transform .4s ease; }
+    .gal-card:hover .gal-card-img img{ transform: scale(1.06); }
+    .gal-card-zoom{
+        position:absolute; top:12px; right:12px; width:34px; height:34px; border-radius:50%;
+        background:rgba(43,27,20,.7); color:#fff; display:flex; align-items:center; justify-content:center;
+        font-size:12px; opacity:0; transition: opacity .2s ease;
+    }
+    .gal-card:hover .gal-card-zoom{ opacity:1; }
+    .gal-card-body{ padding:16px 18px; }
+    .gal-card-body h4{ font-size:14px; font-weight:700; color: var(--gp-brown-dark); margin:0; line-height:1.4; }
+
+    @media (max-width: 991px){
+        .gal-grid{ grid-template-columns: repeat(2, 1fr); }
+        .gal-grid-section{ padding:44px 24px 0; }
+    }
+    @media (max-width: 600px){
+        .gal-grid{ grid-template-columns: 1fr; }
+    }
+
+    /* ---- Lightbox plein ecran ---- */
+    .gal-lightbox-overlay{
+        display:none; position:fixed; inset:0; z-index:3000;
+        background:rgba(26,16,11,.92); backdrop-filter:blur(4px);
+        align-items:center; justify-content:center; padding:30px;
+    }
+    .gal-lightbox-overlay.open{ display:flex; }
+    .gal-lightbox-close{
+        position:absolute; top:24px; right:24px; z-index:2;
+        width:42px; height:42px; border-radius:50%; border:none;
+        background:rgba(255,255,255,.12); color:#fff; font-size:17px; cursor:pointer;
+        display:flex; align-items:center; justify-content:center;
+        transition: background .2s ease;
+    }
+    .gal-lightbox-close:hover{ background: var(--gp-gold); color: var(--gp-brown-dark); }
+    .gal-lightbox-nav{
+        position:absolute; top:50%; transform:translateY(-50%); z-index:2;
+        width:48px; height:48px; border-radius:50%; border:none;
+        background:rgba(255,255,255,.12); color:#fff; font-size:18px; cursor:pointer;
+        display:flex; align-items:center; justify-content:center;
+        transition: background .2s ease;
+    }
+    .gal-lightbox-nav:hover{ background: var(--gp-gold); color: var(--gp-brown-dark); }
+    .gal-lightbox-prev{ left:24px; }
+    .gal-lightbox-next{ right:24px; }
+    .gal-lightbox-img-wrap{ max-width:1100px; width:100%; text-align:center; }
+    .gal-lightbox-img-wrap img{
+        max-width:100%; max-height:78vh; border-radius:12px; cursor:zoom-in;
+        box-shadow: 0 30px 70px rgba(0,0,0,.5);
+    }
+    .gal-lightbox-caption{ color:#fff; font-size:14.5px; font-weight:600; margin-top:18px; }
+    .gal-lightbox-count{ color: var(--gp-gold-light); font-size:12px; margin-top:6px; }
+
+    @media (max-width: 700px){
+        .gal-lightbox-nav{ width:38px; height:38px; font-size:14px; }
+        .gal-lightbox-prev{ left:10px; } .gal-lightbox-next{ right:10px; }
+        .gal-lightbox-close{ top:14px; right:14px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gal-page">
+
+    <section class="gal-grid-section">
+        <div class="gal-grid" id="galGrid">
+            {% for p in photos %}
+            <button type="button" class="gal-card" data-src="{{ p.photo.url }}" data-caption="{{ p.titre }}">
+                <div class="gal-card-img">
+                    <span class="gal-card-zoom"><i class="fa-solid fa-expand"></i></span>
+                    <img src="{{ p.photo.url }}" alt="{{ p.titre }}">
+                </div>
+                <div class="gal-card-body"><h4>{{ p.titre }}</h4></div>
+            </button>
+            {% empty %}
+            <p style="grid-column:1/-1; text-align:center; color:var(--gp-brown-light); padding:40px 0;">
+                Aucune photo pour le moment.
+            </p>
+            {% endfor %}
+        </div>
+    </section>
+
+</div>
+
+<!-- ===================== LIGHTBOX PLEIN ECRAN ===================== -->
+<div class="gal-lightbox-overlay" id="galLightbox">
+    <button type="button" class="gal-lightbox-close" id="galLightboxClose" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    <button type="button" class="gal-lightbox-nav gal-lightbox-prev" id="galLightboxPrev" aria-label="Image pr&eacute;c&eacute;dente"><i class="fa-solid fa-chevron-left"></i></button>
+    <button type="button" class="gal-lightbox-nav gal-lightbox-next" id="galLightboxNext" aria-label="Image suivante"><i class="fa-solid fa-chevron-right"></i></button>
+    <div class="gal-lightbox-img-wrap">
+        <img src="" alt="" id="galLightboxImg">
+        <div class="gal-lightbox-caption" id="galLightboxCaption"></div>
+        <div class="gal-lightbox-count" id="galLightboxCount"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const cartes = Array.from(document.querySelectorAll('.gal-card'));
+    const overlay = document.getElementById('galLightbox');
+    const img = document.getElementById('galLightboxImg');
+    const caption = document.getElementById('galLightboxCaption');
+    const compteur = document.getElementById('galLightboxCount');
+    const btnFermer = document.getElementById('galLightboxClose');
+    const btnPrev = document.getElementById('galLightboxPrev');
+    const btnNext = document.getElementById('galLightboxNext');
+
+    let indexActuel = 0;
+
+    function afficher(index) {
+        indexActuel = (index + cartes.length) % cartes.length;
+        const carte = cartes[indexActuel];
+        img.src = carte.getAttribute('data-src');
+        img.alt = carte.getAttribute('data-caption');
+        caption.textContent = carte.getAttribute('data-caption');
+        compteur.textContent = (indexActuel + 1) + ' / ' + cartes.length;
+    }
+
+    cartes.forEach(function (carte, index) {
+        carte.addEventListener('click', function () {
+            afficher(index);
+            overlay.classList.add('open');
+        });
+    });
+
+    btnFermer.addEventListener('click', function () { overlay.classList.remove('open'); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.classList.remove('open'); });
+    btnPrev.addEventListener('click', function () { afficher(indexActuel - 1); });
+    btnNext.addEventListener('click', function () { afficher(indexActuel + 1); });
+
+    document.addEventListener('keydown', function (e) {
+        if (!overlay.classList.contains('open')) return;
+        if (e.key === 'Escape') overlay.classList.remove('open');
+        if (e.key === 'ArrowLeft') afficher(indexActuel - 1);
+        if (e.key === 'ArrowRight') afficher(indexActuel + 1);
+    });
+
+    // Clic sur l'image en grand : plein ecran reel
+    img.style.cursor = 'zoom-in';
+    img.addEventListener('click', function () {
+        if (img.requestFullscreen) img.requestFullscreen();
+        else if (img.webkitRequestFullscreen) img.webkitRequestFullscreen();
+    });
+});
+</script>
+{% endblock %}

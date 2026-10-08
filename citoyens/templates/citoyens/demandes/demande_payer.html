@@ -1,0 +1,89 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}Payer la démarche{% endblock %}
+{% block header_title %}Payer ma démarche{% endblock %}
+{% block header_subtitle %}{{ demande.type_demande.libelle }} — Dossier {{ demande.numero_dossier }}{% endblock %}
+
+{% block extra_style %}
+    .montant-box {
+        background: var(--off-white); border: 2px dashed var(--gold); border-radius: var(--radius);
+        padding: 20px; margin-bottom: 24px; text-align: center;
+    }
+    .montant-box .label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); font-weight: 700; margin-bottom: 8px; }
+    .montant-box .value { font-size: 28px; font-weight: 700; color: var(--text); }
+    .montant-box .sous { font-size: 12.5px; color: var(--text-muted); margin-top: 6px; }
+
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+
+    .operateur-option {
+        display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+        border: 1.5px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; cursor: pointer;
+    }
+    .operateur-option input { accent-color: var(--gold); }
+    .operateur-option span { font-weight: 600; font-size: 14px; }
+
+    .field input[type="text"] {
+        width: 100%; background: var(--off-white); border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm); padding: 12px 14px; font-family: inherit; font-size: 14px;
+    }
+    .field input:focus { outline: none; border-color: var(--gold); }
+    .helptext { font-size: 12px; color: var(--text-muted); margin-top: 7px; }
+
+    .btn-gold {
+        background: var(--gold); color: var(--green-dark); font-weight: 700;
+        border: none; padding: 14px; border-radius: 999px; font-size: 14.5px; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center; gap: 9px; width: 100%;
+    }
+    .btn-gold:hover { background: #d9ad4f; }
+
+    .secu-note { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--text-muted); margin-top: 16px; }
+
+    .demande-wrap { max-width: 500px; margin: 0 auto; }
+{% endblock %}
+
+{% block content %}
+<div class="demande-wrap">
+
+  <div class="montant-box">
+    <div class="label">Montant à régler</div>
+    <div class="value">{{ demande.type_demande.tarif|floatformat:0 }} FCFA</div>
+    <div class="sous">{{ demande.type_demande.libelle }}{% if demande.parcelle %} — {{ demande.parcelle.nicad }}{% endif %}</div>
+  </div>
+
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="field">
+        <label>Opérateur</label>
+        {% for radio in form.operateur %}
+          <label class="operateur-option">
+            {{ radio.tag }}
+            <span>{{ radio.choice_label }}</span>
+          </label>
+        {% endfor %}
+        {{ form.operateur.errors }}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.telephone.id_for_label }}">Numéro de téléphone</label>
+        {{ form.telephone }}
+        <div class="helptext">Le numéro associé à votre compte Orange Money ou Wave.</div>
+        {{ form.telephone.errors }}
+      </div>
+
+      <button type="submit" class="btn-gold">
+        <i class="fa-solid fa-lock"></i> Continuer vers le paiement
+      </button>
+    </form>
+
+    <div class="secu-note">
+      <i class="fa-solid fa-shield"></i>
+      <div>Votre demande sera traitée dès que ce paiement aura été validé par un agent de la commune.</div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

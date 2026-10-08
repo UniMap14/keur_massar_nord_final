@@ -41,6 +41,10 @@ urlpatterns = [
     path("espace/exonerations/", views.exoneration_liste_view, name="citoyen_exoneration_liste"),
         # Plans de paiement
     path("espace/plans-paiement/", views.plan_paiement_liste_view, name="citoyen_plan_paiement_liste"),
+        # Morcellement / fusion de parcelles
+    path("espace/morcellement-fusion/", views.morcellement_fusion_liste_view, name="citoyen_morcellement_fusion_liste"),
+    path("espace/morcellement-fusion/nouvelle/", views.morcellement_fusion_creer_view, name="citoyen_morcellement_fusion_creer"),
+    path("espace/parcelles/<int:pk>/historique/", views.historique_parcelle_view, name="citoyen_historique_parcelle"),
     path("espace/plans-paiement/taxation/<int:taxation_pk>/nouveau/", views.plan_paiement_creer_view, name="citoyen_plan_paiement_creer"),
     path("espace/echeances/<int:echeance_pk>/payer/", views.echeance_payer_view, name="citoyen_echeance_payer"),
     path("espace/exonerations/parcelle/<int:parcelle_pk>/nouvelle/", views.exoneration_creer_view, name="citoyen_exoneration_creer"),
@@ -53,6 +57,7 @@ urlpatterns = [
     path("espace/demarches/nouvelle/", views.demande_creer_view, name="citoyen_demande_creer"),
     path("espace/demarches/<int:pk>/", views.demande_detail_view, name="citoyen_demande_detail"),
     path("espace/demarches/<int:pk>/piece-jointe/", views.demande_piece_jointe_view, name="demande_piece_jointe"),
+    path("espace/demarches/<int:pk>/payer/", views.demande_payer_view, name="citoyen_demande_payer"),
     # Espace gestion (agents / administration)
     path("gestion/inscriptions/", views.gestion_inscriptions_view, name="gestion_inscriptions"),
 ]

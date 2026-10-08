@@ -1,0 +1,122 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Recherche - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+    .rg-page{
+        --rg-brown-dark:#2B1B14;
+        --rg-brown-light:#5a3d2c;
+        --rg-gold:#D9A52B;
+        --rg-gold-muted:#B98520;
+        --rg-cream:#F7F2E8;
+        --rg-cream-2:#E9DFCC;
+        --rg-border:#e3d7bc;
+        --rg-radius:14px;
+        background: var(--rg-cream);
+        min-height: 60vh;
+        padding-bottom: 80px;
+    }
+    .rg-page *{ box-sizing:border-box; }
+
+    .rg-header{ max-width:760px; margin:0 auto; padding:56px 24px 0; text-align:center; }
+    .rg-header h1{
+        font-family:'Playfair Display', serif; font-size:clamp(24px,3.2vw,32px); font-weight:800;
+        color:var(--rg-brown-dark); margin:0 0 20px;
+    }
+    .rg-search-form{
+        display:flex; align-items:center; gap:10px;
+        background:#fff; border:1.5px solid var(--rg-border); border-radius:999px;
+        padding:6px 6px 6px 22px; box-shadow:0 10px 28px rgba(43,27,20,.1);
+    }
+    .rg-search-form i{ color:var(--rg-brown-light); font-size:14px; }
+    .rg-search-form input{
+        flex:1; border:none; outline:none; background:transparent; font-size:14.5px;
+        color:var(--rg-brown-dark); padding:10px 0;
+    }
+    .rg-search-form button{
+        background:var(--rg-gold); color:var(--rg-brown-dark); border:none; font-weight:700;
+        padding:12px 26px; border-radius:999px; cursor:pointer; font-size:13.5px;
+        transition:background .2s;
+    }
+    .rg-search-form button:hover{ background:var(--rg-gold-muted); }
+
+    .rg-count{ text-align:center; font-size:13px; color:var(--rg-brown-light); margin:22px 0 10px; }
+
+    .rg-results{ max-width:820px; margin:0 auto; padding:10px 24px 0; display:flex; flex-direction:column; gap:14px; }
+    .rg-result-card{
+        display:flex; gap:16px; align-items:flex-start;
+        background:#fff; border:1px solid var(--rg-border); border-radius:var(--rg-radius);
+        padding:20px 22px; text-decoration:none; transition:box-shadow .2s ease, transform .2s ease;
+    }
+    .rg-result-card:hover{ box-shadow:0 10px 26px rgba(43,27,20,.12); transform:translateY(-2px); }
+    .rg-result-icon{
+        width:42px; height:42px; border-radius:11px; flex-shrink:0;
+        background:var(--rg-cream-2); color:var(--rg-gold-muted);
+        display:flex; align-items:center; justify-content:center; font-size:16px;
+    }
+    .rg-result-type{
+        font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.6px;
+        color:var(--rg-gold-muted); margin-bottom:5px; display:block;
+    }
+    .rg-result-title{ font-size:15px; font-weight:700; color:var(--rg-brown-dark); margin:0 0 6px; }
+    .rg-result-extract{ font-size:13px; line-height:1.6; color:var(--rg-brown-light); margin:0; }
+
+    .rg-empty{ text-align:center; padding:70px 20px; color:var(--rg-brown-light); }
+    .rg-empty i{ font-size:30px; color:var(--rg-gold); margin-bottom:16px; display:block; }
+
+    .rg-no-query{ text-align:center; padding:60px 20px; color:var(--rg-brown-light); font-size:14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rg-page">
+
+    <div class="rg-header">
+        <h1>Rechercher sur le site</h1>
+        <form method="get" class="rg-search-form">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" name="q" value="{{ q }}" placeholder="Actualités, cartes thématiques..." autofocus>
+            <button type="submit">Rechercher</button>
+        </form>
+    </div>
+
+    {% if q %}
+        <p class="rg-count">{{ total }} r&eacute;sultat{{ total|pluralize }} pour &laquo;&nbsp;{{ q }}&nbsp;&raquo;</p>
+
+        <div class="rg-results">
+            {% for a in actualites_trouvees %}
+            <a href="{% url 'actualite_detail' a.pk %}" class="rg-result-card">
+                <div class="rg-result-icon"><i class="fa-solid fa-newspaper"></i></div>
+                <div>
+                    <span class="rg-result-type">Actualit&eacute;</span>
+                    <h3 class="rg-result-title">{{ a.titre }}</h3>
+                    <p class="rg-result-extract">{{ a.chapo }}</p>
+                </div>
+            </a>
+            {% endfor %}
+
+            {% for c in cartes_trouvees %}
+            <a href="{% url 'cartotheque' %}" class="rg-result-card">
+                <div class="rg-result-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                <div>
+                    <span class="rg-result-type">Cartoth&egrave;que</span>
+                    <h3 class="rg-result-title">{{ c.titre }}</h3>
+                    <p class="rg-result-extract">{{ c.explication|truncatechars:160 }}</p>
+                </div>
+            </a>
+            {% endfor %}
+
+            {% if total == 0 %}
+            <div class="rg-empty">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                Aucun r&eacute;sultat ne correspond &agrave; votre recherche.
+            </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="rg-no-query">Entrez un mot-cl&eacute; ci-dessus pour lancer la recherche.</div>
+    {% endif %}
+
+</div>
+{% endblock %}

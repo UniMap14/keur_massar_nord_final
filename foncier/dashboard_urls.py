@@ -96,6 +96,9 @@ urlpatterns = [
     path("plans-paiement/", views.dashboard_plan_paiement_list, name="dashboard_plan_paiement_list"),
         # --- Mutations fiscales ---
     path("mutations/", views.dashboard_mutation_list, name="dashboard_mutation_list"),
+        # --- Morcellement / fusion ---
+    path("morcellement-fusion/", views.dashboard_morcellement_fusion_list, name="dashboard_morcellement_fusion_list"),
+    path("morcellement-fusion/<int:pk>/traiter/", views.dashboard_morcellement_fusion_traiter, name="dashboard_morcellement_fusion_traiter"),
     path("mutations/<int:pk>/traiter/", views.dashboard_mutation_traiter, name="dashboard_mutation_traiter"),
     path("plans-paiement/<int:pk>/traiter/", views.dashboard_plan_paiement_traiter, name="dashboard_plan_paiement_traiter"),
     path("exonerations/<int:pk>/traiter/", views.dashboard_exoneration_traiter, name="dashboard_exoneration_traiter"),
@@ -146,4 +149,20 @@ urlpatterns = [
 
     # --- Journal d'audit (réservé aux superviseurs) ---
     path("journal-audit/", views.dashboard_journal_audit_list, name="dashboard_journal_audit_list"),
+
+    # --- Espace Jeunes (projets soumis par les jeunes de la commune) ---
+    path("jeunesse/", views.dashboard_jeunesse_list, name="dashboard_jeunesse_list"),
+    path("jeunesse/<int:pk>/", views.dashboard_jeunesse_detail, name="dashboard_jeunesse_detail"),
+
+    # --- Galerie photo (page publique "La commune en images") ---
+    path("galerie/", views.dashboard_galerie_list, name="dashboard_galerie_list"),
+    path("galerie/nouvelle/", views.dashboard_galerie_create, name="dashboard_galerie_create"),
+    path("galerie/<int:pk>/modifier/", views.dashboard_galerie_update, name="dashboard_galerie_update"),
+    path("galerie/<int:pk>/supprimer/", views.dashboard_galerie_delete, name="dashboard_galerie_delete"),
+
+    # --- Cartotheque (page publique "Cartotheque") ---
+    path("cartotheque/", views.dashboard_cartotheque_list, name="dashboard_cartotheque_list"),
+    path("cartotheque/nouvelle/", views.dashboard_cartotheque_create, name="dashboard_cartotheque_create"),
+    path("cartotheque/<int:pk>/modifier/", views.dashboard_cartotheque_update, name="dashboard_cartotheque_update"),
+    path("cartotheque/<int:pk>/supprimer/", views.dashboard_cartotheque_delete, name="dashboard_cartotheque_delete"),
 ]

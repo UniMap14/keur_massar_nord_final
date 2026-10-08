@@ -60,7 +60,13 @@
     }
     .form-field textarea { min-height: 130px; resize: vertical; }
     .form-field .errorlist { list-style: none; margin: 6px 0 0; padding: 0; color: #c0392b; font-size: 12px; }
+
+    #signalMiniMap {
+        width: 100%; height: 240px; border-radius: 10px; margin-top: 6px;
+        border: 1px solid var(--line, #ece6da);
+    }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 {% endblock %}
 
 {% block content %}
@@ -86,8 +92,12 @@
     {% endif %}
     {% if signalement.latitude and signalement.longitude %}
     <div class="info-field">
-      <label><i class="fa-solid fa-map-pin"></i> Coordonnées</label>
-      <div class="val" style="font-weight:400;">{{ signalement.latitude }}, {{ signalement.longitude }}</div>
+      <label><i class="fa-solid fa-map-pin"></i> Localisation transmise par le citoyen</label>
+      <div id="signalMiniMap" data-lat="{{ signalement.latitude }}" data-lng="{{ signalement.longitude }}"></div>
+      <div class="val" style="font-weight:400; font-size:11.5px; margin-top:6px; color:var(--ink-quiet,#7a7266);">
+        {{ signalement.latitude }}, {{ signalement.longitude }}
+        &middot; <a href="https://www.google.com/maps?q={{ signalement.latitude }},{{ signalement.longitude }}" target="_blank" rel="noopener">Ouvrir dans Google Maps</a>
+      </div>
     </div>
     {% endif %}
     {% if signalement.description %}
@@ -146,5 +156,22 @@
     </form>
   </div>
 </div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var conteneur = document.getElementById('signalMiniMap');
+    if (!conteneur || typeof L === 'undefined') return;
 
+    var lat = parseFloat(conteneur.getAttribute('data-lat'));
+    var lng = parseFloat(conteneur.getAttribute('data-lng'));
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    var carte = L.map(conteneur).setView([lat, lng], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        subdomains: 'abc',
+    }).addTo(carte);
+    L.marker([lat, lng]).addTo(carte);
+});
+</script>
 {% endblock %}

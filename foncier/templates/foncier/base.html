@@ -102,6 +102,35 @@
         to { opacity: 1; transform: translateY(0); }
       }
     }
+
+    /* ===== Logo UIDT (droite) + centrage navbar (desktop) ===== */
+    .km-header-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .logo-uidt-img {
+      height: 46px;
+      width: auto;
+      display: block;
+      flex-shrink: 0;
+    }
+    @media (min-width: 992px) {
+      .header-inner {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 24px;
+      }
+      .header-inner > nav {
+        display: flex;
+        justify-content: center;
+      }
+    }
+    @media (max-width: 600px) {
+      .logo-uidt-img { height: 34px; }
+      .km-header-right { gap: 10px; }
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -130,16 +159,23 @@
     </a>
     <nav aria-label="Navigation principale">
       <ul id="navMenu">
-        <li><a href="{% url 'home' %}">Accueil</a></li>
-        <li><a href="{% url 'infrastructures' %}">Infrastructures</a></li>
-        <li><a href="{% url 'fiscalite' %}">Fiscalité</a></li>
-        <li><a href="{% url 'contact' %}">Contact</a></li>
-        <li><a href="{% url 'dashboard_home' %}">Gestion</a></li>
+        <li><a href="{% url 'home' %}"><i class="fa-solid fa-house"></i> Accueil</a></li>
+        <li><a href="{% url 'actualites' %}"><i class="fa-solid fa-newspaper"></i> Actualités</a></li>
+        <li><a href="{% url 'fiscalite' %}"><i class="fa-solid fa-scale-balanced"></i> Foncier &amp; Fiscalité</a></li>
+        <li><a href="{% url 'cartotheque' %}"><i class="fa-solid fa-map-location-dot"></i> Cartothèque</a></li>
+        <li><a href="{% url 'galerie' %}"><i class="fa-solid fa-images"></i> Galerie</a></li>
+        <li><a href="{% url 'contact' %}"><i class="fa-solid fa-envelope"></i> Contact</a></li>
       </ul>
     </nav>
-    <button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-controls="navMenu" aria-expanded="false">
-      <i class="fa-solid fa-bars" aria-hidden="true"></i>
-    </button>
+    <div class="km-header-right">
+      <a href="{% url 'dashboard_home' %}" class="nav-gestion-link">
+        <i class="fa-solid fa-right-to-bracket"></i> Gestion
+      </a>
+      <img src="{% static 'foncier/images/logo-uidt.png' %}" alt="Logo Université Iba Der Thiam de Thiès" class="logo-uidt-img">
+      <button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-controls="navMenu" aria-expanded="false">
+        <i class="fa-solid fa-bars" aria-hidden="true"></i>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -189,7 +225,7 @@
       <ul>
         <li><a href="{% url 'home' %}">Accueil</a></li>
         <li><a href="{% url 'geoportail' %}">Géoportail</a></li>
-        <li><a href="{% url 'fiscalite' %}">Fiscalité</a></li>
+        <li><a href="{% url 'fiscalite' %}">Foncier &amp; Fiscalité</a></li>
         <li><a href="{% url 'contact' %}">Contact</a></li>
         <li><a href="{% url 'dashboard_home' %}">Administration</a></li>
       </ul>
@@ -255,7 +291,6 @@
 
     <i class="fa-solid fa-volume-high" id="voiceIcon" aria-hidden="true"></i>
   </button>
-  <script src="{% static 'foncier/js/voice-guide.js' %}" defer></script>
 </div>
 
 <script src="{% static 'foncier/js/voice-guide.js' %}" defer></script>

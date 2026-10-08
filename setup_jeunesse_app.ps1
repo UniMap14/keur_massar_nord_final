@@ -217,7 +217,7 @@ def soumettre_projet(request):
                 try:
                     corps = render_to_string("jeunesse/emails/projet_recu.txt", {"projet": projet})
                     send_mail(
-                        subject="Votre projet a bien été reçu — Espace Jeunes KMS Nord",
+                        subject="Votre projet a bien été reçu — Espace Jeunes KEUR MASSAR NORD",
                         message=corps,
                         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                         recipient_list=[projet.email],
@@ -359,7 +359,7 @@ urlpatterns = [
 
 @'
 {% extends 'foncier/base.html' %}
-{% block title %}Espace Jeunes - KMS Nord{% endblock %}
+{% block title %}Espace Jeunes - KEUR MASSAR NORD{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -594,7 +594,7 @@ urlpatterns = [
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestion — Projets Jeunes · KMS Nord Admin</title>
+  <title>Gestion — Projets Jeunes · KEUR MASSAR NORD Admin</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     :root {

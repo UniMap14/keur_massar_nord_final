@@ -1,0 +1,71 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Galerie photo{% endblock %}
+{% block header_title %}Galerie photo{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ photos.count }} photo(s) publiée(s) sur le site</div>{% endblock %}
+
+{% block topbar_extra %}
+<a href="{% url 'dashboard_galerie_create' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Ajouter une photo</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .4s ease forwards; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .gal-admin-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px;
+    }
+    .gal-admin-card {
+        background: #fff; border: 1px solid var(--line, #ece6da); border-radius: var(--radius-md, 10px);
+        overflow: hidden; transition: box-shadow .18s ease, transform .18s ease;
+    }
+    .gal-admin-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
+    .gal-admin-thumb { height: 140px; overflow: hidden; background: var(--brand-cream, #f5efe2); }
+    .gal-admin-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gal-admin-body { padding: 12px 14px; }
+    .gal-admin-body h4 { font-size: 13.5px; margin: 0 0 4px; color: var(--brand-brown-dark, #2b1e16); line-height: 1.35; }
+    .gal-admin-meta { font-size: 11.5px; color: var(--ink-quiet, #6f6a5e); margin-bottom: 10px; }
+    .gal-admin-actions { display: flex; gap: 8px; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--ink-quiet, #6f6a5e); }
+    .empty-state .icon {
+        width: 52px; height: 52px; border-radius: 50%; background: rgba(122,114,102,0.1);
+        color: var(--ink-quiet, #7a7266); display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 14px; font-size: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+    {% if photos %}
+    <div class="gal-admin-grid">
+      {% for p in photos %}
+      <div class="gal-admin-card">
+        <div class="gal-admin-thumb">
+          <img src="{{ p.photo.url }}" alt="{{ p.titre }}">
+        </div>
+        <div class="gal-admin-body">
+          <h4>{{ p.titre }}</h4>
+          <div class="gal-admin-meta">Ordre : {{ p.ordre }} · Ajoutée le {{ p.date_ajout|date:"d/m/Y" }}</div>
+          <div class="gal-admin-actions">
+            <a href="{% url 'dashboard_galerie_update' p.pk %}" class="btn btn-outline btn-sm" style="flex:1;"><i class="fa-solid fa-pen"></i> Modifier</a>
+            <a href="{% url 'dashboard_galerie_delete' p.pk %}" class="btn btn-outline btn-sm" style="flex:1;"><i class="fa-solid fa-trash"></i></a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon"><i class="fa-solid fa-images"></i></div>
+      Aucune photo dans la galerie pour le moment.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

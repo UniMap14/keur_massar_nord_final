@@ -173,7 +173,7 @@ nav ul li a {
   color         : var(--text);
   font-size     : 13.5px;
   font-weight   : 500;
-  padding       : 8px 14px;
+  padding       : 13px 14px;
   border-radius : 6px;
   transition    : all 0.25s;
   letter-spacing: 0.2px;
@@ -181,8 +181,8 @@ nav ul li a {
 
 nav ul li a:hover,
 nav ul li a.active {
-  color      : var(--white);
-  background : var(--green-dark);
+  color      : var(--brown-dark, #2b1e16);
+  background : var(--gold);
 }
 
 .menu-toggle {

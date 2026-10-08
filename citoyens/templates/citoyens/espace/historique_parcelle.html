@@ -1,0 +1,121 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}Historique de la parcelle{% endblock %}
+{% block header_title %}Historique de {{ parcelle.nicad }}{% endblock %}
+{% block header_subtitle %}Chronologie complète des événements liés à cette parcelle.{% endblock %}
+
+{% block extra_style %}
+    .timeline { list-style: none; margin: 0; padding: 0; }
+    .timeline li {
+        position: relative; padding-left: 34px; padding-bottom: 28px;
+        font-size: 13.5px; color: var(--text-muted); line-height: 1.6;
+    }
+    .timeline li:last-child { padding-bottom: 0; }
+    .timeline li::before {
+        content: ''; position: absolute; left: 0; top: 2px; width: 17px; height: 17px;
+        border-radius: 50%; background: var(--gold); border: 3px solid var(--white);
+        box-shadow: 0 0 0 2px var(--gold);
+    }
+    .timeline li::after {
+        content: ''; position: absolute; left: 8px; top: 19px; width: 2px; bottom: -11px;
+        background: var(--border);
+    }
+    .timeline li:last-child::after { display: none; }
+    .timeline li strong { display: block; color: var(--text); font-size: 14.5px; margin-bottom: 4px; }
+    .timeline li .date { font-size: 11.5px; color: var(--gold-dark); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+
+    .parcelle-info {
+        background: var(--off-white); border: 1px solid var(--border); border-radius: var(--radius);
+        padding: 18px 22px; margin-bottom: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;
+    }
+    .parcelle-info .label { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; font-weight: 700; }
+    .parcelle-info .value { font-size: 14px; font-weight: 600; color: var(--text); }
+
+    .lien-parcelle { color: var(--gold-dark); font-weight: 700; text-decoration: none; }
+    .lien-parcelle:hover { text-decoration: underline; }
+
+    .empty-state {
+        text-align: center; padding: 40px 20px; color: var(--text-muted);
+        background: var(--white); border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+{% endblock %}
+
+{% block content %}
+
+<div class="parcelle-info">
+  <div>
+    <div class="label">NICAD</div>
+    <div class="value">{{ parcelle.nicad }}</div>
+  </div>
+  <div>
+    <div class="label">Superficie</div>
+    <div class="value">{{ parcelle.superficie|floatformat:0 }} m²</div>
+  </div>
+  <div>
+    <div class="label">Propriétaire actuel</div>
+    <div class="value">{{ parcelle.proprietaire|default:"—" }}</div>
+  </div>
+  <div>
+    <div class="label">Statut</div>
+    <div class="value">{% if parcelle.parcelle_active %}Active{% else %}Remplacée{% endif %}</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-bottom:20px;"><i class="fa-solid fa-timeline"></i> Chronologie</h2>
+
+  <ul class="timeline">
+
+    {% if origine %}
+    <li>
+      <div class="date">{{ origine.date_traitement|date:"d/m/Y" }}</div>
+      <strong>{{ origine.get_type_operation_display }}</strong>
+      Cette parcelle est issue d'une opération de {{ origine.get_type_operation_display|lower }}, à partir de :
+      {% for p in origine.parcelles_concernees.all %}{{ p.nicad }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+    </li>
+    {% endif %}
+
+    {% if immatriculation %}
+    <li>
+      <div class="date">{{ immatriculation.date_traitement|date:"d/m/Y" }}</div>
+      <strong>Première immatriculation fiscale</strong>
+      {{ immatriculation.nom }} {{ immatriculation.prenom }} a été enregistré(e) comme premier contribuable de cette parcelle.
+    </li>
+    {% endif %}
+
+    {% for m in mutations %}
+    <li>
+      <div class="date">{{ m.date_traitement|date:"d/m/Y" }}</div>
+      <strong>Mutation fiscale (changement de propriétaire)</strong>
+      La parcelle a été transférée à {{ m.nouveau_nom }} {{ m.nouveau_prenom }}
+      {% if m.nouveau_contribuable_cree %}(n° fiscal {{ m.nouveau_contribuable_cree.numero_fiscal }}){% endif %}.
+    </li>
+    {% endfor %}
+
+    {% for d in demandes_absorbant %}
+    <li>
+      <div class="date">{{ d.date_traitement|date:"d/m/Y" }}</div>
+      <strong>{{ d.get_type_operation_display }}</strong>
+      Cette parcelle a été remplacée suite à une opération de {{ d.get_type_operation_display|lower }}.
+      {% if d.parcelles_resultantes.all %}
+        Nouvelle(s) parcelle(s) :
+        {% for p in d.parcelles_resultantes.all %}
+          <a class="lien-parcelle" href="{% url 'citoyen_historique_parcelle' p.pk %}">{{ p.nicad }}</a>{% if not forloop.last %}, {% endif %}
+        {% endfor %}
+      {% endif %}
+    </li>
+    {% endfor %}
+
+    {% if not origine and not immatriculation and not mutations and not demandes_absorbant %}
+    <li>
+      <div class="date">—</div>
+      <strong>Aucun événement enregistré</strong>
+      Cette parcelle n'a fait l'objet d'aucune mutation, immatriculation ou opération de fusion/morcellement connue dans le système.
+    </li>
+    {% endif %}
+
+  </ul>
+</div>
+
+{% endblock %}

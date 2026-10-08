@@ -1,0 +1,110 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}{% if mode == "create" %}Nouvelle carte{% else %}Modifier la carte{% endif %}{% endblock %}
+{% block header_title %}{% if mode == "create" %}Ajouter une carte{% else %}Modifier la carte{% endif %}{% endblock %}
+{% block header_subtitle %}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .45s ease .05s forwards; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .form-field { margin-bottom: 18px; }
+    .form-field label {
+        display: block; font-weight: 600; font-size: 12.5px;
+        color: var(--ink-quiet, #6f6a5e); text-transform: uppercase; letter-spacing: 0.4px;
+        margin-bottom: 7px;
+    }
+    .form-field input[type="text"], .form-field input[type="number"], .form-field input[type="file"], .form-field textarea {
+        width: 100%; border: 1.5px solid var(--line-strong, #e6e0d4); border-radius: 8px;
+        padding: 10px 13px; font-family: inherit; font-size: 13.5px; background: #fdfcfa;
+        transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .form-field textarea { min-height: 110px; resize: vertical; }
+    .form-field input:focus, .form-field textarea:focus {
+        outline: none; border-color: var(--green, #2f7a4f);
+        box-shadow: 0 0 0 3px rgba(47,122,79,0.12); background: #fff;
+    }
+    .form-field .errorlist { list-style: none; margin: 6px 0 0; padding: 0; color: #b3261e; font-size: 12px; }
+    .form-field .hint { font-size: 12px; color: var(--ink-quiet, #8a8276); margin-top: 6px; }
+
+    .current-image { margin-bottom: 18px; }
+    .current-image img {
+        max-width: 320px; border-radius: 10px; border: 1px solid var(--line-strong, #e6e0d4); display: block;
+    }
+    .current-image .hint { margin-top: 8px; }
+
+    .form-actions {
+        display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;
+        padding-top: 20px; border-top: 1px solid var(--line-strong, #e6e0d4);
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <a href="{% url 'dashboard_cartotheque_list' %}"><i class="fa-solid fa-map-location-dot"></i> Cartothèque</a>
+  <span class="sep">/</span>
+  {% if mode == "create" %}Nouvelle carte{% else %}Modifier{% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="non-field-errors" style="background: rgba(179,38,30,0.08); border: 1px solid rgba(179,38,30,0.25); color: #b3261e; padding: 10px 14px; border-radius: 8px; margin-bottom: 18px; font-size: 13px;">
+          {% for e in form.non_field_errors %}{{ e }}{% endfor %}
+        </div>
+      {% endif %}
+
+      {% if mode == "update" and carte.image %}
+      <div class="current-image">
+        <label>Image actuelle</label>
+        <img src="{{ carte.image.url }}" alt="{{ carte.titre }}">
+        <div class="hint">Choisissez un nouveau fichier ci-dessous uniquement si vous voulez la remplacer.</div>
+      </div>
+      {% endif %}
+
+      <div class="form-field">
+        <label for="{{ form.titre.id_for_label }}">Titre de la carte</label>
+        {{ form.titre }}
+        {{ form.titre.errors }}
+      </div>
+
+      <div class="form-field">
+        <label for="{{ form.explication.id_for_label }}">Explication / signification</label>
+        {{ form.explication }}
+        <div class="hint">Quelques phrases expliquant ce que montre cette carte et pourquoi elle est utile.</div>
+        {{ form.explication.errors }}
+      </div>
+
+      <div class="form-field">
+        <label for="{{ form.image.id_for_label }}">Image{% if mode == "create" %} *{% endif %}</label>
+        {{ form.image }}
+        {{ form.image.errors }}
+      </div>
+
+      <div class="form-field">
+        <label for="{{ form.ordre.id_for_label }}">Ordre d'affichage</label>
+        {{ form.ordre }}
+        <div class="hint">Les cartes avec le plus petit numéro s'affichent en premier.</div>
+        {{ form.ordre.errors }}
+      </div>
+
+      <div class="form-actions">
+        <a href="{% url 'dashboard_cartotheque_list' %}" class="btn btn-outline"><i class="fa-solid fa-xmark"></i> Annuler</a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid {% if mode == 'create' %}fa-plus{% else %}fa-floppy-disk{% endif %}"></i>
+          {% if mode == "create" %}Ajouter{% else %}Enregistrer les modifications{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

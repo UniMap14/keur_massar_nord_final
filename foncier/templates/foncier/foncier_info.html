@@ -1,0 +1,265 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Le Foncier - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+    .fi-page{
+        --fi-brown-dark:#2B1B14;
+        --fi-brown:#3A2419;
+        --fi-brown-light:#5a3d2c;
+        --fi-gold:#D9A52B;
+        --fi-gold-muted:#B98520;
+        --fi-gold-light:#e6bc5c;
+        --fi-cream:#F7F2E8;
+        --fi-cream-2:#E9DFCC;
+        --fi-border:#e3d7bc;
+        --fi-radius:16px;
+        --fi-shadow-md:0 8px 24px rgba(43,27,20,.12);
+        background: var(--fi-cream);
+        padding-bottom: 80px;
+    }
+    .fi-page *{ box-sizing:border-box; }
+
+    /* ---- Banniere ---- */
+    .fi-banner{
+        background: linear-gradient(135deg, var(--fi-brown-dark) 0%, #1a100b 100%);
+        position: relative; overflow: hidden; padding: 68px 24px 56px; text-align: center;
+    }
+    .fi-banner::before{
+        content:""; position:absolute; inset:0;
+        background-image:
+            linear-gradient(rgba(217,165,43,.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(217,165,43,.08) 1px, transparent 1px);
+        background-size: 34px 34px;
+    }
+    .fi-banner-inner{ position:relative; z-index:1; max-width:760px; margin:0 auto; }
+    .fi-badge{
+        display:inline-flex; align-items:center; gap:8px;
+        background: rgba(217,165,43,.16); border:1px solid rgba(217,165,43,.4);
+        color: var(--fi-gold-light); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px;
+        padding:7px 18px; border-radius:100px; margin-bottom:18px;
+    }
+    .fi-banner h1{
+        font-family:'Playfair Display', serif; font-size:clamp(28px,4vw,42px); font-weight:800;
+        color:#fff; margin:0 0 14px;
+    }
+    .fi-banner p{ font-size:15px; line-height:1.7; color:rgba(255,255,255,.8); margin:0; max-width:620px; margin:0 auto; }
+
+    /* ---- Sections generales ---- */
+    .fi-section{ max-width:1080px; margin:0 auto; padding:56px 24px 0; }
+    .fi-section-head{ text-align:center; max-width:640px; margin:0 auto 36px; }
+    .fi-section-label{
+        display:inline-block; font-size:11.5px; font-weight:800; text-transform:uppercase;
+        letter-spacing:1px; color:var(--fi-gold-muted); margin-bottom:10px;
+    }
+    .fi-section-head h2{
+        font-family:'Playfair Display', serif; font-size:clamp(22px,2.8vw,30px); font-weight:800;
+        color:var(--fi-brown-dark); margin:0 0 10px;
+    }
+    .fi-section-head p{ font-size:14px; line-height:1.7; color:var(--fi-brown-light); margin:0; }
+
+    /* ---- Types de documents ---- */
+    .fi-doc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+    .fi-doc-card{
+        background:#fff; border:1px solid var(--fi-border); border-radius:var(--fi-radius);
+        padding:24px 20px; text-align:center; transition:box-shadow .2s ease, transform .2s ease;
+    }
+    .fi-doc-card:hover{ box-shadow:var(--fi-shadow-md); transform:translateY(-4px); }
+    .fi-doc-icon{
+        width:52px; height:52px; border-radius:50%; margin:0 auto 16px;
+        background:linear-gradient(135deg, var(--fi-gold-light), var(--fi-gold));
+        display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--fi-brown-dark);
+    }
+    .fi-doc-card h4{ font-size:14px; font-weight:700; color:var(--fi-brown-dark); margin:0 0 8px; }
+    .fi-doc-card p{ font-size:12.5px; line-height:1.6; color:var(--fi-brown-light); margin:0; }
+
+    /* ---- Demarches ---- */
+    .fi-demarche-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+    .fi-demarche-card{
+        display:flex; gap:16px; align-items:flex-start;
+        background:#fff; border:1px solid var(--fi-border); border-radius:var(--fi-radius);
+        padding:24px; text-decoration:none; transition:box-shadow .2s ease, transform .2s ease;
+    }
+    .fi-demarche-card:hover{ box-shadow:var(--fi-shadow-md); transform:translateY(-3px); }
+    .fi-demarche-icon{
+        width:46px; height:46px; border-radius:12px; flex-shrink:0;
+        background:var(--fi-cream-2); color:var(--fi-gold-muted);
+        display:flex; align-items:center; justify-content:center; font-size:18px;
+    }
+    .fi-demarche-text h4{ font-size:14.5px; font-weight:700; color:var(--fi-brown-dark); margin:0 0 6px; }
+    .fi-demarche-text p{ font-size:12.5px; line-height:1.6; color:var(--fi-brown-light); margin:0 0 8px; }
+    .fi-demarche-link{ font-size:12px; font-weight:700; color:var(--fi-gold-muted); }
+
+    /* ---- Cadre legal ---- */
+    .fi-legal{
+        background:#fff; border:1px solid var(--fi-border); border-radius:var(--fi-radius);
+        padding:34px 36px;
+    }
+    .fi-legal-item{ display:flex; gap:16px; padding:16px 0; border-bottom:1px solid var(--fi-cream-2); }
+    .fi-legal-item:last-child{ border-bottom:none; padding-bottom:0; }
+    .fi-legal-item:first-child{ padding-top:0; }
+    .fi-legal-item i{ color:var(--fi-gold); font-size:16px; margin-top:3px; flex-shrink:0; }
+    .fi-legal-item h5{ font-size:13.5px; font-weight:700; color:var(--fi-brown-dark); margin:0 0 5px; }
+    .fi-legal-item p{ font-size:12.5px; line-height:1.65; color:var(--fi-brown-light); margin:0; }
+
+    /* ---- CTA final ---- */
+    .fi-cta{
+        max-width:1080px; margin:56px auto 0; padding:0 24px;
+    }
+    .fi-cta-inner{
+        background: linear-gradient(135deg, var(--fi-brown-dark) 0%, #1a100b 100%);
+        border-radius:var(--fi-radius); padding:40px 44px;
+        display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;
+    }
+    .fi-cta-text h3{ font-family:'Playfair Display', serif; color:#fff; font-size:22px; margin:0 0 8px; }
+    .fi-cta-text p{ color:rgba(255,255,255,.75); font-size:13.5px; margin:0; }
+    .fi-cta-btn{
+        display:inline-flex; align-items:center; gap:10px; white-space:nowrap;
+        background:var(--fi-gold); color:var(--fi-brown-dark); font-weight:700;
+        padding:14px 28px; border-radius:999px; text-decoration:none; transition:background .2s;
+    }
+    .fi-cta-btn:hover{ background:var(--fi-gold-light); color:var(--fi-brown-dark); }
+
+    @media (max-width: 860px){
+        .fi-doc-grid{ grid-template-columns:repeat(2,1fr); }
+        .fi-demarche-grid{ grid-template-columns:1fr; }
+        .fi-cta-inner{ flex-direction:column; text-align:center; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fi-page">
+
+    <section class="fi-banner">
+        <div class="fi-banner-inner">
+            <span class="fi-badge"><i class="fa-solid fa-landmark-dome"></i> Information fonci&egrave;re</span>
+            <h1>Le Foncier &agrave; Keur Massar Nord</h1>
+            <p>Comprendre les documents, les d&eacute;marches et le cadre l&eacute;gal qui r&eacute;gissent la propri&eacute;t&eacute; fonci&egrave;re sur le territoire communal.</p>
+        </div>
+    </section>
+
+    <section class="fi-section">
+        <div class="fi-section-head">
+            <span class="fi-section-label">Documents fonciers</span>
+            <h2>Les types de documents reconnus</h2>
+            <p>Chaque parcelle cadastr&eacute;e est rattach&eacute;e &agrave; l'un de ces documents, qui atteste du droit d'occupation ou de propri&eacute;t&eacute;.</p>
+        </div>
+        <div class="fi-doc-grid">
+            <div class="fi-doc-card">
+                <div class="fi-doc-icon"><i class="fa-solid fa-scroll"></i></div>
+                <h4>Titre Foncier</h4>
+                <p>Le document de propri&eacute;t&eacute; le plus s&eacute;curis&eacute;, immatricul&eacute; au Livre Foncier.</p>
+            </div>
+            <div class="fi-doc-card">
+                <div class="fi-doc-icon"><i class="fa-solid fa-file-contract"></i></div>
+                <h4>Bail</h4>
+                <p>Droit d'occupation temporaire accord&eacute; sur le domaine national ou communal.</p>
+            </div>
+            <div class="fi-doc-card">
+                <div class="fi-doc-icon"><i class="fa-solid fa-gavel"></i></div>
+                <h4>D&eacute;lib&eacute;ration Municipale</h4>
+                <p>Acte d'affectation d&eacute;cid&eacute; par le Conseil municipal pour une parcelle du domaine communal.</p>
+            </div>
+            <div class="fi-doc-card">
+                <div class="fi-doc-icon"><i class="fa-solid fa-stamp"></i></div>
+                <h4>Attestation de cession</h4>
+                <p>Document attestant le transfert d'un droit d'usage entre particuliers, reconnu par la commune.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="fi-section">
+        <div class="fi-section-head">
+            <span class="fi-section-label">D&eacute;marches</span>
+            <h2>Les proc&eacute;dures courantes</h2>
+            <p>Les principales d&eacute;marches fonci&egrave;res que vous pouvez engager aupr&egrave;s de la mairie, en ligne.</p>
+        </div>
+        <div class="fi-demarche-grid">
+            <a href="{% url 'immatriculation_demande' %}" class="fi-demarche-card">
+                <div class="fi-demarche-icon"><i class="fa-solid fa-user-plus"></i></div>
+                <div class="fi-demarche-text">
+                    <h4>Premi&egrave;re immatriculation</h4>
+                    <p>Pour les personnes jamais recens&eacute;es comme contribuables fonciers sur la commune.</p>
+                    <span class="fi-demarche-link">Faire ma demande &rarr;</span>
+                </div>
+            </a>
+            <a href="{% url 'mutation_demande' %}" class="fi-demarche-card">
+                <div class="fi-demarche-icon"><i class="fa-solid fa-right-left"></i></div>
+                <div class="fi-demarche-text">
+                    <h4>Mutation fonci&egrave;re</h4>
+                    <p>Pour transf&eacute;rer un dossier fiscal &agrave; un nouvel acqu&eacute;reur suite &agrave; une vente.</p>
+                    <span class="fi-demarche-link">Faire ma demande &rarr;</span>
+                </div>
+            </a>
+            <a href="{% url 'recherche_cadastrale' %}" class="fi-demarche-card">
+                <div class="fi-demarche-icon"><i class="fa-solid fa-magnifying-glass-location"></i></div>
+                <div class="fi-demarche-text">
+                    <h4>Recherche cadastrale</h4>
+                    <p>Consultez les informations publiques d'une parcelle &agrave; partir de son NICAD ou de son adresse.</p>
+                    <span class="fi-demarche-link">Rechercher &rarr;</span>
+                </div>
+            </a>
+            <a href="{% url 'signalement' %}" class="fi-demarche-card">
+                <div class="fi-demarche-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="fi-demarche-text">
+                    <h4>Signaler un litige ou une anomalie</h4>
+                    <p>Occupation irr&eacute;guli&egrave;re, empi&egrave;tement ou erreur sur une parcelle&nbsp;: signalez-le &agrave; la mairie.</p>
+                    <span class="fi-demarche-link">Signaler &rarr;</span>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <section class="fi-section">
+        <div class="fi-section-head">
+            <span class="fi-section-label">Cadre l&eacute;gal</span>
+            <h2>Le fondement r&eacute;glementaire</h2>
+        </div>
+        <div class="fi-legal">
+            <div class="fi-legal-item">
+                <i class="fa-solid fa-building-columns"></i>
+                <div>
+                    <h5>D&eacute;cret n&deg; 2021-687 du 28 mai 2021</h5>
+                    <p>Portant cr&eacute;ation du d&eacute;partement de Keur Massar, &agrave; l'origine de la r&eacute;organisation territoriale de la zone.</p>
+                </div>
+            </div>
+            <div class="fi-legal-item">
+                <i class="fa-solid fa-map"></i>
+                <div>
+                    <h5>D&eacute;cret n&deg; 2021-688 du 28 mai 2021</h5>
+                    <p>Portant &eacute;rection des communes de Keur Massar Nord et de Keur Massar Sud, distinctes et autonomes.</p>
+                </div>
+            </div>
+            <div class="fi-legal-item">
+                <i class="fa-solid fa-scale-balanced"></i>
+                <div>
+                    <h5>Code G&eacute;n&eacute;ral des Imp&ocirc;ts (CGI)</h5>
+                    <p>Fixe le cadre de la fiscalit&eacute; fonci&egrave;re&nbsp;: contribution fonci&egrave;re, taxe sur la valeur locative, et modalit&eacute;s de recouvrement.</p>
+                </div>
+            </div>
+            <div class="fi-legal-item">
+                <i class="fa-solid fa-ruler-combined"></i>
+                <div>
+                    <h5>Syst&egrave;me de r&eacute;f&eacute;rence spatiale</h5>
+                    <p>Le cadastre communal est g&eacute;or&eacute;f&eacute;renc&eacute; en WGS&nbsp;84 (EPSG:4326), standard des outils cartographiques modernes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="fi-cta">
+        <div class="fi-cta-inner">
+            <div class="fi-cta-text">
+                <h3>Explorez le cadastre en direct</h3>
+                <p>Visualisez toutes les parcelles de la commune sur le g&eacute;oportail interactif.</p>
+            </div>
+            <a href="{% url 'geoportail' %}" class="fi-cta-btn">
+                <i class="fa-solid fa-map-location-dot"></i> Ouvrir le g&eacute;oportail
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

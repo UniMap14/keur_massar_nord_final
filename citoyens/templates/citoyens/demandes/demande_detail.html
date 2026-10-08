@@ -106,6 +106,30 @@
     {{ demande.commentaire_agent|linebreaksbr }}
   </div>
   {% endif %}
+
+  {% if demande.type_demande.tarif and demande.type_demande.tarif > 0 %}
+    <div class="comment-box" style="margin-top:16px;">
+      <strong>Cette démarche est payante : {{ demande.type_demande.tarif|floatformat:0 }} FCFA</strong><br>
+      {% if demande.statut_paiement == 'CONFIRME' %}
+        <span style="color:var(--ok);">✓ Paiement confirmé.</span>
+      {% elif demande.statut_paiement == 'EN_ATTENTE' %}
+        <span style="color:#b9740b;">Paiement en attente de validation par un agent.</span>
+      {% else %}
+        <span style="color:var(--danger);">Paiement non encore effectué.</span><br>
+        <a class="attachment-link" href="{% url 'citoyen_demande_payer' demande.pk %}">
+          <i class="fa-solid fa-mobile-screen-button"></i> Payer maintenant
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if demande.statut == 'PRETE' and demande.parcelle and demande.type_demande.categorie == 'CADASTRE' %}
+    {% if not demande.type_demande.tarif or demande.type_demande.tarif <= 0 or demande.statut_paiement == 'CONFIRME' %}
+      <a class="attachment-link" href="{% url 'extrait_cadastral_pdf' demande.pk %}" style="margin-top:16px;">
+        <i class="fa-solid fa-file-pdf"></i> Télécharger l'extrait cadastral
+      </a>
+    {% endif %}
+  {% endif %}
 </div>
 
 <div class="card">

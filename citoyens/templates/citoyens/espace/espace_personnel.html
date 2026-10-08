@@ -205,6 +205,12 @@
               <a href="{% url 'citoyen_plan_paiement_creer' t.pk %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:6px; background:none; border:1px solid var(--border); color:var(--text-muted); font-weight:700; font-size:11.5px; padding:5px 12px; border-radius:999px;text-decoration:none;">
                 <i class="fa-solid fa-calendar-days"></i> Échelonner
               </a>
+              {% if t.parcelle %}
+              <br>
+              <a href="{% url 'citoyen_historique_parcelle' t.parcelle.pk %}" style="display:inline-flex; align-items:center; gap:6px; margin-top:6px; background:none; border:1px solid var(--border); color:var(--text-muted); font-weight:700; font-size:11.5px; padding:5px 12px; border-radius:999px;text-decoration:none;">
+                <i class="fa-solid fa-timeline"></i> Historique
+              </a>
+              {% endif %}
             {% endif %}
             {% if t.paiements.all %}
               <br>

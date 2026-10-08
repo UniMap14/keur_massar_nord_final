@@ -1,0 +1,178 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}{{ projet.titre_projet }}{% endblock %}
+{% block header_title %}{{ projet.titre_projet }}{% endblock %}
+{% block header_subtitle %}
+<div class="topbar-subtitle">
+  Déposé le {{ projet.date_soumission|date:"d/m/Y à H:i" }}
+  {% if projet.statut == 'valide' %} · <span class="badge badge-ok"><i class="fa-solid fa-check"></i> Validé</span>
+  {% elif projet.statut == 'rejete' %} · <span class="badge badge-danger"><i class="fa-solid fa-xmark"></i> Non retenu</span>
+  {% else %} · <span class="badge badge-warn"><i class="fa-solid fa-clock"></i> En attente</span>{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .panel { opacity: 0; transform: translateY(10px); animation: panelIn .45s ease forwards; }
+    .panel:nth-of-type(1) { animation-delay: .04s; }
+    .panel:nth-of-type(2) { animation-delay: .12s; }
+    .panel:nth-of-type(3) { animation-delay: .18s; }
+    @keyframes panelIn { to { opacity: 1; transform: translateY(0); } }
+
+    .panel-header h2 { display: flex; align-items: center; gap: 10px; }
+    .panel-header h2 i { color: var(--green, #2f7a4f); opacity: 0.85; font-size: 15px; }
+
+    .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; vertical-align: middle; }
+    .badge i { font-size: 10px; }
+
+    .info-field {
+        display: flex; flex-direction: column; gap: 4px; padding: 10px 0;
+        border-bottom: 1px solid var(--line, #ece6da);
+    }
+    .info-field:last-child { border-bottom: none; }
+    .info-field label {
+        font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+        color: var(--ink-quiet, #7a7266); display: flex; align-items: center; gap: 6px;
+    }
+    .info-field .val { font-size: 14px; font-weight: 500; }
+
+    .form-field { margin-bottom: 18px; }
+    .form-field label {
+        display: flex; align-items: center; gap: 6px; font-size: 13px;
+        font-weight: 600; margin-bottom: 8px;
+    }
+    .form-field select, .form-field textarea, .form-field input[type="text"] {
+        width: 100%; border: 1.5px solid var(--line-strong, #e6e0d4);
+        border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px;
+    }
+    .form-field select:focus, .form-field textarea:focus {
+        outline: none; border-color: var(--green, #2f7a4f);
+        box-shadow: 0 0 0 3px rgba(47,122,79,0.12);
+    }
+    .form-field textarea { min-height: 100px; resize: vertical; }
+    .form-field.checkbox-field { display: flex; align-items: center; gap: 10px; }
+    .form-field.checkbox-field input { width: auto; }
+    .form-field.checkbox-field label { margin-bottom: 0; }
+
+    .msg-item {
+        padding: 12px 14px; border-radius: 10px; background: rgba(47,122,79,0.05);
+        border: 1px solid rgba(47,122,79,0.12); margin-bottom: 10px; font-size: 13px;
+    }
+    .msg-item:last-child { margin-bottom: 0; }
+    .msg-item .msg-meta { font-size: 11px; color: var(--ink-quiet, #7a7266); margin-top: 6px; }
+    .msg-empty { color: var(--ink-quiet, #7a7266); font-size: 13px; text-align: center; padding: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-lightbulb"></i> Le projet</h2>
+  </div>
+  <div class="panel-body">
+    <div class="info-field">
+      <label><i class="fa-solid fa-user"></i> Porteur de projet</label>
+      <div class="val">{{ projet.nom_porteur }}{% if projet.age %} — {{ projet.age }} ans{% endif %}</div>
+    </div>
+    <div class="info-field">
+      <label><i class="fa-solid fa-phone"></i> Téléphone</label>
+      <div class="val">{{ projet.telephone }}</div>
+    </div>
+    {% if projet.email %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-envelope"></i> Email</label>
+      <div class="val">{{ projet.email }}</div>
+    </div>
+    {% endif %}
+    {% if projet.quartier %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-location-dot"></i> Quartier</label>
+      <div class="val">{{ projet.quartier }}</div>
+    </div>
+    {% endif %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-tags"></i> Secteur</label>
+      <div class="val">{{ projet.get_secteur_display }}</div>
+    </div>
+    <div class="info-field">
+      <label><i class="fa-solid fa-align-left"></i> Description du projet</label>
+      <div class="val" style="font-weight:400; white-space:pre-line;">{{ projet.description }}</div>
+    </div>
+    <div class="info-field">
+      <label><i class="fa-solid fa-hand-holding-heart"></i> Besoin principal</label>
+      <div class="val">{{ projet.get_besoin_principal_display }}</div>
+    </div>
+    {% if projet.details_besoin %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-circle-info"></i> Précisions sur le besoin</label>
+      <div class="val" style="font-weight:400; white-space:pre-line;">{{ projet.details_besoin }}</div>
+    </div>
+    {% endif %}
+    {% if projet.cv %}
+    <div class="info-field">
+      <label><i class="fa-solid fa-file-pdf"></i> CV</label>
+      <div class="val"><a href="{{ projet.cv.url }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Télécharger le CV</a></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-comments"></i> Échanges avec le porteur</h2>
+  </div>
+  <div class="panel-body">
+    {% if messages_projet %}
+      {% for m in messages_projet %}
+      <div class="msg-item">
+        {{ m.contenu|linebreaksbr }}
+        <div class="msg-meta">Envoyé le {{ m.date_envoi|date:"d/m/Y à H:i" }}{% if m.envoye_par %} par {{ m.envoye_par.get_full_name|default:m.envoye_par.username }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="msg-empty">Aucun message envoyé pour le moment.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-pen-to-square"></i> Traiter ce projet</h2>
+  </div>
+  <div class="panel-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-field">
+        <label><i class="fa-solid fa-flag"></i> Statut du projet</label>
+        <select name="statut">
+          <option value="en_attente" {% if projet.statut == "en_attente" %}selected{% endif %}>En attente d'étude</option>
+          <option value="valide" {% if projet.statut == "valide" %}selected{% endif %}>Validé par la mairie</option>
+          <option value="rejete" {% if projet.statut == "rejete" %}selected{% endif %}>Non retenu</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label><i class="fa-solid fa-comment-dots"></i> Motif (si non retenu)</label>
+        <textarea name="motif_rejet" placeholder="Raison du refus, visible en interne uniquement">{{ projet.motif_rejet }}</textarea>
+      </div>
+      <div class="form-field checkbox-field">
+        <input type="checkbox" name="contacte" id="idContacte" {% if projet.contacte %}checked{% endif %}>
+        <label for="idContacte">Le porteur a déjà été contacté par la mairie</label>
+      </div>
+      <div class="form-field">
+        <label><i class="fa-solid fa-paper-plane"></i> Envoyer un message au porteur (facultatif)</label>
+        <textarea name="message" placeholder="Ce message sera envoyé par email au porteur du projet et conservé dans l'historique ci-dessus."></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+        </button>
+        <a href="{% url 'dashboard_jeunesse_list' %}" class="btn btn-outline">
+          <i class="fa-solid fa-arrow-left"></i> Retour à la liste
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

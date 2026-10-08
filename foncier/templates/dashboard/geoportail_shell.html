@@ -1,0 +1,112 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block page_title %}Géoportail{% endblock %} · KEUR MASSAR NORD Admin</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'dashboard/css/dashboard.css' %}">
+
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+
+    /* ===== Barre superieure minimale (retour + utilisateur) ===== */
+    .geo-shell-bar {
+      height: 56px;
+      background: linear-gradient(185deg, var(--brand-brown-dark, #2b1e16) 0%, #24180f 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      position: relative;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    }
+    .geo-shell-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 8px;
+      transition: background .15s ease;
+    }
+    .geo-shell-back:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .geo-shell-title {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--brand-gold, #c9982e);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .geo-shell-user {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12.5px; color: rgba(255,255,255,.75);
+    }
+    .geo-shell-user .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(150deg, var(--brand-gold-light, #e9d9ad), var(--brand-gold, #c9982e));
+      color: var(--brand-brown-dark, #2b1e16);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 12px; flex-shrink: 0;
+    }
+
+    /* ===== Zone de contenu : prend tout le reste de l'ecran ===== */
+    .geo-shell-content {
+      height: calc(100vh - 56px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    @media (max-width: 700px) {
+      .geo-shell-title span.txt { display: none; }
+      .geo-shell-user .txt { display: none; }
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <div class="geo-shell-bar">
+    <a href="{% url 'dashboard_home' %}" class="geo-shell-back">
+      <i class="fa-solid fa-arrow-left"></i> Retour au tableau de bord
+    </a>
+    <div class="geo-shell-title">
+      <i class="fa-solid fa-earth-africa"></i> <span class="txt">{% block header_title %}Géoportail{% endblock %}</span>
+    </div>
+    <div class="geo-shell-user">
+      {% if mon_profil_agent.photo %}
+        <img src="{{ mon_profil_agent.photo.url }}" alt="" class="avatar" style="object-fit:cover;">
+      {% else %}
+        <div class="avatar">{{ request.user.username|slice:":1"|upper }}</div>
+      {% endif %}
+      <span class="txt">{{ request.user.get_full_name|default:request.user.username }}</span>
+    </div>
+  </div>
+
+  <div class="geo-shell-content">
+    {% if messages %}
+      <div style="position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:2000; max-width:520px; width:90%;">
+        {% for message in messages %}
+          <div class="flash flash-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </div>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

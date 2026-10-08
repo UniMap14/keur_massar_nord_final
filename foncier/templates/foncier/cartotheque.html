@@ -1,0 +1,168 @@
+{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Cartothèque - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+    .carto-page{
+        --cp-brown-dark:#2B1B14;
+        --cp-brown:#3A2419;
+        --cp-brown-light:#5a3d2c;
+        --cp-gold:#D9A52B;
+        --cp-gold-muted:#B98520;
+        --cp-gold-light:#e6bc5c;
+        --cp-cream:#F7F2E8;
+        --cp-cream-2:#E9DFCC;
+        --cp-border:#e3d7bc;
+        --cp-radius:16px;
+        --cp-shadow-md:0 8px 24px rgba(43,27,20,.12);
+        --cp-shadow-lg:0 16px 40px rgba(43,27,20,.2);
+        background: var(--cp-cream);
+        padding-bottom: 80px;
+    }
+    .carto-page *{ box-sizing:border-box; }
+
+    .carto-intro{ max-width:760px; margin:0 auto; padding:56px 24px 10px; text-align:center; }
+    .carto-intro h1{
+        font-family:'Playfair Display', serif; font-size:clamp(26px,3.6vw,38px); font-weight:800;
+        color:var(--cp-brown-dark); margin:0 0 14px;
+    }
+    .carto-intro p{ font-size:15px; line-height:1.7; color:var(--cp-brown-light); margin:0; }
+
+    .carto-list{ max-width:1100px; margin:0 auto; padding:34px 24px 0; display:flex; flex-direction:column; gap:30px; }
+
+    .carto-card{
+        background:#fff; border:1px solid var(--cp-border); border-radius:var(--cp-radius);
+        overflow:hidden; display:grid; grid-template-columns: 1.15fr 1fr;
+        box-shadow:var(--cp-shadow-md); transition: box-shadow .25s ease, transform .25s ease;
+    }
+    .carto-card:hover{ box-shadow:var(--cp-shadow-lg); transform:translateY(-4px); }
+    .carto-card:nth-child(even){ grid-template-columns: 1fr 1.15fr; }
+    .carto-card:nth-child(even) .carto-card-img{ order:2; }
+
+    .carto-card-img{
+        position:relative; cursor:zoom-in; min-height:280px; overflow:hidden; background:var(--cp-cream-2);
+    }
+    .carto-card-img img{ width:100%; height:100%; object-fit:cover; display:block; transition: transform .4s ease; }
+    .carto-card-img:hover img{ transform:scale(1.04); }
+    .carto-card-zoom{
+        position:absolute; bottom:14px; right:14px; width:36px; height:36px; border-radius:50%;
+        background:rgba(43,27,20,.75); color:#fff; display:flex; align-items:center; justify-content:center;
+        font-size:13px;
+    }
+
+    .carto-card-body{ padding:34px 38px; display:flex; flex-direction:column; justify-content:center; }
+    .carto-card-body h3{
+        font-family:'Playfair Display', serif; font-size:21px; font-weight:800;
+        color:var(--cp-brown-dark); margin:0 0 14px; line-height:1.3;
+    }
+    .carto-card-body p{ font-size:14px; line-height:1.75; color:var(--cp-brown-light); margin:0; white-space:pre-line; }
+
+    .carto-empty{
+        text-align:center; padding:70px 20px; color:var(--cp-brown-light);
+    }
+    .carto-empty i{ font-size:32px; color:var(--cp-gold); margin-bottom:16px; display:block; }
+
+    @media (max-width: 860px){
+        .carto-card, .carto-card:nth-child(even){ grid-template-columns: 1fr; }
+        .carto-card:nth-child(even) .carto-card-img{ order:0; }
+        .carto-card-img{ min-height:220px; }
+        .carto-card-body{ padding:26px 24px; }
+    }
+
+    /* ---- Lightbox plein ecran (reprend celui de la galerie) ---- */
+    .carto-lightbox-overlay{
+        display:none; position:fixed; inset:0; z-index:3000;
+        background:rgba(26,16,11,.92); backdrop-filter:blur(4px);
+        align-items:center; justify-content:center; padding:30px;
+    }
+    .carto-lightbox-overlay.open{ display:flex; }
+    .carto-lightbox-close{
+        position:absolute; top:24px; right:24px; z-index:2;
+        width:42px; height:42px; border-radius:50%; border:none;
+        background:rgba(255,255,255,.12); color:#fff; font-size:17px; cursor:pointer;
+        display:flex; align-items:center; justify-content:center; transition: background .2s ease;
+    }
+    .carto-lightbox-close:hover{ background: var(--cp-gold); color: var(--cp-brown-dark); }
+    .carto-lightbox-img-wrap{ max-width:1300px; width:100%; text-align:center; }
+    .carto-lightbox-img-wrap img{
+        max-width:100%; max-height:84vh; border-radius:10px; cursor:zoom-in;
+        box-shadow: 0 30px 70px rgba(0,0,0,.5);
+    }
+    .carto-lightbox-caption{ color:#fff; font-size:14.5px; font-weight:600; margin-top:18px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="carto-page">
+
+    <div class="carto-intro">
+        <h1>La cartothèque</h1>
+        <p>Les cartes d'analyse réalisées sur le territoire de Keur Massar Nord — modèle numérique de terrain, pente, densité et autres données géographiques — avec leur explication.</p>
+    </div>
+
+    <div class="carto-list">
+        {% for c in cartes %}
+        <div class="carto-card">
+            <div class="carto-card-img" data-src="{{ c.image.url }}" data-caption="{{ c.titre }}">
+                <img src="{{ c.image.url }}" alt="{{ c.titre }}">
+                <span class="carto-card-zoom"><i class="fa-solid fa-expand"></i></span>
+            </div>
+            <div class="carto-card-body">
+                <h3>{{ c.titre }}</h3>
+                <p>{{ c.explication }}</p>
+            </div>
+        </div>
+        {% empty %}
+        <div class="carto-empty">
+            <i class="fa-solid fa-map-location-dot"></i>
+            Aucune carte pour le moment.
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<!-- ===================== LIGHTBOX PLEIN ECRAN ===================== -->
+<div class="carto-lightbox-overlay" id="cartoLightbox">
+    <button type="button" class="carto-lightbox-close" id="cartoLightboxClose" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    <div class="carto-lightbox-img-wrap">
+        <img src="" alt="" id="cartoLightboxImg">
+        <div class="carto-lightbox-caption" id="cartoLightboxCaption"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const cartes = Array.from(document.querySelectorAll('.carto-card-img'));
+    const overlay = document.getElementById('cartoLightbox');
+    const img = document.getElementById('cartoLightboxImg');
+    const caption = document.getElementById('cartoLightboxCaption');
+    const btnFermer = document.getElementById('cartoLightboxClose');
+
+    cartes.forEach(function (carte) {
+        carte.addEventListener('click', function () {
+            img.src = carte.getAttribute('data-src');
+            img.alt = carte.getAttribute('data-caption');
+            caption.textContent = carte.getAttribute('data-caption');
+            overlay.classList.add('open');
+        });
+    });
+
+    btnFermer.addEventListener('click', function () { overlay.classList.remove('open'); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.classList.remove('open'); });
+    document.addEventListener('keydown', function (e) {
+        if (!overlay.classList.contains('open')) return;
+        if (e.key === 'Escape') overlay.classList.remove('open');
+    });
+
+    img.style.cursor = 'zoom-in';
+    img.addEventListener('click', function () {
+        if (img.requestFullscreen) img.requestFullscreen();
+        else if (img.webkitRequestFullscreen) img.webkitRequestFullscreen();
+    });
+});
+</script>
+{% endblock %}

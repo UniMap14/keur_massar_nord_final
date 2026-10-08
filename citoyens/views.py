@@ -15,9 +15,9 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView
 
-from foncier.models import Parcelle, ProfilCitoyen, DemandeService, DeclarationFiscale, RecoursFiscal, DemandeExoneration, PlanPaiement
+from foncier.models import Parcelle, ProfilCitoyen, DemandeService, DeclarationFiscale, RecoursFiscal, DemandeExoneration, PlanPaiement, DemandeMorcellementFusion
 
-from .forms import CitoyenRegistrationForm, DemandeServiceForm, ModifierProfilForm, PaiementEnLigneForm, DeclarationFiscaleForm, RecoursFiscalForm, DemandeExonerationForm, PlanPaiementForm
+from .forms import CitoyenRegistrationForm, DemandeServiceForm, ModifierProfilForm, PaiementEnLigneForm, DeclarationFiscaleForm, RecoursFiscalForm, DemandeExonerationForm, PlanPaiementForm, DemandeMorcellementFusionForm
 from .models import Citoyen
 
 
@@ -490,6 +490,8 @@ def demande_creer_view(request):
         if form.is_valid():
             demande = form.save(commit=False)
             demande.demandeur = request.user
+            if demande.type_demande.tarif and demande.type_demande.tarif > 0:
+                demande.statut_paiement = "EN_ATTENTE"
             demande.save()
             try:
                 _envoyer_email_demande_recue(request, demande)
@@ -502,6 +504,15 @@ def demande_creer_view(request):
                 _envoyer_email_notif_agents_demande(request, demande)
             except Exception:
                 pass
+
+            if demande.type_demande.tarif and demande.type_demande.tarif > 0:
+                messages.success(
+                    request,
+                    f"Votre demande a bien été enregistrée sous le numéro {demande.numero_dossier}. "
+                    f"Cette démarche est payante ({demande.type_demande.tarif:.0f} FCFA) — réglez-la pour lancer son traitement."
+                )
+                return redirect("citoyen_demande_payer", pk=demande.pk)
+
             messages.success(
                 request,
                 f"Votre demande a bien été enregistrée sous le numéro {demande.numero_dossier}. "
@@ -1118,4 +1129,159 @@ def echeance_payer_view(request, echeance_pk):
     return render(request, "citoyens/espace/echeance_payer.html", {
         "echeance": echeance,
         "form": form,
+    })
+
+
+@login_required
+def demande_payer_view(request, pk):
+    """
+    Paiement du tarif d'une demarche payante (extrait cadastral...).
+    Reste 'En attente' jusqu'a validation par un agent, comme les
+    paiements fiscaux (voir TraitementDemandeForm.statut_paiement).
+    """
+    import uuid
+
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    demande = get_object_or_404(DemandeService, pk=pk, demandeur=request.user)
+
+    if not demande.type_demande.tarif or demande.type_demande.tarif <= 0:
+        messages.info(request, "Cette démarche est gratuite, aucun paiement n'est nécessaire.")
+        return redirect("citoyen_demande_detail", pk=demande.pk)
+
+    if demande.statut_paiement == "CONFIRME":
+        messages.info(request, "Cette démarche est déjà payée.")
+        return redirect("citoyen_demande_detail", pk=demande.pk)
+
+    if request.method == "POST":
+        form = PaiementEnLigneForm(request.POST)
+        if form.is_valid():
+            demande.montant_paye = demande.type_demande.tarif
+            demande.reference_paiement = f"DEMO-{uuid.uuid4().hex[:10].upper()}"
+            demande.statut_paiement = "EN_ATTENTE"
+            demande.save(update_fields=["montant_paye", "reference_paiement", "statut_paiement"])
+            messages.success(request, "Votre paiement a bien été enregistré. Il sera validé par un agent sous peu.")
+            return redirect("citoyen_demande_detail", pk=demande.pk)
+    else:
+        initial = {}
+        if citoyen.operateur_paiement:
+            initial["operateur"] = citoyen.operateur_paiement
+        if citoyen.telephone:
+            initial["telephone"] = citoyen.telephone
+        form = PaiementEnLigneForm(initial=initial)
+
+    return render(request, "citoyens/demandes/demande_payer.html", {
+        "demande": demande,
+        "form": form,
+        "citoyen": citoyen,
+    })
+
+
+@login_required
+def morcellement_fusion_liste_view(request):
+    """Liste des demandes de morcellement/fusion du citoyen connecte."""
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    demandes = (
+        DemandeMorcellementFusion.objects.filter(demandeur=request.user)
+        .prefetch_related("parcelles_concernees", "parcelles_resultantes")
+        .order_by("-date_soumission")
+    )
+
+    return render(request, "citoyens/espace/morcellement_fusion_liste.html", {
+        "demandes": demandes,
+        "citoyen": citoyen,
+        "active_section": "morcellement_fusion",
+    })
+
+
+@login_required
+def morcellement_fusion_creer_view(request):
+    """Depot d'une demande de morcellement ou de fusion de parcelle(s)."""
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    parcelles_qs = _parcelles_du_citoyen_qs(request.user)
+
+    if request.method == "POST":
+        form = DemandeMorcellementFusionForm(request.POST, request.FILES, parcelles_qs=parcelles_qs)
+        if form.is_valid():
+            demande = form.save(commit=False)
+            demande.demandeur = request.user
+            demande.save()
+            form.save_m2m()
+            messages.success(request, "Votre demande a bien été soumise. Elle sera examinée par un agent.")
+            return redirect("citoyen_morcellement_fusion_liste")
+    else:
+        form = DemandeMorcellementFusionForm(parcelles_qs=parcelles_qs)
+
+    return render(request, "citoyens/espace/morcellement_fusion_form.html", {
+        "form": form,
+        "citoyen": citoyen,
+        "active_section": "morcellement_fusion",
+    })
+
+
+@login_required
+def historique_parcelle_view(request, pk):
+    """
+    Affiche la chronologie complete d'une parcelle : premiere
+    immatriculation, mutations validees (changements de proprietaire),
+    et evenements de fusion/morcellement. Reserve au citoyen
+    proprietaire (les noms de proprietaires successifs y figurent,
+    meme principe de confidentialite que l'extrait cadastral).
+    """
+    from foncier.models import Parcelle, DemandeImmatriculation, DemandeMutation
+
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    parcelle = get_object_or_404(
+        Parcelle.objects.select_related("proprietaire", "demande_origine", "zone"), pk=pk
+    )
+
+    parcelles_qs = _parcelles_du_citoyen_qs(request.user)
+    if parcelle not in parcelles_qs:
+        messages.error(request, "Vous n'avez pas accès à l'historique de cette parcelle.")
+        return redirect("citoyen_espace")
+
+    immatriculation = (
+        DemandeImmatriculation.objects
+        .filter(parcelle=parcelle, statut="VALIDEE")
+        .select_related("contribuable_cree")
+        .order_by("date_traitement")
+        .first()
+    )
+
+    mutations = (
+        DemandeMutation.objects
+        .filter(parcelle=parcelle, statut="VALIDEE")
+        .select_related("nouveau_contribuable_cree")
+        .order_by("date_traitement")
+    )
+
+    demandes_absorbant = (
+        parcelle.demandes_morcellement_fusion_origine
+        .filter(statut="VALIDEE")
+        .prefetch_related("parcelles_resultantes", "parcelles_concernees")
+        .order_by("date_traitement")
+    )
+
+    return render(request, "citoyens/espace/historique_parcelle.html", {
+        "parcelle": parcelle,
+        "immatriculation": immatriculation,
+        "mutations": mutations,
+        "demandes_absorbant": demandes_absorbant,
+        "origine": parcelle.demande_origine,
+        "citoyen": citoyen,
     })

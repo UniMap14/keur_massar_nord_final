@@ -3,36 +3,39 @@
 {% block title %}Accueil - Commune de Keur Massar Nord{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   /* ============ Scoped variables for the new top section (does not touch the rest of the site theme) ============ */
   .km-top{
-    --km-brown-dark:#3f2a1c;
-    --km-brown:#6b4a30;
-    --km-brown-light:#8a6142;
-    --km-gold:#c9982e;
-    --km-gold-light:#e0b854;
-    --km-cream:#f7f2e7;
-    --km-cream-2:#f1e9d8;
-    --km-border:#e7ddc9;
+    --km-brown-dark:#2B1B14;
+    --km-brown:#3A2419;
+    --km-brown-light:#5a3d2c;
+    --km-gold:#D9A52B;
+    --km-gold-muted:#B98520;
+    --km-gold-light:#e6bc5c;
+    --km-cream:#F7F2E8;
+    --km-cream-2:#E9DFCC;
+    --km-border:#e3d7bc;
     --km-radius:16px;
     --km-radius-sm:10px;
-    --km-shadow-md:0 8px 24px rgba(63,42,28,.12);
-    --km-shadow-lg:0 16px 40px rgba(63,42,28,.18);
+    --km-shadow-md:0 8px 24px rgba(43,27,20,.12);
+    --km-shadow-lg:0 16px 40px rgba(43,27,20,.2);
     --km-green-ok:#2e9e4c;
-    --km-orange-warn:#e0a221;
+    --km-orange-warn:#B98520;
     background: var(--km-cream);
   }
   .km-top *{box-sizing:border-box;}
 
-  /* ===== Hero (photo background, matches the screenshot) ===== */
-.km-hero{
+  /* ===== Hero (video background, disposition alignee sur la maquette) ===== */
+  html{ scroll-behavior:smooth; }
+  .km-hero{
     position:relative;
     overflow:hidden;
     color:#fff;
-    padding:56px 60px 64px;
-    min-height:500px;
+    min-height:calc(100vh - 118px);
+    display:flex;
+    align-items:center;
   }
+  body.km-hero-locked{ overflow:hidden; height:100vh; }
   .km-hero-video{
     position:absolute;
     inset:0;
@@ -45,129 +48,262 @@
     content:"";
     position:absolute;
     inset:0;
-    background: linear-gradient(180deg, rgba(20,14,10,.72) 0%, rgba(20,14,10,.5) 45%, rgba(20,14,10,.85) 100%);
+    background: linear-gradient(180deg, rgba(20,14,10,.45) 0%, rgba(20,14,10,.25) 40%, rgba(20,14,10,.7) 100%);
     z-index:1;
   }
   .km-hero-inner{
     position:relative;
     z-index:2;
-    max-width:1320px;margin:0 auto;
-    display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:start;
+    max-width:1320px;margin:0 auto;width:100%;
+    display:flex;align-items:center;justify-content:center;
+    padding:36px 60px;
+    min-height:100%;
   }
-  
-  .km-hero-inner{
-    max-width:1320px;margin:0 auto;
-    display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:start;
+
+  .km-hero-left{ display:flex; align-items:center; justify-content:center; min-height:200px; width:100%; }
+  .km-hero-welcome{ display:flex; flex-direction:column; align-items:center; gap:18px; text-align:center; }
+  .km-hero-welcome-text{
+    font-family:'Playfair Display', serif; font-weight:700;
+    font-size:clamp(22px, 3vw, 32px); margin:0; color:#fff;
+    text-shadow:0 3px 14px rgba(0,0,0,.55);
   }
-  .km-hero-eyebrow{font-size:17px;font-weight:500;color:rgba(255,255,255,.95);margin-bottom:6px;text-shadow:0 2px 8px rgba(0,0,0,.55);}
-  .km-hero h1{
-    font-family:'Playfair Display', serif;font-weight:800;
-    font-size:clamp(32px, 4.2vw, 54px);line-height:1.08;margin:0 0 16px;
-    text-shadow:0 3px 14px rgba(0,0,0,.6);
-  }
-  .km-hero p.km-lead{
-    font-size:15.5px;line-height:1.7;color:rgba(255,255,255,.95);max-width:520px;margin-bottom:22px;
-    text-shadow:0 2px 8px rgba(0,0,0,.55);
-  }
-  .km-hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px;}
   .btn-km-primary{
     display:inline-flex;align-items:center;gap:10px;
-    background:var(--km-brown-light);color:#fff;font-weight:700;
-    padding:14px 24px;border-radius:var(--km-radius-sm);transition:background .2s, transform .2s;
+    background:var(--km-gold);color:var(--km-brown-dark);font-weight:700;
+    padding:16px 30px;border-radius:999px;transition:background .2s, transform .2s;
+    text-decoration:none; box-shadow:0 8px 22px rgba(0,0,0,.25);
   }
-  .btn-km-primary:hover{background:var(--km-brown);color:#fff;transform:translateY(-2px);}
-  .btn-km-ghost{
-    display:inline-flex;align-items:center;gap:10px;
-    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.35);color:#fff;font-weight:600;
-    padding:14px 24px;border-radius:var(--km-radius-sm);transition:background .2s;
-  }
-  .btn-km-ghost:hover{background:rgba(255,255,255,.2);color:#fff;}
-
-  .km-hero-trust{ display:flex; gap:22px; flex-wrap:wrap; padding-top:16px; border-top:1px solid rgba(255,255,255,.18); margin-bottom:18px; }
-  .km-hero-trust-item{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:rgba(255,255,255,.92); text-shadow:0 1px 6px rgba(0,0,0,.55); }
-  .km-hero-trust-item i{ color:var(--km-gold-light); font-size:14px; }
-
-  .km-hero-quicklinks{ display:flex; gap:12px; flex-wrap:wrap; }
-  .km-hq-link{
-    display:flex; align-items:center; gap:10px;
-    background:rgba(255,255,255,.1); backdrop-filter:blur(6px);
-    border:1px solid rgba(255,255,255,.22); border-radius:12px;
-    padding:11px 16px; text-decoration:none; color:#fff;
-    transition:background .2s ease, transform .2s ease, border-color .2s ease;
-  }
-  .km-hq-link:hover{ background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.4); transform:translateY(-2px); }
-  .km-hq-link .km-hq-ic{
-    width:32px; height:32px; border-radius:9px; background:var(--km-gold);
-    color:var(--km-brown-dark); display:flex; align-items:center; justify-content:center;
-    font-size:13px; flex-shrink:0;
-  }
-  .km-hq-link .km-hq-txt{ display:flex; flex-direction:column; line-height:1.25; }
-  .km-hq-link .km-hq-txt strong{ font-size:12.5px; font-weight:700; }
-  .km-hq-link .km-hq-txt span{ font-size:10px; color:rgba(255,255,255,.7); }
-  @media (max-width: 560px){ .km-hq-link{ padding:9px 12px; } .km-hq-link .km-hq-txt span{ display:none; } }
-
-  .km-hero-search{
-    background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.28);
-    border-radius: var(--km-radius-sm); padding:8px; display:flex; gap:8px; max-width:480px;
-  }
-  .km-hero-search input{ flex:1; border:none; background:transparent; color:#fff; padding:10px 14px; font-size:14px; }
-  .km-hero-search input::placeholder{ color: rgba(255,255,255,.65); }
-  .km-hero-search input:focus{ outline:none; }
-  .km-hero-search button{
-    background: var(--km-gold); color: var(--km-brown-dark); border:none; font-weight:700;
-    padding:10px 20px; border-radius:6px; display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;
+  .btn-km-primary:hover{background:var(--km-gold-light);color:var(--km-brown-dark);transform:translateY(-2px);}
+  .btn-km-primary i{ animation: kmPulseIcon 1.6s ease-in-out infinite; }
+  @keyframes kmPulseIcon{
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.18); }
   }
 
   /* Stats panel */
+  .km-hero-right{ display:flex; flex-direction:column; gap:10px; }
   .km-stats-panel{
     background:#fff;color:#2a2420;
     border-radius:var(--km-radius);box-shadow:var(--km-shadow-lg);
-    padding:20px;
+    padding:14px;
   }
   .km-stats-panel h3{
-    font-family:'Playfair Display', serif;font-size:18.5px;font-weight:700;
-    margin:0 0 12px;position:relative;padding-bottom:8px;
+    font-family:'Playfair Display', serif;font-size:17px;font-weight:700;
+    margin:0 0 10px;position:relative;padding-bottom:7px;
   }
   .km-stats-panel h3::after{
     content:"";position:absolute;left:0;bottom:0;width:44px;height:3px;background:var(--km-gold);border-radius:2px;
   }
-  .km-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
-  .km-stat-item{background:var(--km-cream-2);border-radius:var(--km-radius-sm);padding:10px 6px;text-align:center;}
-  .km-stat-item i{color:var(--km-gold);font-size:17px;margin-bottom:6px;display:block;}
-  .km-stat-item strong{font-family:'Playfair Display', serif;font-size:21px;display:block;color:var(--km-brown-dark);}
-  .km-stat-item span{font-size:10px;color:#6f655a;text-transform:uppercase;letter-spacing:.3px;}
-  .km-stats-source{font-size:10.5px;color:#948a7d;margin:0 0 10px;text-align:right;font-style:italic;}
-  .km-mission-box{
-    background:var(--km-cream-2);border-radius:var(--km-radius-sm);padding:12px;
-    display:flex;gap:12px;align-items:flex-start;
-  }
-  .km-mission-box .km-m-icon{
-    width:36px;height:36px;border-radius:10px;background:var(--km-brown-dark);color:var(--km-gold-light);
-    display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;
-  }
-  .km-mission-box h5{font-size:13px;font-weight:700;margin:0 0 4px;color:var(--km-brown-dark);}
-  .km-mission-box p{font-size:12px;line-height:1.5;color:#6f655a;margin:0;}
+  .km-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .km-stat-item{background:var(--km-cream-2);border-radius:var(--km-radius-sm);padding:8px 6px;text-align:center;}
+  .km-stat-item i{color:var(--km-gold);font-size:15px;margin-bottom:4px;display:block;}
+  .km-stat-item strong{font-family:'Playfair Display', serif;font-size:17px;display:block;color:var(--km-brown-dark);}
+  .km-stat-item span{font-size:9.5px;color:#6f655a;text-transform:uppercase;letter-spacing:.3px;}
 
-  /* --- Widget météo --- */
+  /* Mot du Maire (compact, sous les stats) */
+  /* Meteo (entre les stats et le mot du maire) */
   .km-weather-box{
-    background:var(--km-brown-dark);border-radius:var(--km-radius-sm);padding:12px 16px;
-    margin-top:10px;color:#fff;
+    background:var(--km-brown-dark);border-radius:var(--km-radius-sm);padding:7px 14px;color:#fff;
   }
-  .km-weather-loading{font-size:12.5px;color:rgba(255,255,255,0.7);text-align:center;padding:6px 0;}
-  .km-weather-error{font-size:12px;color:rgba(255,255,255,0.6);text-align:center;padding:6px 0;}
-  .km-weather-now{display:flex;align-items:center;gap:14px;}
-  .km-weather-now i.km-w-icon{font-size:30px;color:var(--km-gold);flex-shrink:0;}
-  .km-weather-now .km-w-temp{font-family:'Playfair Display', serif;font-size:26px;font-weight:700;line-height:1;}
-  .km-weather-now .km-w-desc{font-size:11.5px;color:rgba(255,255,255,0.7);margin-top:3px;}
-  .km-weather-now .km-w-loc{font-size:10px;color:var(--km-gold);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
-  .km-weather-days{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.12);}
-  .km-weather-day{flex:1;text-align:center;}
-  .km-weather-day .km-wd-label{font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;margin-bottom:4px;}
-  .km-weather-day i{font-size:14px;color:var(--km-gold-light);margin-bottom:4px;display:block;}
-  .km-weather-day .km-wd-temps{font-size:11px;font-weight:600;}
-  .km-weather-day .km-wd-temps .lo{color:rgba(255,255,255,0.55);font-weight:400;}
+  .km-weather-loading{font-size:12px;color:rgba(255,255,255,0.7);text-align:center;padding:4px 0;}
+  .km-weather-error{font-size:11.5px;color:rgba(255,255,255,0.6);text-align:center;padding:4px 0;}
+  .km-weather-now{display:flex;align-items:center;gap:12px;}
+  .km-weather-now i.km-w-icon{font-size:24px;color:var(--km-gold);flex-shrink:0;}
+  .km-weather-now .km-w-temp{font-family:'Playfair Display', serif;font-size:20px;font-weight:700;line-height:1;}
+  .km-weather-now .km-w-desc{font-size:10.5px;color:rgba(255,255,255,0.7);margin-top:2px;}
+  .km-weather-now .km-w-loc{font-size:9px;color:var(--km-gold);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
 
-  /* --- Ticker d'actualités --- */
+  .km-mayor-card{
+    background:#fff;border-radius:var(--km-radius);box-shadow:var(--km-shadow-lg);
+    padding:18px;display:flex;gap:16px;align-items:flex-start;
+  }
+  .km-mayor-photo{ width:92px;height:92px;border-radius:14px;object-fit:cover;flex-shrink:0; }
+  .km-mayor-text h5{
+    font-family:'Playfair Display', serif;font-size:17px;font-weight:700;color:var(--km-brown-dark);
+    margin:0 0 9px;position:relative;padding-bottom:7px;
+  }
+  .km-mayor-text h5::after{ content:"";position:absolute;left:0;bottom:0;width:34px;height:2px;background:var(--km-gold); }
+  .km-mayor-text p{ font-size:11.5px;line-height:1.5;color:#6f655a;margin:0; }
+
+  @media (max-width: 991px){
+    .km-hero{ min-height:auto; }
+    .km-hero-inner{ padding:40px 24px; }
+    .km-hero-left{ min-height:auto; }
+  }
+
+  /* ===== PAGE 2 : Keur Massar en chiffres + Mot du Maire (v2) ===== */
+  .km-page2{
+    position:relative; min-height:100vh; display:flex; flex-direction:column; justify-content:center;
+    background: var(--km-cream);
+    padding:50px 60px 40px;
+  }
+
+  .km-page2-weather-badge{ position:absolute; top:28px; right:60px; z-index:3; }
+  .km-page2-weather-badge .km-weather-box{ padding:8px 18px; border-radius:999px; }
+
+  .km-page2-stats-bar{
+    display:grid; grid-template-columns:repeat(4,1fr);
+    max-width:1180px; margin:0 auto 50px; position:relative;
+  }
+  .km-page2-stat{ text-align:center; padding:0 22px; position:relative; }
+  .km-page2-stat:not(:last-child)::after{
+    content:""; position:absolute; right:0; top:8%; bottom:8%; width:1px; background:var(--km-border);
+  }
+  .km-page2-stat i{ color:var(--km-gold); font-size:22px; margin-bottom:14px; display:block; }
+  .km-page2-stat strong{
+    font-family:'Playfair Display', serif; font-weight:800; font-size:clamp(26px,2.8vw,38px);
+    color:var(--km-gold-muted); display:block; line-height:1;
+  }
+  .km-page2-stat strong::after{ content:""; display:block; width:26px; height:2px; background:var(--km-brown-dark); margin:13px auto 0; opacity:.45; }
+  .km-page2-stat span{
+    display:block; margin-top:10px; font-size:10.5px; font-weight:700; letter-spacing:1px;
+    text-transform:uppercase; color:var(--km-brown-light);
+  }
+
+  .km-page2-maire{
+    max-width:1180px; margin:0 auto; width:100%;
+    display:grid; grid-template-columns:1.15fr .85fr; gap:60px; align-items:center;
+  }
+  .km-page2-eyebrow-line{
+    display:inline-flex; align-items:center; gap:10px;
+    font-size:11.5px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--km-gold-muted); margin-bottom:18px;
+  }
+  .km-page2-eyebrow-line::before{ content:""; width:28px; height:2px; background:var(--km-gold-muted); display:inline-block; }
+  .km-page2-maire-text h2{
+    font-family:'Playfair Display', serif; font-weight:800; line-height:1.18;
+    font-size:clamp(27px,3.2vw,38px); color:var(--km-brown-dark); margin:0 0 22px;
+  }
+  .km-page2-maire-text h2 em{ color:var(--km-gold-muted); font-style:italic; }
+  .km-page2-quote{
+    position:relative; padding-left:32px; margin:0 0 16px; font-size:15px; line-height:1.7;
+    color:var(--km-brown-dark); font-style:italic;
+  }
+  .km-page2-quote i{ position:absolute; left:0; top:3px; color:var(--km-gold); font-size:15px; opacity:.75; }
+  .km-page2-bio{ font-size:13.5px; line-height:1.75; color:var(--km-brown-light); margin:0 0 30px; }
+  .km-page2-maire-actions{ display:flex; gap:14px; flex-wrap:wrap; }
+
+  .km-page2-photo-wrap{ position:relative; }
+  .km-page2-photo-wrap::before{
+    content:""; position:absolute; top:18px; right:-18px; bottom:-18px; left:18px;
+    border:2px solid var(--km-gold); border-radius:var(--km-radius); z-index:0;
+  }
+  .km-page2-photo{
+    position:relative; z-index:1; width:100%; max-height:380px; aspect-ratio:4/3.8; object-fit:cover;
+    border-radius:var(--km-radius); box-shadow:var(--km-shadow-lg); display:block;
+  }
+
+  @media (max-width: 991px){
+    .km-page2{ padding:60px 24px 50px; }
+    .km-page2-weather-badge{ position:static; display:flex; justify-content:center; margin-bottom:24px; }
+    .km-page2-stats-bar{ grid-template-columns:repeat(2,1fr); gap:30px 0; margin-bottom:46px; }
+    .km-page2-stat:nth-child(2)::after{ display:none; }
+    .km-page2-maire{ grid-template-columns:1fr; gap:36px; }
+    .km-page2-photo-wrap{ order:-1; max-width:300px; margin:0 auto; }
+  }
+
+  /* ===== Bande des indicateurs de transparence ===== */
+  .km-transparence{
+    background: linear-gradient(135deg, var(--km-brown-dark) 0%, #1a100b 100%);
+    padding: 34px 60px;
+  }
+  .km-transparence-inner{
+    max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+  }
+  .km-transp-item{
+    text-align: center; padding: 0 10px;
+    border-right: 1px solid rgba(217,165,43,.2);
+  }
+  .km-transp-item:last-child{ border-right: none; }
+  .km-transp-item i{ color: var(--km-gold); font-size: 20px; margin-bottom: 10px; display: block; }
+  .km-transp-item strong{
+    font-family: 'Playfair Display', serif; font-weight: 800;
+    font-size: clamp(24px, 2.6vw, 32px); color: #fff; display: block; line-height: 1;
+  }
+  .km-transp-item span{
+    display: block; margin-top: 8px; font-size: 11.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px; color: rgba(255,255,255,.65);
+  }
+  @media (max-width: 700px){
+    .km-transparence{ padding: 26px 20px; }
+    .km-transparence-inner{ grid-template-columns: 1fr; gap: 22px; }
+    .km-transp-item{ border-right: none; border-bottom: 1px solid rgba(217,165,43,.2); padding-bottom: 18px; }
+    .km-transp-item:last-child{ border-bottom: none; padding-bottom: 0; }
+  }
+
+  /* ===== Intro texte au-dessus des fonctionnalites (page 3) ===== */
+  .km-bento-intro{ text-align:center; max-width:680px; margin:0 auto 38px; }
+  .km-bento-intro .section-label{ color:var(--km-gold-muted); }
+  .km-bento-intro h2{
+    font-family:'Playfair Display', serif; font-size:clamp(24px,3vw,32px); font-weight:800;
+    color:var(--km-brown-dark); margin:10px 0 12px;
+  }
+  .km-bento-intro p{ font-size:14.5px; line-height:1.7; color:var(--km-brown-light); margin:0; }
+
+  /* Petite touche "magnifique" : liseret dore anime au survol des tuiles */
+  .km-bento-small{ position:relative; }
+  .km-bento-small::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px; border-radius:18px 18px 0 0;
+    background:linear-gradient(90deg, var(--km-gold-light), var(--km-gold));
+    transform:scaleX(0); transform-origin:left; transition:transform .3s ease;
+  }
+  .km-bento-small:hover::before{ transform:scaleX(1); }
+
+  /* ===== Bande d'infos pratiques (bas de la Page 1) ===== */
+  .km-hero-infobar{
+    position:absolute; bottom:52px; left:0; right:0; z-index:3;
+    background:rgba(20,14,10,.6); backdrop-filter:blur(6px);
+    border-top:1px solid rgba(217,165,43,.25);
+  }
+  .km-hero-infobar-inner{
+    max-width:1320px; margin:0 auto; padding:14px 60px;
+    display:flex; align-items:center; justify-content:center; gap:24px;
+  }
+  .km-hero-infobar{ overflow:hidden; }
+  .km-hero-infobar-inner{
+    display:flex; align-items:center; gap:30px;
+    padding:14px 0; white-space:nowrap; width:max-content;
+    animation: kmInfobarScroll 26s linear infinite;
+  }
+  .km-hero-infobar:hover .km-hero-infobar-inner{ animation-play-state:paused; }
+  @keyframes kmInfobarScroll{
+    from{ transform:translateX(0); }
+    to{ transform:translateX(-50%); }
+  }
+  .km-ib-item{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:12.5px; color:rgba(255,255,255,.85); text-decoration:none; white-space:nowrap;
+    transition:color .2s ease;
+  }
+  .km-ib-item i{ color:var(--km-gold); font-size:11px; }
+  .km-ib-item:hover{ color:var(--km-gold-light); }
+  .km-ib-highlight{ font-weight:700; color:var(--km-gold-light); }
+  .km-ib-item{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:12.5px; color:rgba(255,255,255,.85); text-decoration:none; white-space:nowrap;
+    transition:color .2s ease; background:none; border:none; cursor:pointer; font-family:inherit;
+  }
+  .km-ib-item i{ color:var(--km-gold); font-size:11px; }
+  .km-ib-item:hover{ color:var(--km-gold-light); }
+  .km-ib-highlight{ font-weight:700; color:var(--km-gold-light); }
+  .km-ib-social{ display:flex; align-items:center; gap:10px; margin-left:4px; }
+  .km-ib-social a{
+    width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,.1);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px;
+    transition:background .2s ease;
+  }
+  .km-ib-social a:hover{ background:var(--km-gold); color:var(--km-brown-dark); }
+
+  @media (max-width: 991px){
+    .km-hero-infobar-inner{ padding:10px 20px; gap:14px; }
+    .km-ib-item{ font-size:11px; }
+  }
+  @media (max-width: 700px){
+    .km-hero-infobar{ position:static; background:var(--km-brown-dark); }
+  }
+
+  /* --- Ticker d'actualites (en haut de page) --- */
   .km-ticker{
     display:flex;align-items:stretch;background:var(--km-brown-dark);
     overflow:hidden;position:relative;z-index:5;
@@ -185,6 +321,7 @@
     border-right:1px solid rgba(255,255,255,0.12);display:inline-flex;align-items:center;gap:8px;
   }
   .km-ticker-item:hover{color:var(--km-gold-light);}
+  .km-ticker-cat{ color:rgba(255,255,255,.6); font-weight:700; text-transform:uppercase; font-size:10.5px; }
   .km-ticker-date{color:var(--km-gold);font-weight:700;}
   @keyframes kmTickerScroll{
     from{transform:translateX(0);}
@@ -194,107 +331,149 @@
     .km-ticker-label{padding:8px 12px;font-size:10px;}
     .km-ticker-item{padding:8px 18px;font-size:11.5px;}
   }
-
-  @media (max-width: 991px){
-    .km-hero{padding:40px 24px 48px;}
-    .km-hero-inner{grid-template-columns:1fr;}
-  }
   @media (max-width: 560px){
     .km-stats-grid{grid-template-columns:repeat(2,1fr);}
   }
 
-  /* ===== Quick access cards ===== */
-  .km-quick-section{max-width:1320px;margin:-40px auto 0;padding:0 60px;position:relative;z-index:5;}
-  .km-quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
-  .km-quick-card{
-    background:#fff;border-radius:var(--km-radius);box-shadow:var(--km-shadow-md);
-    padding:26px 24px;display:flex;flex-direction:column;transition:transform .2s, box-shadow .2s;
-    color:#2a2420;position:relative;overflow:hidden;
-  }
-  .km-quick-card:hover{transform:translateY(-4px);box-shadow:var(--km-shadow-lg);}
-  .km-quick-card .km-q-watermark{
-    position:absolute;top:8px;right:2px;font-size:76px;color:var(--km-brown-dark);
-    opacity:.05;pointer-events:none;transform:rotate(6deg);
-  }
-  .km-quick-card .km-q-icon{
-    width:48px;height:48px;border-radius:50%;position:relative;z-index:1;
-    display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff;margin-bottom:16px;
-  }
-  .km-quick-card:nth-child(odd) .km-q-icon{background:var(--km-brown-dark);}
-  .km-quick-card:nth-child(even) .km-q-icon{background:var(--km-gold);color:var(--km-brown-dark);}
-  .km-quick-card h3{font-size:15.5px;font-weight:700;margin:0 0 8px;position:relative;z-index:1;}
-  .km-quick-card .km-q-underline{width:26px;height:3px;background:var(--km-gold);border-radius:2px;margin-bottom:12px;}
-  .km-quick-card p{font-size:12.5px;color:#6f655a;line-height:1.6;flex-grow:1;margin:0 0 16px;position:relative;z-index:1;}
-  .km-quick-card .km-q-link{
-    font-size:12.5px;font-weight:700;color:var(--km-brown-dark);display:inline-flex;align-items:center;gap:8px;
-    border:1.5px solid var(--km-border);border-radius:999px;padding:9px 18px;width:fit-content;
-    transition:border-color .2s, background .2s;
-  }
-  .km-quick-card .km-q-link i{font-size:11px;transition:transform .2s;}
-  .km-quick-card:hover .km-q-link{border-color:var(--km-gold);background:var(--km-cream-2);}
-  .km-quick-card:hover .km-q-link i{transform:translateX(3px);}
+  /* ===== Fonctionnalites phares (bento) : 1 banniere + 7 cartes ===== */
+  .km-bento-section{max-width:1320px;margin:-50px auto 0;padding:0 60px;position:relative;z-index:5;}
 
-  @media (max-width: 991px){ .km-quick-grid{grid-template-columns:1fr 1fr;} .km-quick-section{padding:0 24px;} }
-  @media (max-width: 560px){ .km-quick-grid{grid-template-columns:1fr;} .km-quick-section{margin-top:-24px;} }
-
-  /* ===== 3-column dashboard section ===== */
-  .km-dash-section{max-width:1320px;margin:40px auto 0;padding:0 60px 20px;}
-  .km-dash-grid{display:grid;grid-template-columns:1.05fr 1fr 1fr;gap:20px;align-items:start;}
-  .km-dash-card{background:#fff;border:1px solid var(--km-border);border-radius:var(--km-radius);padding:24px;color:#2a2420;}
-  .km-dash-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-  .km-dash-card h3{font-size:15.5px;font-weight:700;margin:0;}
-  .km-dash-underline{width:26px;height:3px;background:var(--km-gold);border-radius:2px;margin-bottom:16px;}
-  .km-dash-voir-tout{font-size:11.5px;font-weight:700;color:var(--km-gold-dark, #a67c1f);text-decoration:none;display:inline-flex;align-items:center;gap:4px;}
-  .km-dash-voir-tout:hover{color:var(--km-brown-dark);}
-
-  .km-infra-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-  .km-infra-item{
-    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;
-    background:#fff;border:1px solid var(--km-border);border-radius:var(--km-radius-sm);
-    padding:16px 8px;
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  .km-bento-featured{
+    display:flex;align-items:center;justify-content:space-between;gap:26px;flex-wrap:wrap;
+    background:linear-gradient(135deg, var(--km-brown-dark) 0%, #1a100b 100%);
+    border-radius:22px;padding:32px 38px;color:#fff;position:relative;overflow:hidden;
+    border:1px solid rgba(217,165,43,.35);
+    box-shadow:var(--km-shadow-lg), 0 0 0 1px rgba(217,165,43,.08), 0 0 32px rgba(217,165,43,.1);
+    text-decoration:none;margin-bottom:22px;
+    transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
   }
-  .km-infra-item:hover{ transform:translateY(-2px); box-shadow:var(--km-shadow-md); border-color:var(--km-gold); }
-  .km-infra-item .km-infra-ic{
-    width:38px;height:38px;border-radius:9px;flex-shrink:0;
-    background:var(--km-cream-2);color:var(--km-brown-dark);
-    display:flex;align-items:center;justify-content:center;font-size:15px;
+  .km-bento-featured:hover{
+    transform:translateY(-4px); color:#fff; border-color:rgba(217,165,43,.6);
+    box-shadow:0 24px 50px rgba(43,27,20,.35), 0 0 0 1px rgba(217,165,43,.2), 0 0 42px rgba(217,165,43,.18);
   }
-  .km-infra-item .km-infra-txt{ display:flex; flex-direction:column; align-items:center; }
-  .km-infra-item .km-infra-txt span{font-size:11px;color:#6f655a;line-height:1.25;}
-  .km-infra-item .km-infra-txt strong{font-family:'Playfair Display', serif;font-size:18px;color:var(--km-brown-dark);display:block;line-height:1.15;}
+  .km-bf-highlight{ color:var(--km-gold); }
+  .km-bento-featured::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(201,152,46,.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,152,46,.08) 1px, transparent 1px);
+    background-size:34px 34px;opacity:.6;
+  }
+  .km-bf-left{ position:relative;z-index:1;display:flex;align-items:center;gap:20px;flex:1;min-width:280px; }
+  .km-bento-featured .km-bf-icon{
+    flex-shrink:0;width:60px;height:60px;border-radius:16px;
+    background:linear-gradient(135deg, var(--km-gold-light), var(--km-gold));
+    color:var(--km-brown-dark);
+    display:flex;align-items:center;justify-content:center;font-size:24px;
+    box-shadow:0 6px 16px rgba(217,165,43,.3);
+  }
+  .km-bf-text{ min-width:0; }
+  .km-bento-featured .km-bf-badge{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(201,152,46,.18);border:1px solid rgba(201,152,46,.4);
+    color:var(--km-gold-light);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+    padding:5px 12px;border-radius:999px;margin-bottom:9px;
+  }
+  .km-bento-featured h3{ font-family:'Playfair Display', serif;font-size:24px;font-weight:800;margin:0 0 6px; }
+  .km-bento-featured p{ font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.78);max-width:420px;margin:0; }
+  .km-bento-featured .km-bf-cta{
+    position:relative;z-index:1;display:inline-flex;align-items:center;gap:10px;flex-shrink:0;
+    background:linear-gradient(135deg, var(--km-gold-light) 0%, var(--km-gold) 55%, var(--km-gold-muted) 100%);
+    color:var(--km-brown-dark);font-weight:700;font-size:13.5px;
+    padding:13px 26px;border-radius:999px;white-space:nowrap;
+    transition:gap .2s ease, box-shadow .2s ease;
+    box-shadow:0 8px 20px rgba(217,165,43,.35);
+  }
+  .km-bento-featured:hover .km-bf-cta{ box-shadow:0 10px 26px rgba(217,165,43,.5); gap:14px; }
 
-  .km-list-item{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--km-border);}
-  .km-list-item:last-child{border-bottom:none;padding-bottom:0;}
-  .km-list-item .km-thumb{width:60px;height:60px;border-radius:10px;object-fit:cover;flex-shrink:0;background:var(--km-cream-2);}
-  .km-list-item .km-body{flex:1;min-width:0;}
-  .km-list-item .km-row-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
-  .km-list-item h4{font-size:13px;font-weight:700;margin:0;line-height:1.35;}
-  .km-badge-status{font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:100px;white-space:nowrap;flex-shrink:0;}
-  .km-badge-resolu{background:rgba(46,158,76,.12);color:var(--km-green-ok);}
-  .km-badge-encours{background:rgba(224,162,33,.15);color:var(--km-orange-warn);}
-  .km-list-item .km-meta{font-size:11px;color:#6f655a;margin-top:5px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
-  .km-list-item .km-meta i{color:var(--km-gold);font-size:9.5px;}
-  .km-see-all{
-    display:block;text-align:center;margin-top:18px;font-size:12.5px;font-weight:700;color:var(--km-brown-dark);
-    background:var(--km-cream-2);border-radius:999px;padding:13px 20px;text-decoration:none;
-    transition:background .2s ease, transform .2s ease;
-  }
-  .km-see-all:hover{background:var(--km-gold-light);transform:translateY(-1px);}
-  .km-see-all i{margin-left:5px;}
+  .km-bento-grid-small{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:18px; }
 
-  .km-empty-mini{
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;padding:34px 12px;gap:14px;
+  .km-bento-small{
+    background:var(--km-cream);border:1px solid var(--km-border);border-radius:18px;padding:24px 20px;
+    display:flex;flex-direction:column;
+    color:var(--km-brown-dark);text-decoration:none;box-shadow:0 4px 14px rgba(43,27,20,.06);
+    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
   }
-  .km-empty-mini .km-empty-ic{
-    width:60px;height:60px;border-radius:50%;background:var(--km-cream-2);
-    color:var(--km-gold);display:flex;align-items:center;justify-content:center;font-size:22px;
+  .km-bento-small:hover{ transform:translateY(-4px); box-shadow:var(--km-shadow-md); border-color:var(--km-gold); color:var(--km-brown-dark); }
+  .km-bento-small .km-bs-icon{
+    width:44px;height:44px;border-radius:12px;background:var(--km-cream-2);color:var(--km-gold-muted);
+    display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:14px;
+    transition:background .2s ease, color .2s ease;
   }
-  .km-empty-mini p{font-size:12.5px;color:#8a8074;line-height:1.5;margin:0;max-width:220px;}
+  .km-bento-small:hover .km-bs-icon{ background:var(--km-gold); color:var(--km-brown-dark); }
+  .km-bento-small h4{ font-size:14.5px;font-weight:700;margin:0 0 6px; }
+  .km-bento-small p{ font-size:11.5px;color:var(--km-brown-light);line-height:1.5;margin:0 0 12px;flex-grow:1; }
+  .km-bento-small .km-bs-link{ font-size:11.5px;font-weight:700;color:var(--km-gold-muted);display:inline-flex;align-items:center;gap:6px; }
+  .km-bento-small .km-bs-link i{ font-size:9.5px;transition:transform .2s; }
+  .km-bento-small:hover .km-bs-link i{ transform:translateX(3px); }
 
-  @media (max-width: 991px){ .km-dash-grid{grid-template-columns:1fr;} .km-dash-section{padding:0 24px 20px;} }
-  @media (max-width: 420px){ .km-infra-grid{grid-template-columns:1fr;} }
+  /* ===== Galerie (fenetre modale) ===== */
+  .km-galerie-overlay{
+    display:none; position:fixed; inset:0; z-index:3000;
+    background:rgba(26,16,11,.88); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center; padding:30px;
+  }
+  .km-galerie-overlay.open{ display:flex; }
+  .km-galerie-modal{
+    background:var(--km-cream); border-radius:20px; max-width:920px; width:100%;
+    max-height:88vh; overflow:hidden; position:relative;
+    box-shadow:0 30px 70px rgba(0,0,0,.4); display:flex; flex-direction:column;
+  }
+  .km-galerie-close{
+    position:absolute; top:16px; right:16px; z-index:2;
+    width:38px; height:38px; border-radius:50%; border:none;
+    background:rgba(43,27,20,.85); color:#fff; font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .2s ease;
+  }
+  .km-galerie-close:hover{ background:var(--km-brown-dark); }
+  .km-galerie-large{ position:relative; background:#000; }
+  .km-galerie-large img{ width:100%; max-height:56vh; object-fit:contain; display:block; margin:0 auto; background:#000; }
+  .km-galerie-zoom-hint{
+    position:absolute; top:14px; right:14px; z-index:2;
+    width:34px; height:34px; border-radius:50%; background:rgba(43,27,20,.7); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:13px; pointer-events:none;
+  }
+  .km-galerie-caption{
+    position:absolute; left:0; right:0; bottom:0;
+    background:linear-gradient(0deg, rgba(0,0,0,.75), transparent);
+    color:#fff; font-size:13.5px; font-weight:600; padding:18px 20px 12px;
+  }
+  .km-galerie-thumbs{ display:flex; gap:10px; padding:16px; overflow-x:auto; }
+  .km-galerie-thumb{
+    flex-shrink:0; width:84px; height:64px; border-radius:10px; overflow:hidden;
+    border:2px solid transparent; padding:0; cursor:pointer; background:none;
+    transition:border-color .2s ease, opacity .2s ease; opacity:.65;
+  }
+  .km-galerie-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .km-galerie-thumb:hover{ opacity:.9; }
+  .km-galerie-thumb.active{ border-color:var(--km-gold); opacity:1; }
+
+  @media (max-width: 560px){
+    .km-galerie-large img{ max-height:40vh; }
+    .km-galerie-thumb{ width:64px; height:48px; }
+  }
+
+  /* ===== Histoire (fenetre modale, reutilise la mise en page existante) ===== */
+  .km-histoire-modal{ max-width:960px; }
+  .km-histoire-scroll{ padding:44px 40px; overflow-y:auto; max-height:88vh; }
+  .km-histoire-title{ font-family:'Playfair Display', serif; font-size:24px; font-weight:800; color:var(--km-brown-dark); margin:0 0 22px; }
+  .km-histoire-modal .histoire-layout{ margin-top:0; }
+  @media (max-width: 700px){
+    .km-histoire-scroll{ padding:60px 22px 30px; }
+  }
+
+  @media (max-width: 991px){
+    .km-bento-section{ padding:0 24px; }
+    .km-bento-featured{ padding:26px 24px; }
+  }
+  @media (max-width: 560px){
+    .km-bento-section{ margin-top:-30px; }
+    .km-bento-featured{ flex-direction:column; align-items:stretch; text-align:center; }
+    .km-bf-left{ flex-direction:column; text-align:center; }
+    .km-bento-featured .km-bf-cta{ justify-content:center; }
+    .km-bento-grid-small{ grid-template-columns:1fr; }
+  }
 
   /* ===== Espace Jeunes banner ===== */
   .ej-banner{
@@ -351,27 +530,6 @@
   .security-card h4 { font-size:15.5px; margin-bottom:8px; }
   .security-card p { font-size:13px; color:rgba(255,255,255,.7); line-height:1.6; }
 
-  .service-card-pro {
-    background:#fff; border:1px solid var(--border); border-radius: var(--radius);
-    padding: 30px 26px; height:100%; display:flex; flex-direction:column;
-    transition: transform .25s, box-shadow .25s, border-color .25s;
-    color: var(--text);
-  }
-  .service-card-pro:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); border-color: transparent; }
-  .service-card-pro .svc-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
-  .service-card-pro .svc-icon {
-    width:50px; height:50px; border-radius:14px;
-    background: linear-gradient(135deg, var(--green), var(--green-dark));
-    color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;
-  }
-  .service-card-pro .svc-role {
-    font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
-    color: var(--green-dark); background: var(--off-white); padding:4px 10px; border-radius:100px;
-  }
-  .service-card-pro h3 { font-size:17px; margin-bottom:8px; }
-  .service-card-pro p { font-size:13.5px; color:var(--text-muted); flex-grow:1; }
-  .service-card-pro .svc-link { font-size:13px; font-weight:600; color:var(--green-dark); margin-top:16px; display:inline-flex; align-items:center; gap:6px; }
-
   .cta-final {
     background: linear-gradient(120deg, var(--gold) 0%, #ffdd55 100%);
     border-radius: var(--radius);
@@ -387,35 +545,6 @@
     transition: background .2s;
   }
   .cta-final-btn:hover { background: var(--green); color:#fff; }
-
-  .quartiers-scroller {
-    display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:18px; margin-top:40px;
-  }
-  .quartier-card {
-    background:#fff; border:1px solid var(--border); border-radius: var(--radius);
-    padding:22px; transition: transform .2s, box-shadow .2s; color: var(--text);
-  }
-  .quartier-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
-  .quartier-card .q-icon {
-    width:40px; height:40px; border-radius:10px; background: var(--off-white); color:var(--green-dark);
-    display:flex; align-items:center; justify-content:center; margin-bottom:14px; font-size:16px;
-  }
-  .quartier-card h4 { font-size:15px; margin-bottom:6px; }
-  .quartier-card p { font-size:12.5px; color:var(--text-muted); }
-
-  .mayor-section { background: var(--off-white); padding: 80px 60px; }
-  .mayor-box {
-    max-width: 1320px; margin:0 auto; background:#fff; border-radius: var(--radius);
-    box-shadow: var(--shadow-md); padding: 50px; display:grid; grid-template-columns: 200px 1fr; gap: 40px; align-items:center;
-  }
-  .mayor-photo-img {
-    width: 160px; height:160px; border-radius:50%; object-fit: cover;
-    margin:0 auto; box-shadow: var(--shadow-md); border: 4px solid #fff;
-  }
-  .mayor-quote-icon { color: var(--gold); font-size:26px; margin-bottom:14px; }
-  .mayor-box blockquote { font-family:'Playfair Display', serif; font-size:19px; line-height:1.55; color:var(--text); font-style:italic; margin-bottom:16px; }
-  .mayor-signature { font-weight:700; color:var(--green-dark); }
-  .mayor-role { font-size:12.5px; color:var(--text-muted); }
 
   /* ===== Histoire ===== */
   .histoire-layout{ display:grid; grid-template-columns:1fr 1fr; gap:44px; margin-top:36px; align-items:start; }
@@ -433,27 +562,6 @@
 
   @media (max-width: 900px){ .histoire-layout{ grid-template-columns:1fr; } }
 
-  .gallery-grid { display:grid; grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 1fr 1fr; gap:14px; margin-top:40px; height: 420px; }
-  .gallery-item {
-    border-radius: var(--radius); overflow:hidden; position:relative; display:flex; align-items:flex-end;
-    background-size: cover;
-    background-position: center;
-    color:#fff;
-  }
-  .gallery-item::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.65) 100%);
-  }
-  .gallery-item span, .gallery-item i {
-    position: relative;
-    z-index: 1;
-  }
-  .gallery-item:nth-child(1){ grid-row: 1 / 3; }
-  .gallery-item span { padding:16px; font-size:13px; font-weight:600; background: linear-gradient(0deg, rgba(0,0,0,.55), transparent); width:100%; }
-  .gallery-item i { position:absolute; top:14px; right:14px; opacity:.5; font-size:18px; }
-
   .contact-band { background: var(--green-dark); color:#fff; padding: 60px; }
   .contact-band-inner { max-width:1320px; margin:0 auto; display:grid; grid-template-columns: repeat(4, 1fr); gap:30px; }
   .contact-item { display:flex; gap:14px; align-items:flex-start; }
@@ -464,11 +572,16 @@
   @media (max-width: 991px) {
     .security-section, .main-section { padding-left: 24px; padding-right: 24px; }
     .cta-final { margin: 0 24px 70px; flex-direction:column; align-items:flex-start; }
-    .mayor-box { grid-template-columns: 1fr; text-align:center; padding:34px; }
-    .gallery-grid { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 140px); height:auto; }
-    .gallery-item:nth-child(1){ grid-column: 1 / 3; grid-row: 1; }
     .contact-band-inner { grid-template-columns: 1fr 1fr; }
   }
+
+  /* Bouton audio flottant : dore avec icone brun fonce et halo dore */
+  .voice-btn{
+    background: linear-gradient(135deg, #e6bc5c, #D9A52B) !important;
+    color: #2B1B14 !important;
+    box-shadow: 0 8px 22px rgba(217,165,43,.4), 0 0 0 6px rgba(217,165,43,.12) !important;
+  }
+  .voice-btn i{ color:#2B1B14 !important; }
 </style>
 {% endblock %}
 
@@ -496,189 +609,285 @@
 </div>
 {% endif %}
 
-<section class="km-hero">
+<section class="km-hero" id="hero">
   <video class="km-hero-video" autoplay muted loop playsinline
        poster="{% static 'foncier/img/gallery/fond-keurmassar.png' %}">
   <source src="{% static 'foncier/video/fond-keurmassar.mp4' %}" type="video/mp4">
 </video>
   <div class="km-hero-inner">
-    <div>
-      <div class="km-hero-eyebrow">Bienvenue &agrave;</div>
-      <h1>Keur Massar Nord</h1>
-      <p class="km-lead">Le Geoportail officiel de Keur Massar Nord est une plateforme num&eacute;rique au service des citoyens, des professionnels et des d&eacute;cideurs pour une commune moderne et transparente.</p>
-      <div class="km-hero-actions">
-        <a href="{% url 'geoportail' %}" class="btn-km-primary"><i class="fa-solid fa-building-columns"></i> D&eacute;couvrir la commune</a>
-        <a href="{% url 'fiscalite' %}" class="btn-km-ghost"><i class="fa-solid fa-calculator"></i> Consulter la fiscalit&eacute;</a>
+    <div class="km-hero-left">
+      <div class="km-hero-welcome">
+        <p class="km-hero-welcome-text">Bienvenue &agrave; Keur Massar Nord</p>
+        <a href="#page-chiffres" class="btn-km-primary" id="btnDecouvrir">
+          <i class="fa-solid fa-building-columns"></i> D&eacute;couvrir la commune
+        </a>
       </div>
-      <div class="km-hero-trust">
-        <div class="km-hero-trust-item"><i class="fa-solid fa-lock"></i> Acc&egrave;s par r&ocirc;le et par agent</div>
-        <div class="km-hero-trust-item"><i class="fa-solid fa-clock-rotate-left"></i> Tra&ccedil;abilit&eacute; de chaque op&eacute;ration</div>
-        <div class="km-hero-trust-item"><i class="fa-solid fa-database"></i> Donn&eacute;es h&eacute;berg&eacute;es et sauvegard&eacute;es</div>
-      </div>
+    </div>
+  </div>
 
-      <div class="km-hero-quicklinks">
-        {% if user.is_authenticated and user.citoyen %}
-          <a href="{% url 'citoyen_demandes' %}" class="km-hq-link">
-            <div class="km-hq-ic"><i class="fa-solid fa-folder-open"></i></div>
-            <div class="km-hq-txt"><strong>Mes d&eacute;marches</strong><span>Suivre mes dossiers</span></div>
-          </a>
-        {% else %}
-          <a href="{% url 'citoyen_login' %}" class="km-hq-link">
-            <div class="km-hq-ic"><i class="fa-solid fa-folder-open"></i></div>
-            <div class="km-hq-txt"><strong>D&eacute;marches en ligne</strong><span>Se connecter</span></div>
-          </a>
-        {% endif %}
-        <a href="{% url 'signalement' %}" class="km-hq-link">
-          <div class="km-hq-ic"><i class="fa-solid fa-triangle-exclamation"></i></div>
-          <div class="km-hq-txt"><strong>Signaler un probl&egrave;me</strong><span>Voirie, ordures...</span></div>
+  <div class="km-hero-infobar">
+    <div class="km-hero-infobar-inner">
+      <a href="tel:+221338892002" class="km-ib-item"><i class="fa-solid fa-phone"></i> +221 33 840 61 84</a>
+      <a href="mailto:info@keurmassarnord.com" class="km-ib-item"><i class="fa-solid fa-envelope"></i> info@keurmassarnord.com</a>
+      <span class="km-ib-item"><i class="fa-solid fa-location-dot"></i> Keur Massar Nord, Dakar</span>
+      <span class="km-ib-item"><i class="fa-solid fa-clock"></i> Lun&ndash;Ven, 8h&ndash;17h</span>
+      <a href="#page-chiffres" class="km-ib-item km-ib-highlight km-ib-mot-maire"><i class="fa-solid fa-user-tie"></i> Mot du Maire</a>
+      <a href="{% url 'fiscalite' %}" class="km-ib-item"><i class="fa-solid fa-scale-balanced"></i> Foncier &amp; Fiscalit&eacute;</a>
+      <a href="tel:+221338892002" class="km-ib-item"><i class="fa-solid fa-phone"></i> +221 33 840 61 84</a>
+      <a href="mailto:info@keurmassarnord.com" class="km-ib-item"><i class="fa-solid fa-envelope"></i> info@keurmassarnord.com</a>
+      <span class="km-ib-item"><i class="fa-solid fa-location-dot"></i> Keur Massar Nord, Dakar</span>
+      <span class="km-ib-item"><i class="fa-solid fa-clock"></i> Lun&ndash;Ven, 8h&ndash;17h</span>
+      <a href="#page-chiffres" class="km-ib-item km-ib-highlight km-ib-mot-maire"><i class="fa-solid fa-user-tie"></i> Mot du Maire</a>
+      <a href="{% url 'fiscalite' %}" class="km-ib-item"><i class="fa-solid fa-scale-balanced"></i> Foncier &amp; Fiscalit&eacute;</a>
+      <div class="km-ib-social">
+        <a href="#" aria-label="Facebook" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-facebook-f"></i></a>
+        <a href="#" aria-label="X (Twitter)" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-x-twitter"></i></a>
+        <a href="#" aria-label="LinkedIn" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-linkedin-in"></i></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="km-page2" id="page-chiffres">
+
+  <div class="km-page2-weather-badge">
+    <div class="km-weather-box" id="kmWeatherBox">
+      <div class="km-weather-loading"><i class="fa-solid fa-spinner fa-spin"></i> M&eacute;t&eacute;o&hellip;</div>
+    </div>
+  </div>
+
+  <div class="km-page2-stats-bar">
+    <div class="km-page2-stat">
+      <i class="fa-solid fa-people-group"></i>
+      <strong data-cible="{{ population|default:'224 765' }}">{{ population|default:"224 765" }}</strong>
+      <span>Habitants</span>
+    </div>
+    <div class="km-page2-stat">
+      <i class="fa-solid fa-city"></i>
+      <strong data-cible="{{ nb_quartiers|default:'86' }}">{{ nb_quartiers|default:"86" }}</strong>
+      <span>Quartiers</span>
+    </div>
+    <div class="km-page2-stat">
+      <i class="fa-regular fa-calendar"></i>
+      <strong data-cible="{{ annee_creation|default:'2021' }}">{{ annee_creation|default:"2021" }}</strong>
+      <span>Fondation</span>
+    </div>
+    <div class="km-page2-stat">
+      <i class="fa-solid fa-vector-square"></i>
+      <strong data-cible="{{ superficie|default:'13,18' }}">{{ superficie|default:"13,18" }}</strong>
+      <span>km&sup2; superficie</span>
+    </div>
+  </div>
+
+  <div class="km-page2-maire">
+    <div class="km-page2-maire-text">
+      <span class="km-page2-eyebrow-line">Le mot du maire</span>
+      <h2>Une commune en pleine<br><em>modernisation</em></h2>
+      <p class="km-page2-quote"><i class="fa-solid fa-quote-left"></i> Soyons ensemble les acteurs des changements auxquels nous aspirons.</p>
+      <p class="km-page2-bio">Maire de la Commune de Keur Massar Nord (mandature 2022&ndash;2027), ing&eacute;nieur g&eacute;om&egrave;tre-topographe et doctorant en g&eacute;omatique &agrave; l'Universit&eacute; Laval. Ce portail est notre engagement pour une gestion fonci&egrave;re et fiscale plus transparente et plus proche de vous.</p>
+      <div class="km-page2-maire-actions">
+        <a href="{% url 'geoportail' %}" class="btn-km-primary">
+          <i class="fa-solid fa-map-location-dot"></i> Ouvrir le g&eacute;oportail de la commune
         </a>
       </div>
     </div>
 
-    <div class="km-stats-panel">
-      <h3>Keur Massar Nord en chiffres</h3>
-      <div class="km-stats-grid">
-        <div class="km-stat-item">
-          <i class="fa-solid fa-people-group"></i>
-          <strong>{{ population|default:"224 765" }}</strong>
-          <span>Population (estimation)</span>
-        </div>
-        <div class="km-stat-item">
-          <i class="fa-solid fa-vector-square"></i>
-          <strong>{{ superficie|default:"13,18" }} km&sup2;</strong>
-          <span>Superficie</span>
-        </div>
-        <div class="km-stat-item">
-          <i class="fa-solid fa-city"></i>
-          <strong>{{ nb_quartiers|default:"104" }}</strong>
-          <span>Quartiers &amp; villages</span>
-        </div>
-        <div class="km-stat-item">
-          <i class="fa-regular fa-calendar"></i>
-          <strong>{{ annee_creation|default:"2021" }}</strong>
-          <span>Cr&eacute;ation de la commune</span>
-        </div>
-      </div>
-      <p class="km-stats-source">Source population : RGPH-5 (2023), ANSD</p>
-      <div class="km-mission-box">
-        <div class="km-m-icon"><i class="fa-solid fa-bullhorn"></i></div>
-        <div>
-          <h5>Notre mission</h5>
-          <p>Am&eacute;liorer la gestion territoriale et rapprocher la commune des citoyens &agrave; travers la donn&eacute;e, la transparence et l'innovation.</p>
-        </div>
-      </div>
+    <div class="km-page2-photo-wrap">
+      <img src="{% static 'foncier/img/maire-adama-sarr.jpg' %}" alt="Adama Sarr, Maire de Keur Massar Nord" class="km-page2-photo" loading="lazy">
+    </div>
+  </div>
 
-      <div class="km-weather-box" id="kmWeatherBox">
-        <div class="km-weather-loading"><i class="fa-solid fa-spinner fa-spin"></i> M&eacute;t&eacute;o en cours de chargement&hellip;</div>
-      </div>
+</section>
+
+<div id="apres-hero"></div>
+
+<section class="km-transparence">
+  <div class="km-transparence-inner">
+    <div class="km-transp-item">
+      <i class="fa-solid fa-map"></i>
+      <strong>{{ total_parcelles }}</strong>
+      <span>Parcelles cadastr&eacute;es</span>
+    </div>
+    <div class="km-transp-item">
+      <i class="fa-solid fa-building"></i>
+      <strong>{{ nb_infrastructures_total }}</strong>
+      <span>Infrastructures recens&eacute;es</span>
+    </div>
+    <div class="km-transp-item">
+      <i class="fa-solid fa-circle-check"></i>
+      <strong>{{ pct_signalements_resolus }}%</strong>
+      <span>Signalements r&eacute;solus</span>
     </div>
   </div>
 </section>
 
-<section class="km-quick-section">
-  <div class="km-quick-grid">
-    <a href="{% url 'infrastructures' %}" class="km-quick-card">
-      <i class="fa-solid fa-building km-q-watermark"></i>
-      <div class="km-q-icon"><i class="fa-solid fa-building"></i></div>
-      <h3>Infrastructures</h3>
-      <div class="km-q-underline"></div>
-      <p>Consultez toutes les infrastructures publiques et priv&eacute;es de la commune.</p>
-      <span class="km-q-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
+<section class="km-bento-section">
+
+  <div class="km-bento-intro">
+    <span class="section-label">Nos services</span>
+    <h2>Votre Mairie &agrave; votre service</h2>
+    <p>Acc&eacute;dez aux services municipaux essentiels en toute simplicit&eacute;, depuis chez vous ou directement en ligne.</p>
+  </div>
+
+  <div class="km-bento-grid-small">
+
+    <a href="{% url 'fiscalite' %}" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+      <h4>Fiscalit&eacute;</h4>
+      <p>Comprenez vos obligations et simulez votre imp&ocirc;t foncier.</p>
+      <span class="km-bs-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
     </a>
-    <a href="{% url 'geoportail' %}" class="km-quick-card">
-      <i class="fa-solid fa-map km-q-watermark"></i>
-      <div class="km-q-icon"><i class="fa-solid fa-map"></i></div>
-      <h3>Cadastre / Fiscalit&eacute;</h3>
-      <div class="km-q-underline"></div>
-      <p>Acc&eacute;dez aux donn&eacute;es cadastrales, parcelles et informations fiscales.</p>
-      <span class="km-q-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
+
+    <a href="{% url 'signalement' %}" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-bullhorn"></i></div>
+      <h4>Signalement citoyen</h4>
+      <p>Signalez un probl&egrave;me et am&eacute;liorez votre cadre de vie.</p>
+      <span class="km-bs-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
     </a>
-    <a href="{% url 'signalement' %}" class="km-quick-card">
-      <i class="fa-solid fa-bullhorn km-q-watermark"></i>
-      <div class="km-q-icon"><i class="fa-solid fa-bullhorn"></i></div>
-      <h3>Signalement citoyen</h3>
-      <div class="km-q-underline"></div>
-      <p>Signalez un probl&egrave;me et contribuez &agrave; l'am&eacute;lioration de votre cadre de vie.</p>
-      <span class="km-q-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
+
+    <a href="{% url 'statistiques' %}" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-chart-column"></i></div>
+      <h4>Statistiques</h4>
+      <p>D&eacute;couvrez les donn&eacute;es cl&eacute;s de la commune.</p>
+      <span class="km-bs-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
     </a>
-    <a href="{% url 'statistiques' %}" class="km-quick-card">
-      <i class="fa-solid fa-chart-pie km-q-watermark"></i>
-      <div class="km-q-icon"><i class="fa-solid fa-chart-column"></i></div>
-      <h3>Statistiques</h3>
-      <div class="km-q-underline"></div>
-      <p>D&eacute;couvrez les donn&eacute;es et statistiques cl&eacute;s de la commune.</p>
-      <span class="km-q-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
+
+    <a href="{% url 'espace_jeunes' %}" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-star"></i></div>
+      <h4>Espace Jeunes</h4>
+      <p>Soumettez vos projets et d&eacute;couvrez les ressources disponibles.</p>
+      <span class="km-bs-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
     </a>
+
+    {% if user.is_authenticated and user.citoyen %}
+    <a href="{% url 'citoyen_demandes' %}" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-folder-open"></i></div>
+      <h4>Mes d&eacute;marches</h4>
+      <p>Suivez l'avancement de vos dossiers d&eacute;pos&eacute;s en ligne.</p>
+      <span class="km-bs-link">Voir mes dossiers <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+    {% else %}
+    <a href="{% url 'citoyen_login' %}" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-folder-open"></i></div>
+      <h4>D&eacute;marches en ligne</h4>
+      <p>Connectez-vous pour d&eacute;poser et suivre vos demandes.</p>
+      <span class="km-bs-link">Se connecter <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+    {% endif %}
+
+    <a href="{% url 'actualites' %}" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-newspaper"></i></div>
+      <h4>Actualit&eacute;s</h4>
+      <p>Suivez les avis, projets et communiqu&eacute;s de la commune.</p>
+      <span class="km-bs-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <a href="{% url 'contact' %}" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-envelope"></i></div>
+      <h4>Contact</h4>
+      <p>&Eacute;crivez directement &agrave; l'administration communale.</p>
+      <span class="km-bs-link">Nous contacter <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
+    <button type="button" class="km-bento-small" id="btnOuvrirGalerie" style="border:none; cursor:pointer; text-align:left; width:100%; font-family:inherit;">
+      <div class="km-bs-icon"><i class="fa-solid fa-images"></i></div>
+      <h4>Galerie</h4>
+      <p>D&eacute;couvrez la commune en images : infrastructures, quartiers et projets.</p>
+      <span class="km-bs-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
+    </button>
+
+    <button type="button" class="km-bento-small" id="btnOuvrirHistoire" style="border:none; cursor:pointer; text-align:left; width:100%; font-family:inherit;">
+      <div class="km-bs-icon"><i class="fa-solid fa-landmark"></i></div>
+      <h4>Histoire</h4>
+      <p>De l'ancienne commune de Keur Massar &agrave; la naissance de Keur Massar Nord.</p>
+      <span class="km-bs-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
+    </button>
+
+    <a href="/gestion/" class="km-bento-small">
+      <div class="km-bs-icon"><i class="fa-solid fa-user-shield"></i></div>
+      <h4>Administration</h4>
+      <p>Espace s&eacute;curis&eacute; r&eacute;serv&eacute; aux agents habilit&eacute;s de la commune.</p>
+      <span class="km-bs-link">Espace agents <i class="fa-solid fa-arrow-right"></i></span>
+    </a>
+
   </div>
 </section>
 
-<section class="km-dash-section">
-  <div class="km-dash-grid">
+<!-- ===================== HISTOIRE (fenetre modale) ===================== -->
+<div class="km-galerie-overlay" id="kmHistoireOverlay">
+  <div class="km-galerie-modal km-histoire-modal">
+    <button type="button" class="km-galerie-close" id="btnFermerHistoire" aria-label="Fermer l'histoire">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
 
-    <div class="km-dash-card">
-      <div class="km-dash-card-head">
-        <h3>Infrastructures par cat&eacute;gorie</h3>
-        <a href="{% url 'infrastructures' %}" class="km-dash-voir-tout">Voir tout <i class="fa-solid fa-arrow-right"></i></a>
-      </div>
-      <div class="km-dash-underline"></div>
-      <div class="km-infra-grid">
-        {% for infra in infrastructures %}
-        <div class="km-infra-item">
-          <div class="km-infra-ic"><i class="fa-solid {{ infra.icone|default:'fa-map-pin' }}"></i></div>
-          <div class="km-infra-txt"><span>{{ infra.label }}</span><strong>{{ infra.total }}</strong></div>
+    <div class="km-histoire-scroll">
+      <h2 class="km-histoire-title">L'histoire de Keur Massar Nord</h2>
+
+      <div class="histoire-layout">
+        <div class="histoire-text">
+          <p>Keur Massar Nord est situ&eacute;e &agrave; l'entr&eacute;e de la presqu'&icirc;le du Cap-Vert, &agrave; l'est de Dakar, dans l'arrondissement de Malika. Elle est n&eacute;e de la scission de l'ancienne commune de Keur Massar &mdash; cr&eacute;&eacute;e en 1996 au sein de la ville de Pikine &mdash; en deux communes distinctes : Keur Massar Nord et Keur Massar Sud.</p>
+          <p>Cette r&eacute;forme fait suite aux fortes inondations qui ont touch&eacute; la zone en septembre 2020, et &agrave; la volont&eacute; de rapprocher l'administration des habitants d'un territoire en pleine croissance d&eacute;mographique. Keur Massar Nord est aujourd'hui le chef-lieu du d&eacute;partement de Keur Massar, le 46e d&eacute;partement du S&eacute;n&eacute;gal et le 5e de la r&eacute;gion de Dakar.</p>
+          <p>La commune regroupe aujourd'hui plus d'une centaine de quartiers et villages, parmi lesquels Keur Massar Centre, Darou Salam, Firdawsi, M&eacute;dinatoul Mounawara ou encore les diff&eacute;rentes unit&eacute;s des Parcelles Assainies &mdash; reflet de la diversit&eacute; et de la croissance rapide du territoire.</p>
         </div>
-        {% empty %}
-        <div class="km-empty-mini" style="grid-column:1/-1;">
-          <div class="km-empty-ic"><i class="fa-solid fa-building"></i></div>
-          <p>Le recensement des infrastructures de la commune est en cours de publication.</p>
-        </div>
-        {% endfor %}
-      </div>
-      <a href="{% url 'infrastructures' %}" class="km-see-all">Voir toutes les infrastructures <i class="fa-solid fa-arrow-right"></i></a>
-    </div>
-
-    <div class="km-dash-card">
-      <div class="km-dash-card-head">
-        <h3>Signalement citoyen</h3>
-      </div>
-      <div class="km-dash-underline"></div>
-      <div class="km-empty-mini">
-        <div class="km-empty-ic"><i class="fa-solid fa-triangle-exclamation"></i></div>
-        <p>
-          Vous avez remarqué un problème dans votre quartier (dépôt d'ordures,
-          éclairage défectueux...) ? Signalez-le à la mairie. Vos signalements
-          sont transmis directement aux services municipaux et ne sont pas
-          publiés publiquement.
-        </p>
-      </div>
-      <a href="{% url 'signalement' %}" class="km-see-all">Faire un signalement <i class="fa-solid fa-arrow-right"></i></a>
-    </div>
-
-    <div class="km-dash-card">
-      <div class="km-dash-card-head">
-        <h3>Actualit&eacute;s</h3>
-        <a href="{% url 'actualites' %}" class="km-dash-voir-tout">Voir tout <i class="fa-solid fa-arrow-right"></i></a>
-      </div>
-      <div class="km-dash-underline"></div>
-      {% for actu in actualites %}
-      <div class="km-list-item">
-        {% if actu.photo %}<img src="{{ actu.photo.url }}" alt="" class="km-thumb">{% else %}<div class="km-thumb"></div>{% endif %}
-        <div class="km-body">
-          <h4>{{ actu.titre }}</h4>
-          <div class="km-meta"><i class="fa-regular fa-calendar"></i> {{ actu.date_publication|date:"d/m/Y" }}</div>
+        <div class="histoire-timeline">
+          <div class="histoire-step">
+            <div class="histoire-year">1996</div>
+            <p>Keur Massar devient une commune, l'une des seize communes de la ville de Pikine.</p>
+          </div>
+          <div class="histoire-step">
+            <div class="histoire-year">Septembre 2020</div>
+            <p>De fortes inondations touchent Keur Massar ; le Chef de l'&Eacute;tat visite les zones sinistr&eacute;es et annonce une r&eacute;forme administrative.</p>
+          </div>
+          <div class="histoire-step">
+            <div class="histoire-year">28 mai 2021</div>
+            <p>D&eacute;cret n&deg;2021-687 : cr&eacute;ation du d&eacute;partement de Keur Massar, 46e d&eacute;partement du S&eacute;n&eacute;gal.</p>
+          </div>
+          <div class="histoire-step">
+            <div class="histoire-year">Mai 2021</div>
+            <p>D&eacute;cret n&deg;2021-688 : scission de l'ancienne commune de Keur Massar en Keur Massar Nord et Keur Massar Sud.</p>
+          </div>
+          <div class="histoire-step">
+            <div class="histoire-year">2022 &ndash; 2027</div>
+            <p>Adama Sarr est &eacute;lu maire de Keur Massar Nord pour la mandature en cours, &agrave; la t&ecirc;te d'un conseil municipal de 76 &eacute;lus.</p>
+          </div>
         </div>
       </div>
-      {% empty %}
-      <div class="km-empty-mini">
-        <div class="km-empty-ic"><i class="fa-solid fa-newspaper"></i></div>
-        <p>Aucune actualité publiée pour le moment.</p>
-      </div>
-      {% endfor %}
-      <a href="{% url 'actualites' %}" class="km-see-all">Voir toutes les actualit&eacute;s <i class="fa-solid fa-arrow-right"></i></a>
     </div>
-
   </div>
-</section>
+</div>
+
+<!-- ===================== GALERIE (fenetre modale) ===================== -->
+<div class="km-galerie-overlay" id="kmGalerieOverlay">
+  <div class="km-galerie-modal">
+    <button type="button" class="km-galerie-close" id="btnFermerGalerie" aria-label="Fermer la galerie">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+
+    <div class="km-galerie-large" id="kmGalerieLarge">
+      <span class="km-galerie-zoom-hint"><i class="fa-solid fa-expand"></i></span>
+      <img src="{% static 'foncier/img/gallery/panneau-entree-commune.jpeg' %}" alt="" id="kmGalerieLargeImg">
+      <div class="km-galerie-caption" id="kmGalerieLargeCaption">Entr&eacute;e de la Commune de Keur Massar Nord</div>
+    </div>
+
+    <div class="km-galerie-thumbs">
+      <button type="button" class="km-galerie-thumb active" data-src="{% static 'foncier/img/gallery/panneau-entree-commune.jpeg' %}" data-caption="Entr&eacute;e de la Commune de Keur Massar Nord">
+        <img src="{% static 'foncier/img/gallery/panneau-entree-commune.jpeg' %}" alt="">
+      </button>
+      <button type="button" class="km-galerie-thumb" data-src="{% static 'foncier/img/gallery/mairie-batiment.jpeg' %}" data-caption="B&acirc;timent de la mairie">
+        <img src="{% static 'foncier/img/gallery/mairie-batiment.jpeg' %}" alt="">
+      </button>
+      <button type="button" class="km-galerie-thumb" data-src="{% static 'foncier/img/gallery/marche-commerces.jpg' %}" data-caption="March&eacute; et commerces anim&eacute;s">
+        <img src="{% static 'foncier/img/gallery/marche-commerces.jpg' %}" alt="">
+      </button>
+      <button type="button" class="km-galerie-thumb" data-src="{% static 'foncier/img/gallery/circulation-pont.jpeg' %}" data-caption="Axes routiers et circulation">
+        <img src="{% static 'foncier/img/gallery/circulation-pont.jpeg' %}" alt="">
+      </button>
+      <button type="button" class="km-galerie-thumb" data-src="{% static 'foncier/img/gallery/centre-services-fiscaux.jpeg' %}" data-caption="Centre des services fiscaux (DGID)">
+        <img src="{% static 'foncier/img/gallery/centre-services-fiscaux.jpeg' %}" alt="">
+      </button>
+    </div>
+  </div>
+</div>
 
 </div>
 
@@ -711,117 +920,6 @@
   </div>
 </section>
 
-<section class="main-section">
-  <span class="section-label">Histoire</span>
-  <h2 class="section-title">L'histoire de Keur Massar Nord</h2>
-  <p class="section-sub">De l'ancienne commune de Keur Massar à la naissance de Keur Massar Nord, retour sur les grandes étapes qui ont façonné la commune.</p>
-
-  <div class="histoire-layout">
-    <div class="histoire-text">
-      <p>Keur Massar Nord est situ&eacute;e &agrave; l'entr&eacute;e de la presqu'&icirc;le du Cap-Vert, &agrave; l'est de Dakar, dans l'arrondissement de Malika. Elle est n&eacute;e de la scission de l'ancienne commune de Keur Massar &mdash; cr&eacute;&eacute;e en 1996 au sein de la ville de Pikine &mdash; en deux communes distinctes : Keur Massar Nord et Keur Massar Sud.</p>
-      <p>Cette r&eacute;forme fait suite aux fortes inondations qui ont touch&eacute; la zone en septembre 2020, et &agrave; la volont&eacute; de rapprocher l'administration des habitants d'un territoire en pleine croissance d&eacute;mographique. Keur Massar Nord est aujourd'hui le chef-lieu du d&eacute;partement de Keur Massar, le 46e d&eacute;partement du S&eacute;n&eacute;gal et le 5e de la r&eacute;gion de Dakar.</p>
-      <p>La commune regroupe aujourd'hui plus d'une centaine de quartiers et villages, parmi lesquels Keur Massar Centre, Darou Salam, Firdawsi, M&eacute;dinatoul Mounawara ou encore les diff&eacute;rentes unit&eacute;s des Parcelles Assainies &mdash; reflet de la diversit&eacute; et de la croissance rapide du territoire.</p>
-    </div>
-    <div class="histoire-timeline">
-      <div class="histoire-step">
-        <div class="histoire-year">1996</div>
-        <p>Keur Massar devient une commune, l'une des seize communes de la ville de Pikine.</p>
-      </div>
-      <div class="histoire-step">
-        <div class="histoire-year">Septembre 2020</div>
-        <p>De fortes inondations touchent Keur Massar ; le Chef de l'&Eacute;tat visite les zones sinistr&eacute;es et annonce une r&eacute;forme administrative.</p>
-      </div>
-      <div class="histoire-step">
-        <div class="histoire-year">28 mai 2021</div>
-        <p>D&eacute;cret n&deg;2021-687 : cr&eacute;ation du d&eacute;partement de Keur Massar, 46e d&eacute;partement du S&eacute;n&eacute;gal.</p>
-      </div>
-      <div class="histoire-step">
-        <div class="histoire-year">Mai 2021</div>
-        <p>D&eacute;cret n&deg;2021-688 : scission de l'ancienne commune de Keur Massar en Keur Massar Nord et Keur Massar Sud.</p>
-      </div>
-      <div class="histoire-step">
-        <div class="histoire-year">2022 &ndash; 2027</div>
-        <p>Adama Sarr est &eacute;lu maire de Keur Massar Nord pour la mandature en cours, &agrave; la t&ecirc;te d'un conseil municipal de 76 &eacute;lus.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="main-section services-section">
-  <span class="section-label">Nos services</span>
-  <h2 class="section-title">Une plateforme, un module pour chaque mission</h2>
-  <p class="section-sub">Chaque service est pens&eacute; pour un usage pr&eacute;cis &mdash; de l'agent municipal au citoyen.</p>
-
-  <div class="row g-4" style="margin-top:12px;">
-    <div class="col-md-6 col-lg-4">
-      <a href="{% url 'geoportail' %}" class="service-card-pro">
-        <div class="svc-top">
-          <div class="svc-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-          <span class="svc-role">Tous publics</span>
-        </div>
-        <h3>G&eacute;oportail</h3>
-        <p>Visualisez toutes les parcelles de la commune sur une carte interactive, avec leur statut fiscal en temps r&eacute;el.</p>
-        <span class="svc-link">Ouvrir la carte <i class="fa-solid fa-arrow-right"></i></span>
-      </a>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <a href="{% url 'fiscalite' %}" class="service-card-pro">
-        <div class="svc-top">
-          <div class="svc-icon"><i class="fa-solid fa-scale-balanced"></i></div>
-          <span class="svc-role">Contribuables</span>
-        </div>
-        <h3>Fiscalit&eacute;</h3>
-        <p>Comprenez vos obligations, suivez le bar&egrave;me de l'imp&ocirc;t et simulez votre charge fiscale en quelques clics.</p>
-        <span class="svc-link">Voir la fiscalit&eacute; <i class="fa-solid fa-arrow-right"></i></span>
-      </a>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <a href="{% url 'signalement' %}" class="service-card-pro">
-        <div class="svc-top">
-          <div class="svc-icon"><i class="fa-solid fa-file-circle-check"></i></div>
-          <span class="svc-role">Citoyens</span>
-        </div>
-        <h3>T&eacute;l&eacute;services</h3>
-        <p>D&eacute;posez une demande administrative, suivez votre dossier et t&eacute;l&eacute;chargez vos documents en ligne.</p>
-        <span class="svc-link">Acc&eacute;der aux d&eacute;marches <i class="fa-solid fa-arrow-right"></i></span>
-      </a>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <a href="{% url 'signalement' %}" class="service-card-pro">
-        <div class="svc-top">
-          <div class="svc-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-          <span class="svc-role">Citoyens</span>
-        </div>
-        <h3>Signalement</h3>
-        <p>Signalez un probl&egrave;me (inondation, voirie, occupation ill&eacute;gale) avec photo et localisation GPS.</p>
-        <span class="svc-link">Faire un signalement <i class="fa-solid fa-arrow-right"></i></span>
-      </a>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <a href="#urbanisme" class="service-card-pro">
-        <div class="svc-top">
-          <div class="svc-icon"><i class="fa-solid fa-city"></i></div>
-          <span class="svc-role">Agents &amp; citoyens</span>
-        </div>
-        <h3>Urbanisme</h3>
-        <p>Permis de construire, autorisations et plans d'am&eacute;nagement, consultables et instruits en ligne.</p>
-        <span class="svc-link">En savoir plus <i class="fa-solid fa-arrow-right"></i></span>
-      </a>
-    </div>
-    <div class="col-md-6 col-lg-4">
-      <a href="/gestion/" class="service-card-pro">
-        <div class="svc-top">
-          <div class="svc-icon"><i class="fa-solid fa-user-shield"></i></div>
-          <span class="svc-role">Agents habilit&eacute;s</span>
-        </div>
-        <h3>Administration</h3>
-        <p>G&eacute;rez les parcelles, les propri&eacute;taires, les paiements et les utilisateurs depuis un espace s&eacute;curis&eacute;.</p>
-        <span class="svc-link">Espace agents <i class="fa-solid fa-arrow-right"></i></span>
-      </a>
-    </div>
-  </div>
-</section>
-
 <!-- ============================================================
      ESPACE JEUNES — nouvelle section, rien d'autre supprimé/modifié
 ============================================================ -->
@@ -844,43 +942,6 @@
         D&eacute;couvrir l'Espace Jeunes
       </a>
     </div>
-  </div>
-</section>
-
-<section class="main-section">
-  <span class="section-label">Territoire</span>
-  <h2 class="section-title">Les quartiers de Keur Massar Nord</h2>
-  <p class="section-sub">Un aper&ccedil;u des zones couvertes par la plateforme fonci&egrave;re et fiscale. Cliquez sur un quartier pour le retrouver sur le g&eacute;oportail.</p>
-
-  <div class="quartiers-scroller">
-    {% for quartier in quartiers %}
-    <a href="{% url 'geoportail' %}?q={{ quartier.adresse_parcelle|urlencode }}" class="quartier-card">
-      <div class="q-icon"><i class="fa-solid fa-map-pin"></i></div>
-      <h4>{{ quartier.adresse_parcelle }}</h4>
-      <p>{{ quartier.nb_parcelles }} parcelle{{ quartier.nb_parcelles|pluralize }} suivie{{ quartier.nb_parcelles|pluralize }}</p>
-    </a>
-    {% empty %}
-    <a href="{% url 'geoportail' %}" class="quartier-card">
-      <div class="q-icon"><i class="fa-solid fa-map-pin"></i></div>
-      <h4>Keur Massar Nord 1</h4>
-      <p>Zone r&eacute;sidentielle en expansion</p>
-    </a>
-    <a href="{% url 'geoportail' %}" class="quartier-card">
-      <div class="q-icon"><i class="fa-solid fa-map-pin"></i></div>
-      <h4>Keur Massar Nord 2</h4>
-      <p>Zone mixte habitat / commerce</p>
-    </a>
-    <a href="{% url 'geoportail' %}" class="quartier-card">
-      <div class="q-icon"><i class="fa-solid fa-map-pin"></i></div>
-      <h4>Jaxaay</h4>
-      <p>Zone de recasement</p>
-    </a>
-    <a href="{% url 'geoportail' %}" class="quartier-card">
-      <div class="q-icon"><i class="fa-solid fa-map-pin"></i></div>
-      <h4>Yeumbeul Extension</h4>
-      <p>Zone d'extension urbaine</p>
-    </a>
-    {% endfor %}
   </div>
 </section>
 
@@ -910,91 +971,6 @@
       <h4>Donn&eacute;es sauvegard&eacute;es</h4>
       <p>La base fonci&egrave;re et fiscale fait l'objet de sauvegardes r&eacute;guli&egrave;res pour garantir la continuit&eacute; du service.</p>
     </div>
-  </div>
-</section>
-
-<section class="container page-section">
-  <div class="row align-items-center gy-4">
-    <div class="col-lg-5">
-      <span class="section-label">Cartographie</span>
-      <h2 class="section-title">La commune vue depuis le g&eacute;oportail</h2>
-      <p class="section-subtitle">Explorez un aper&ccedil;u des parcelles cadastrales de Keur Massar Nord. Ouvrez le g&eacute;oportail complet pour filtrer par quartier, statut fiscal ou nature juridique.</p>
-      <a href="{% url 'geoportail' %}" class="btn-primary"><i class="fa-solid fa-map-location-dot"></i> Ouvrir le g&eacute;oportail complet</a>
-    </div>
-    <div class="col-lg-7">
-      <div class="card border-0 shadow-sm overflow-hidden" style="min-height: 360px;">
-        <div id="mini-map" style="min-height: 360px;"></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="mayor-section">
-  <div class="mayor-box">
-    <img src="{% static 'foncier/img/maire-adama-sarr.jpg' %}" alt="Adama Sarr, Maire de Keur Massar Nord" class="mayor-photo-img" loading="lazy">
-    <div>
-      <i class="fa-solid fa-quote-left mayor-quote-icon"></i>
-      <blockquote>&laquo; Cette plateforme est un engagement pour une gestion fonci&egrave;re et fiscale plus transparente, plus rapide et plus proche des habitants de Keur Massar Nord. &raquo;</blockquote>
-      <div class="mayor-signature">Adama Sarr</div>
-      <div class="mayor-role">Maire de la Commune de Keur Massar Nord (mandature 2022&ndash;2027), ing&eacute;nieur g&eacute;om&egrave;tre-topographe et doctorant en g&eacute;omatique &agrave; l'Universit&eacute; Laval &mdash; &laquo; Soyons ensemble les acteurs des changements auxquels nous aspirons. &raquo;</div>
-    </div>
-  </div>
-</section>
-
-<section class="main-section">
-  <span class="section-label">Galerie</span>
-  <h2 class="section-title">La commune en images</h2>
-  <p class="section-sub">Aper&ccedil;u des infrastructures, projets et quartiers de Keur Massar Nord.</p>
-
-  <div class="gallery-grid">
-    <div class="gallery-item" style="background-image:url('{% static "foncier/img/gallery/panneau-entree-commune.jpeg" %}');">
-      <i class="fa-solid fa-expand"></i><span>Entr&eacute;e de la Commune de Keur Massar Nord</span>
-    </div>
-    <div class="gallery-item" style="background-image:url('{% static "foncier/img/gallery/mairie-batiment.jpeg" %}');">
-      <i class="fa-solid fa-expand"></i><span>B&acirc;timent de la mairie</span>
-    </div>
-    <div class="gallery-item" style="background-image:url('{% static "foncier/img/gallery/marche-commerces.jpg" %}');">
-      <i class="fa-solid fa-expand"></i><span>March&eacute; et commerces anim&eacute;s</span>
-    </div>
-    <div class="gallery-item" style="background-image:url('{% static "foncier/img/gallery/circulation-pont.jpeg" %}');">
-      <i class="fa-solid fa-expand"></i><span>Axes routiers et circulation</span>
-    </div>
-    <div class="gallery-item" style="background-image:url('{% static "foncier/img/gallery/centre-services-fiscaux.jpeg" %}');">
-      <i class="fa-solid fa-expand"></i><span>Centre des services fiscaux (DGID)</span>
-    </div>
-  </div>
-</section>
-
-<section class="main-section news-section" id="actualites-full">
-  <span class="section-label">Actualit&eacute;s</span>
-  <h2 class="section-title">L'actualit&eacute; de la commune</h2>
-  <p class="section-sub">Avis, communiqu&eacute;s, projets et appels d'offres de Keur Massar Nord.</p>
-
-  <div class="news-grid">
-    {% for actu in actualites %}
-    <div class="news-card">
-      <div class="news-img {% cycle 'news-img-1' 'news-img-2' 'news-img-3' %}">
-        <i class="fa-solid fa-newspaper news-img-icon"></i>
-        <span class="news-tag">{{ actu.get_categorie_display }}</span>
-      </div>
-      <div class="news-body">
-        <div class="news-date"><i class="fa-solid fa-calendar"></i> {{ actu.date_publication|date:"d F Y" }}</div>
-        <h3>{{ actu.titre }}</h3>
-        <p>{{ actu.chapo }}</p>
-      </div>
-    </div>
-    {% empty %}
-    <div style="grid-column:1/-1; text-align:center; padding:60px 20px; color:#8a8074;">
-      <i class="fa-solid fa-newspaper" style="font-size:30px; color:var(--km-gold); margin-bottom:14px; display:block;"></i>
-      Aucune actualité publiée pour le moment. Revenez bientôt !
-    </div>
-    {% endfor %}
-  </div>
-
-  <div style="text-align:center; margin-top:36px;">
-    <a href="{% url 'actualites' %}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:8px;">
-      Voir toutes les actualités <i class="fa-solid fa-arrow-right"></i>
-    </a>
   </div>
 </section>
 
@@ -1031,6 +1007,148 @@
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // ===== Compteurs animes "Keur Massar en chiffres" =====
+    function animerCompteurs() {
+        document.querySelectorAll('.km-page2-stat strong[data-cible]').forEach(function (el) {
+            var cibleTexte = el.getAttribute('data-cible');
+            var estDecimal = cibleTexte.indexOf(',') !== -1;
+            var cibleNombre = parseFloat(cibleTexte.replace(/\s/g, '').replace(',', '.'));
+            if (isNaN(cibleNombre)) return;
+
+            el.textContent = estDecimal ? '0,00' : '0';
+            var debut = null;
+            var duree = 1600;
+
+            function etape(horodatage) {
+                if (!debut) debut = horodatage;
+                var progres = Math.min((horodatage - debut) / duree, 1);
+                var valeurActuelle = cibleNombre * progres;
+                el.textContent = estDecimal
+                    ? valeurActuelle.toFixed(2).replace('.', ',')
+                    : Math.round(valeurActuelle).toLocaleString('fr-FR');
+                if (progres < 1) {
+                    requestAnimationFrame(etape);
+                } else {
+                    el.textContent = cibleTexte;
+                }
+            }
+            requestAnimationFrame(etape);
+        });
+    }
+
+    if ('IntersectionObserver' in window) {
+        var page2El = document.getElementById('page-chiffres');
+        if (page2El) {
+            var observateurChiffres = new IntersectionObserver(function (entrees) {
+                entrees.forEach(function (entree) {
+                    if (entree.isIntersecting) {
+                        animerCompteurs();
+                    }
+                });
+            }, { threshold: 0.4 });
+            observateurChiffres.observe(page2El);
+        }
+    }
+
+    // Verrouille le defilement tant que l'utilisateur n'a pas clique sur
+    // "Decouvrir la commune" : impossible d'atteindre les sections en dessous
+    // du Hero sans passer par ce bouton.
+    var hero = document.getElementById('hero');
+    var btnDecouvrir = document.getElementById('btnDecouvrir');
+    if (hero && btnDecouvrir && window.innerWidth > 0) {
+      // Ajuste precisement la hauteur du Hero a l'espace reellement disponible
+      // sous la bande institutionnelle + le header, pour que tout le contenu
+      // (stats, meteo, mot du maire) reste visible sans avoir besoin de defiler.
+      function ajusterHauteurHero() {
+        var govBar = document.querySelector('.gov-bar');
+        var header = document.getElementById('header');
+        var hauteurOccupee = (govBar ? govBar.offsetHeight : 0) + (header ? header.offsetHeight : 0);
+        hero.style.minHeight = 'calc(100vh - ' + hauteurOccupee + 'px)';
+      }
+      ajusterHauteurHero();
+      window.addEventListener('resize', ajusterHauteurHero);
+
+      document.body.classList.add('km-hero-locked');
+      btnDecouvrir.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.body.classList.remove('km-hero-locked');
+        var cible = document.getElementById('page-chiffres');
+        if (cible) cible.scrollIntoView({ behavior: 'smooth' });
+      });
+
+      document.querySelectorAll('.km-ib-mot-maire').forEach(function (lien) {
+        lien.addEventListener('click', function (e) {
+          e.preventDefault();
+          document.body.classList.remove('km-hero-locked');
+          var cible = document.getElementById('page-chiffres');
+          if (cible) cible.scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+
+
+    }
+
+    // Galerie photo : ouverture/fermeture de la fenetre modale et changement d'image
+    var galerieOverlay = document.getElementById('kmGalerieOverlay');
+    var btnOuvrirGalerie = document.getElementById('btnOuvrirGalerie');
+    var btnFermerGalerie = document.getElementById('btnFermerGalerie');
+    var galerieLargeImg = document.getElementById('kmGalerieLargeImg');
+    var galerieLargeCaption = document.getElementById('kmGalerieLargeCaption');
+
+    if (galerieOverlay && btnOuvrirGalerie) {
+      btnOuvrirGalerie.addEventListener('click', function () {
+        galerieOverlay.classList.add('open');
+      });
+      btnFermerGalerie.addEventListener('click', function () {
+        galerieOverlay.classList.remove('open');
+      });
+      galerieOverlay.addEventListener('click', function (e) {
+        if (e.target === galerieOverlay) galerieOverlay.classList.remove('open');
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') galerieOverlay.classList.remove('open');
+      });
+
+      document.querySelectorAll('.km-galerie-thumb').forEach(function (thumb) {
+        thumb.addEventListener('click', function () {
+          document.querySelectorAll('.km-galerie-thumb').forEach(function (t) { t.classList.remove('active'); });
+          thumb.classList.add('active');
+          galerieLargeImg.src = thumb.getAttribute('data-src');
+          galerieLargeCaption.textContent = thumb.getAttribute('data-caption');
+        });
+      });
+
+      // Clic sur la grande image : l'agrandir en plein ecran
+      galerieLargeImg.style.cursor = 'zoom-in';
+      galerieLargeImg.addEventListener('click', function () {
+        if (galerieLargeImg.requestFullscreen) {
+          galerieLargeImg.requestFullscreen();
+        } else if (galerieLargeImg.webkitRequestFullscreen) {
+          galerieLargeImg.webkitRequestFullscreen();
+        }
+      });
+    }
+
+    // Histoire : ouverture/fermeture de la fenetre modale
+    var histoireOverlay = document.getElementById('kmHistoireOverlay');
+    var btnOuvrirHistoire = document.getElementById('btnOuvrirHistoire');
+    var btnFermerHistoire = document.getElementById('btnFermerHistoire');
+
+    if (histoireOverlay && btnOuvrirHistoire) {
+      btnOuvrirHistoire.addEventListener('click', function () {
+        histoireOverlay.classList.add('open');
+      });
+      btnFermerHistoire.addEventListener('click', function () {
+        histoireOverlay.classList.remove('open');
+      });
+      histoireOverlay.addEventListener('click', function (e) {
+        if (e.target === histoireOverlay) histoireOverlay.classList.remove('open');
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') histoireOverlay.classList.remove('open');
+      });
+    }
+
     if (window.VoiceGuide) {
         VoiceGuide.setPageText(`
             Bienvenue sur le geoportail officiel de la commune de Keur Massar Nord.
@@ -1045,53 +1163,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-  (function () {
-    var miniMap = L.map('mini-map', { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false }).setView([14.79, -17.31], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      subdomains: 'abc',
-      referrerPolicy: 'strict-origin-when-cross-origin'
-    }).addTo(miniMap);
-    L.control.zoom({ position: 'bottomright' }).addTo(miniMap);
-
-    fetch('{% url "api_parcelles" %}')
-      .then(function (response) { return response.json(); })
-      .then(function (data) {
-        L.geoJSON(data, {
-          style: function (feature) {
-            var statut = feature.properties.statut_fiscal;
-            return {
-              fillColor: statut === 'A_JOUR' ? '#28a745' : statut === 'EN_RETARD' ? '#dc3545' : '#c9982e',
-              weight: 1,
-              color: '#ffffff',
-              fillOpacity: 0.55
-            };
-          }
-        }).addTo(miniMap);
-      })
-      .catch(function () {});
-
-    miniMap.getContainer().addEventListener('click', function () {
-      window.location.href = "{% url 'geoportail' %}";
-    });
-  })();
-</script>
-
 <script>
   // Widget météo en direct — Open-Meteo (API publique, gratuite, sans clé).
-  // Coordonnées de Keur Massar Nord.
   (function () {
     var box = document.getElementById('kmWeatherBox');
     if (!box) return;
 
     var LAT = 14.78, LON = -17.35;
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + LAT + '&longitude=' + LON +
-      '&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code' +
-      '&timezone=Africa%2FDakar&forecast_days=4';
+      '&current=temperature_2m,weather_code&timezone=Africa%2FDakar';
 
-    // Table de correspondance des codes météo WMO -> icône + libellé FR
     var CODES = {
       0: ['fa-sun', 'Ciel dégagé'], 1: ['fa-sun', 'Plutôt dégagé'], 2: ['fa-cloud-sun', 'Partiellement nuageux'],
       3: ['fa-cloud', 'Couvert'], 45: ['fa-smog', 'Brume'], 48: ['fa-smog', 'Brouillard givrant'],
@@ -1103,26 +1184,11 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     function infosCode(code) { return CODES[code] || ['fa-cloud', 'Variable']; }
 
-    var JOURS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-
     fetch(url)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var actuel = data.current;
-        var jour = data.daily;
         var infosActuel = infosCode(actuel.weather_code);
-
-        var joursHtml = '';
-        for (var i = 0; i < Math.min(4, jour.time.length); i++) {
-          var d = new Date(jour.time[i]);
-          var infosJour = infosCode(jour.weather_code[i]);
-          joursHtml += '' +
-            '<div class="km-weather-day">' +
-              '<div class="km-wd-label">' + (i === 0 ? "Aujourd'hui" : JOURS[d.getDay()]) + '</div>' +
-              '<i class="fa-solid ' + infosJour[0] + '"></i>' +
-              '<div class="km-wd-temps">' + Math.round(jour.temperature_2m_max[i]) + '&deg; <span class="lo">' + Math.round(jour.temperature_2m_min[i]) + '&deg;</span></div>' +
-            '</div>';
-        }
 
         box.innerHTML =
           '<div class="km-weather-now">' +
@@ -1132,8 +1198,7 @@ document.addEventListener('DOMContentLoaded', function () {
               '<div class="km-w-desc">' + infosActuel[1] + '</div>' +
               '<div class="km-w-loc"><i class="fa-solid fa-location-dot"></i> Keur Massar Nord</div>' +
             '</div>' +
-          '</div>' +
-          '<div class="km-weather-days">' + joursHtml + '</div>';
+          '</div>';
       })
       .catch(function () {
         box.innerHTML = '<div class="km-weather-error"><i class="fa-solid fa-cloud-slash"></i> Météo momentanément indisponible.</div>';

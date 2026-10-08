@@ -1,0 +1,112 @@
+{% extends "citoyens/base_citoyen.html" %}
+{% load static %}
+
+{% block page_title %}Nouvelle demande{% endblock %}
+{% block header_title %}Morcellement ou fusion de parcelle(s){% endblock %}
+{% block header_subtitle %}Divisez une parcelle en plusieurs, ou regroupez-en plusieurs en une seule.{% endblock %}
+
+{% block extra_style %}
+    .field { margin-bottom: 22px; }
+    .field label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+    .field select, .field textarea, .field input[type="file"] {
+        width: 100%; background: var(--off-white); border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text);
+        font-family: inherit; font-size: 14px; transition: border-color .2s ease, background .2s ease;
+    }
+    .field select:focus, .field textarea:focus { outline: none; border-color: var(--gold); background: var(--white); }
+    .field .helptext { font-size: 12px; color: var(--text-muted); margin-top: 7px; }
+    .field .errorlist { list-style: none; padding: 0; margin: 7px 0 0; color: var(--danger); font-size: 12px; }
+
+    .parcelles-checklist { display: flex; flex-direction: column; gap: 8px; }
+    .parcelle-check {
+        display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+        border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
+    }
+    .parcelle-check input { accent-color: var(--gold); }
+    .parcelle-check span { font-weight: 600; font-size: 13.5px; }
+
+    .info-note {
+        background: rgba(201,152,46,0.08); border: 1px dashed rgba(201,152,46,0.4);
+        border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13px; color: var(--text-muted);
+        margin-bottom: 24px; line-height: 1.6; display: flex; gap: 10px; align-items: flex-start;
+    }
+    .info-note i { color: var(--gold-dark); margin-top: 1px; }
+
+    .btn-gold {
+        background: var(--gold); color: var(--green-dark); font-weight: 700;
+        border: none; padding: 13px 20px; border-radius: 999px;
+        font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 9px;
+        transition: all .2s ease; width: 100%; justify-content: center;
+    }
+    .btn-gold:hover { background: #d9ad4f; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(201,152,46,0.35); }
+
+    .messages { margin-bottom: 20px; }
+    .messages .msg {
+        padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 10px;
+        background: rgba(178,59,46,0.08); color: var(--danger); border: 1px solid rgba(178,59,46,0.25);
+    }
+{% endblock %}
+
+{% block content %}
+
+<div class="info-note">
+  <i class="fa-solid fa-circle-info"></i>
+  <div>
+    <strong>Morcellement</strong> : sélectionnez UNE seule parcelle à diviser.
+    <strong>Fusion</strong> : sélectionnez AU MOINS DEUX parcelles adjacentes à regrouper.
+    Un agent examinera votre dossier ; pour un morcellement, le plan de votre géomètre-expert est indispensable.
+  </div>
+</div>
+
+<div class="card">
+  {% if form.non_field_errors %}
+    <div class="messages">
+      {% for e in form.non_field_errors %}<div class="msg">{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    <div class="field">
+      <label for="{{ form.type_operation.id_for_label }}">{{ form.type_operation.label }}</label>
+      {{ form.type_operation }}
+      {{ form.type_operation.errors }}
+    </div>
+
+    <div class="field">
+      <label>{{ form.parcelles_concernees.label }}</label>
+      <div class="parcelles-checklist">
+        {% for checkbox in form.parcelles_concernees %}
+          <label class="parcelle-check">
+            {{ checkbox.tag }}
+            <span>{{ checkbox.choice_label }}</span>
+          </label>
+        {% empty %}
+          <div class="helptext">Aucune parcelle n'est actuellement associée à votre compte.</div>
+        {% endfor %}
+      </div>
+      <div class="helptext">{{ form.parcelles_concernees.help_text }}</div>
+      {{ form.parcelles_concernees.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.justification.id_for_label }}">{{ form.justification.label }}</label>
+      {{ form.justification }}
+      {{ form.justification.errors }}
+    </div>
+
+    <div class="field">
+      <label for="{{ form.piece_jointe.id_for_label }}">{{ form.piece_jointe.label }}</label>
+      {{ form.piece_jointe }}
+      <div class="helptext">Formats acceptés : PDF, JPG, PNG. 10 Mo maximum.</div>
+      {{ form.piece_jointe.errors }}
+    </div>
+
+    <button type="submit" class="btn-gold">
+      <i class="fa-solid fa-paper-plane"></i> Soumettre ma demande
+    </button>
+  </form>
+</div>
+
+{% endblock %}

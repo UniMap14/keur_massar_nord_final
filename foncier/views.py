@@ -112,6 +112,18 @@ def home_page(request):
         .values("pk", "titre", "date_publication")[:8]
     )
 
+    # --- Indicateurs de transparence (page d'accueil) : chiffres reels,
+    # jamais inventes. Si aucun signalement n'existe encore, le taux de
+    # resolution est affiche a 0 plutot que de provoquer une erreur.
+    from .models import Infrastructure, Signalement
+    nb_infrastructures_total = Infrastructure.objects.count()
+    nb_signalements_total = Signalement.objects.count()
+    nb_signalements_resolus = Signalement.objects.filter(statut='RESOLU').count()
+    pct_signalements_resolus = (
+        round((nb_signalements_resolus / nb_signalements_total) * 100)
+        if nb_signalements_total > 0 else 0
+    )
+
     context = {
         "total_parcelles": total_parcelles,
         "total_proprietaires": total_proprietaires,
@@ -119,6 +131,9 @@ def home_page(request):
         "parcelles_en_retard": parcelles_en_retard,
         "top_retardaires": top_retardaires,
         "quartiers": quartiers,
+        "nb_infrastructures_total": nb_infrastructures_total,
+        "nb_signalements_resolus": nb_signalements_resolus,
+        "pct_signalements_resolus": pct_signalements_resolus,
 
         # --- panneau "en chiffres" du hero ---
         # Chiffres démographiques/administratifs saisis manuellement pour
@@ -126,7 +141,7 @@ def home_page(request):
         # requêtes réelles quand les données correspondantes seront prêtes.
         'population': "224 765",
         'superficie': "13,18",
-        'nb_quartiers': 104,
+        'nb_quartiers': 86,
         'annee_creation': 2021,
 
         # --- infrastructures / signalements pour la section 3 colonnes ---
@@ -336,6 +351,7 @@ def api_parcelles_toutes_geojson(request):
         qs = (
             Parcelle.objects
             .exclude(geom__isnull=True)
+            .filter(parcelle_active=True)
             .select_related("zone")
             .annotate(geojson_geom=AsGeoJSON(SimplifyPreserveTopology("geom", TOLERANCE_SIMPLIFICATION_TOUTES)))
             .only(
@@ -345,6 +361,20 @@ def api_parcelles_toutes_geojson(request):
             )
             .order_by("id")
         )
+
+        infra_par_parcelle = {}
+        for infra in Infrastructure.objects.filter(parcelle_id__isnull=False).select_related("categorie"):
+            details_publics = {k: v for k, v in (infra.details or {}).items() if k != "Nombre d'employés"}
+            infra_par_parcelle.setdefault(infra.parcelle_id, []).append({
+                "nom": infra.nom,
+                "categorie": infra.categorie.label,
+                "icone": infra.categorie.icone,
+                "couleur": infra.categorie.couleur,
+                "latitude": infra.latitude,
+                "longitude": infra.longitude,
+                "sous_type": infra.sous_type,
+                "details": details_publics,
+            })
 
         features = [
             {
@@ -361,11 +391,26 @@ def api_parcelles_toutes_geojson(request):
                     "adresse_parcelle": parcelle.adresse_parcelle,
                     "occupation_sol": parcelle.occupation_sol,
                     "zone_nom": parcelle.zone.nom if parcelle.zone_id else None,
+                    "infrastructures": infra_par_parcelle.get(parcelle.id, []),
                 },
             }
             for parcelle in qs.iterator()
         ]
-        data = {"type": "FeatureCollection", "features": features}
+        infra_sans_parcelle = [
+            {
+                "nom": infra.nom,
+                "categorie": infra.categorie.label,
+                "icone": infra.categorie.icone,
+                "couleur": infra.categorie.couleur,
+                "latitude": infra.latitude,
+                "longitude": infra.longitude,
+                "sous_type": infra.sous_type,
+                "details": {k: v for k, v in (infra.details or {}).items() if k != "Nombre d'employés"},
+            }
+            for infra in Infrastructure.objects.filter(parcelle_id__isnull=True).select_related("categorie")
+        ]
+
+        data = {"type": "FeatureCollection", "features": features, "infrastructures_hors_parcelle": infra_sans_parcelle}
         cache.set(CACHE_KEY_PUBLIC, data, None)  # pas d'expiration : invalidé par le signal
 
     return JsonResponse(data)
@@ -451,6 +496,7 @@ def api_parcelles_toutes_geojson_admin(request):
         qs = (
             Parcelle.objects
             .exclude(geom__isnull=True)
+            .filter(parcelle_active=True)
             .select_related("zone", "proprietaire")
             .annotate(geojson_geom=AsGeoJSON(SimplifyPreserveTopology("geom", TOLERANCE_SIMPLIFICATION_TOUTES)))
             .only(
@@ -461,6 +507,20 @@ def api_parcelles_toutes_geojson_admin(request):
             )
             .order_by("id")
         )
+
+        infra_par_parcelle_admin = {}
+        for infra in Infrastructure.objects.filter(parcelle_id__isnull=False).select_related("categorie"):
+            infra_par_parcelle_admin.setdefault(infra.parcelle_id, []).append({
+                "id": infra.id,
+                "nom": infra.nom,
+                "categorie": infra.categorie.label,
+                "icone": infra.categorie.icone,
+                "couleur": infra.categorie.couleur,
+                "latitude": infra.latitude,
+                "longitude": infra.longitude,
+                "sous_type": infra.sous_type,
+                "details": infra.details,
+            })
 
         features = [
             {
@@ -482,6 +542,7 @@ def api_parcelles_toutes_geojson_admin(request):
                 "numero_lot": parcelle.numero_lot,
                 "numero_titre_foncier": parcelle.numero_titre_foncier,
                     "occupation_sol": parcelle.occupation_sol,
+                    "infrastructures": infra_par_parcelle_admin.get(parcelle.id, []),
                     "simulation_fiscale": parcelle.simulation_fiscale,
                     "zone_nom": parcelle.zone.nom if parcelle.zone_id else None,
                     "proprietaire": (
@@ -492,7 +553,22 @@ def api_parcelles_toutes_geojson_admin(request):
             }
             for parcelle in qs.iterator()
         ]
-        data = {"type": "FeatureCollection", "features": features}
+        infra_sans_parcelle_admin = [
+            {
+                "id": infra.id,
+                "nom": infra.nom,
+                "categorie": infra.categorie.label,
+                "icone": infra.categorie.icone,
+                "couleur": infra.categorie.couleur,
+                "latitude": infra.latitude,
+                "longitude": infra.longitude,
+                "sous_type": infra.sous_type,
+                "details": infra.details,
+            }
+            for infra in Infrastructure.objects.filter(parcelle_id__isnull=True).select_related("categorie")
+        ]
+
+        data = {"type": "FeatureCollection", "features": features, "infrastructures_hors_parcelle": infra_sans_parcelle_admin}
         cache.set(CACHE_KEY_ADMIN, data, None)
 
     return JsonResponse(data)
@@ -659,38 +735,51 @@ def parcelle_update_fiscal(request, parcelle_id):
 
 def api_zones_geojson(request):
     """
-    Version temporaire : affiche les quartiers depuis la table
-    'kmsn_quartier' (nom du quartier via QRT_VLG_HA), si elle a été
-    importée. Si elle n'existe pas encore (aucun shapefile de quartiers
-    importé), on renvoie simplement une liste vide plutôt que de faire
-    planter la carte : les parcelles doivent pouvoir s'afficher même
-    sans ce calque de zones.
+    Calque "Zones/Quartiers" : quartiers officiels importes dans le
+    modele QuartierOfficiel (remplace l'ancienne requete SQL brute sur
+    la table temporaire kmsn_quartier).
     """
-    from django.db.utils import ProgrammingError
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT
-                    "QRT_VLG_HA" AS nom,
-                    ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geometry
-                FROM kmsn_quartier
-            """)
-            rows = cursor.fetchall()
-    except ProgrammingError:
-        # Table absente : pas encore de shapefile de quartiers importé.
-        connection.rollback()
-        rows = []
+    from foncier.models import QuartierOfficiel
 
     features = [
         {
             "type": "Feature",
-            "geometry": json.loads(geometry),
-            "properties": {
-                "nom": nom,
-            },
+            "geometry": json.loads(q.geom.geojson),
+            "properties": {"nom": q.nom},
         }
-        for nom, geometry in rows
+        for q in QuartierOfficiel.objects.all()
+    ]
+
+    return JsonResponse({"type": "FeatureCollection", "features": features})
+
+
+def api_sections_geojson(request):
+    """Calque "Sections cadastrales" : sections officielles importees."""
+    from foncier.models import SectionCadastrale
+
+    features = [
+        {
+            "type": "Feature",
+            "geometry": json.loads(s.geom.geojson),
+            "properties": {"numero": s.numero},
+        }
+        for s in SectionCadastrale.objects.all()
+    ]
+
+    return JsonResponse({"type": "FeatureCollection", "features": features})
+
+
+def api_limites_geojson(request):
+    """Calque "Limites administratives" : limite(s) officielle(s) de la commune."""
+    from foncier.models import LimiteAdministrative
+
+    features = [
+        {
+            "type": "Feature",
+            "geometry": json.loads(l.geom.geojson),
+            "properties": {"nom": l.nom},
+        }
+        for l in LimiteAdministrative.objects.all()
     ]
 
     return JsonResponse({"type": "FeatureCollection", "features": features})
@@ -928,55 +1017,52 @@ def simuler_fiscalite(request):
     return JsonResponse(resultat)
 
 
-def infrastructures(request):
-    """
-    Page publique des infrastructures : chiffres clés par catégorie,
-    détail par catégorie (liste réelle des équipements), avec une
-    recherche/filtre facultatif par nom, quartier ou catégorie.
-    """
+def galerie(request):
+    """Page publique presentant la galerie photo de la commune."""
+    from .models import PhotoGalerie
+    photos = PhotoGalerie.objects.order_by('ordre', '-date_ajout')
+    return render(request, 'foncier/galerie.html', {'photos': photos})
 
-    q = request.GET.get('q', '').strip()
-    categorie_code = request.GET.get('categorie', '').strip()
 
-    infra_qs = Infrastructure.objects.all().order_by('nom')
+def cartotheque(request):
+    """Page publique presentant les cartes thematiques d'analyse (MNT, pente, etc.)."""
+    from .models import CarteThematique
+    cartes = CarteThematique.objects.order_by('ordre', '-date_ajout')
+    return render(request, 'foncier/cartotheque.html', {'cartes': cartes})
 
-    if q:
-        infra_qs = infra_qs.filter(
-            Q(nom__icontains=q) | Q(quartier__icontains=q)
-        )
 
-    if categorie_code:
-        infra_qs = infra_qs.filter(categorie__code=categorie_code)
+def foncier_info(request):
+    """Ancienne page dediee au foncier, desormais fusionnee dans l'onglet
+    'Foncier' de la page Fiscalite. Redirige vers ce nouvel emplacement."""
+    return redirect('/fiscalite/#panel-foncier')
 
-    categories = (
-        CategorieInfrastructure.objects
-        .annotate(total_infra=Count('infrastructures', distinct=True))
-        .prefetch_related(
-            Prefetch('infrastructures', queryset=infra_qs, to_attr='infrastructures_filtrees')
-        )
-        .order_by('ordre', 'label')
-    )
 
-    # Pour la grille "chiffres clés" en haut de page : on garde le total
-    # RÉEL par catégorie (pas filtré par la recherche), pour ne pas fausser
-    # les statistiques globales même quand l'utilisateur filtre la liste.
-    chiffres_cles = (
-        CategorieInfrastructure.objects
-        .annotate(total=Count('infrastructures', distinct=True))
-        .order_by('ordre', 'label')
-    )
+def recherche_globale(request):
+    """Recherche simple sur le site : actualites et cartotheque."""
+    from django.db.models import Q
+    from .models import Actualite, CarteThematique
 
-    # Liste des catégories pour le menu déroulant du filtre
-    toutes_categories = CategorieInfrastructure.objects.order_by('ordre', 'label')
+    requete = request.GET.get('q', '').strip()
+    actualites_trouvees = []
+    cartes_trouvees = []
 
-    context = {
-        'infrastructures': chiffres_cles,   # utilisé par la grille de chiffres clés
-        'categories': categories,           # utilisé par les panneaux détaillés
-        'toutes_categories': toutes_categories,
-        'q': q,
-        'categorie_code': categorie_code,
-    }
-    return render(request, 'foncier/infrastructures.html', context)
+    if requete:
+        actualites_trouvees = Actualite.objects.filter(
+            Q(titre__icontains=requete) | Q(chapo__icontains=requete)
+        ).order_by('-date_publication')[:20]
+
+        cartes_trouvees = CarteThematique.objects.filter(
+            Q(titre__icontains=requete) | Q(explication__icontains=requete)
+        ).order_by('ordre')[:20]
+
+    total = len(actualites_trouvees) + len(cartes_trouvees)
+
+    return render(request, 'foncier/recherche_globale.html', {
+        'q': requete,
+        'actualites_trouvees': actualites_trouvees,
+        'cartes_trouvees': cartes_trouvees,
+        'total': total,
+    })
 
 
 def signalement(request):
@@ -1062,7 +1148,7 @@ def statistiques(request):
         'densite': "17 058",
         'pop_hommes_pct': "50,7",
         'pop_femmes_pct': "49,3",
-        'nb_quartiers': 104,
+        'nb_quartiers': 86,
         'annee_creation': 2021,
     }
 
@@ -1830,4 +1916,86 @@ def releve_compte_pdf_view(request):
 
     response = HttpResponse(buffer, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="releve_compte_{contribuable.numero_fiscal}.pdf"'
+    return response
+
+
+@login_required
+def extrait_cadastral_pdf_view(request, pk):
+    """
+    Genere l'extrait cadastral officiel en PDF pour une demande de
+    service PRETE et payee (si payante). Reprend le meme style visuel
+    que les autres documents (quitus, attestation, releve de compte).
+    """
+    from reportlab.lib.units import mm
+    from .models import DemandeService
+
+    demande = get_object_or_404(DemandeService, pk=pk, demandeur=request.user)
+
+    if demande.statut != "PRETE":
+        messages.error(request, "Ce document n'est pas encore prêt.")
+        return redirect("citoyen_demande_detail", pk=pk)
+
+    if demande.type_demande.tarif and demande.type_demande.tarif > 0 and demande.statut_paiement != "CONFIRME":
+        messages.error(
+            request,
+            "Le paiement de cette démarche doit d'abord être validé avant de pouvoir télécharger le document."
+        )
+        return redirect("citoyen_demande_detail", pk=pk)
+
+    parcelle = demande.parcelle
+    if parcelle is None:
+        messages.error(request, "Aucune parcelle n'est associée à cette démarche.")
+        return redirect("citoyen_demande_detail", pk=pk)
+
+    numero_doc = f"EC-{demande.numero_dossier}"
+    buffer, c, largeur, hauteur, marge, y, (VERT_FONCE, OR, GRIS, BORDURE) = _preparer_pdf_document(
+        "EXTRAIT CADASTRAL", numero_doc
+    )
+
+    c.setFillColor(GRIS)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(marge, y, "PARCELLE")
+    y -= 6 * mm
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(marge, y, parcelle.nicad)
+
+    y -= 14 * mm
+    c.setStrokeColor(BORDURE)
+    c.line(marge, y, largeur - marge, y)
+    y -= 10 * mm
+
+    lignes = [
+        ("Section cadastrale", parcelle.section_cadastrale or "—"),
+        ("Numéro de parcelle", parcelle.numero_parcelle or "—"),
+        ("Numéro de lot", parcelle.numero_lot or "—"),
+        ("Numéro de titre foncier", parcelle.numero_titre_foncier or "—"),
+        ("Superficie", f"{parcelle.superficie:,.0f} m²".replace(",", " ") if parcelle.superficie else "—"),
+        ("Occupation du sol", parcelle.occupation_sol or "—"),
+        ("Adresse / secteur", parcelle.adresse_parcelle or "—"),
+        ("Zone", parcelle.zone.nom if parcelle.zone_id else "—"),
+        ("Type de document", parcelle.get_type_document_display() if parcelle.type_document else "—"),
+        ("Propriétaire", str(parcelle.proprietaire) if parcelle.proprietaire_id else "—"),
+    ]
+    for label, valeur in lignes:
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica", 10)
+        c.drawString(marge, y, label)
+        c.setFillColor(VERT_FONCE)
+        c.setFont("Helvetica-Bold", 10)
+        c.drawRightString(largeur - marge, y, str(valeur))
+        y -= 8 * mm
+
+    _pied_de_page_document(
+        c, marge, hauteur,
+        "Extrait cadastral délivré à titre informatif. Son authenticité peut être "
+        "vérifiée auprès des services du cadastre de la commune."
+    )
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="extrait_cadastral_{parcelle.nicad}.pdf"'
     return response
