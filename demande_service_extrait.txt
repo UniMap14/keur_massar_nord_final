@@ -1,0 +1,72 @@
+﻿class DemandeService(models.Model):
+    """Une demande de dÚmarche administrative/cadastrale dÚposÚe par un citoyen."""
+
+    STATUT_RECUE = 'RECUE'
+    STATUT_EN_COURS = 'EN_COURS'
+    STATUT_PRETE = 'PRETE'
+    STATUT_REJETEE = 'REJETEE'
+    STATUT_CLOTUREE = 'CLOTUREE'
+
+    STATUT_CHOICES = [
+        (STATUT_RECUE, 'Reþue'),
+        (STATUT_EN_COURS, 'En cours de traitement'),
+        (STATUT_PRETE, 'PrÛte Ó retirer'),
+        (STATUT_REJETEE, 'RejetÚe'),
+        (STATUT_CLOTUREE, 'Cl¶turÚe'),
+    ]
+
+    numero_dossier = models.CharField(max_length=30, unique=True, blank=True)
+    demandeur = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="demandes_service"
+    )
+    type_demande = models.ForeignKey(
+        TypeDemande, on_delete=models.PROTECT, related_name="demandes"
+    )
+    parcelle = models.ForeignKey(
+        Parcelle, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="demandes_service"
+    )
+    objet = models.TextField("PrÚcisions sur la demande", blank=True)
+    piece_jointe = models.FileField(upload_to='', blank=True, null=True, storage=stockage_pieces_jointes)
+
+    STATUT_PAIEMENT_NON_REQUIS = "NON_REQUIS"
+    STATUT_PAIEMENT_EN_ATTENTE = "EN_ATTENTE"
+    STATUT_PAIEMENT_CONFIRME = "CONFIRME"
+    STATUT_PAIEMENT_CHOICES = [
+        (STATUT_PAIEMENT_NON_REQUIS, "Non requis (dÚmarche gratuite)"),
+        (STATUT_PAIEMENT_EN_ATTENTE, "En attente de validation"),
+        (STATUT_PAIEMENT_CONFIRME, "ConfirmÚ"),
+    ]
+    statut_paiement = models.CharField(
+        max_length=15, choices=STATUT_PAIEMENT_CHOICES, default=STATUT_PAIEMENT_NON_REQUIS
+    )
+    montant_paye = models.DecimalField(max_digits=10, decimal_places=0, null=True, blank=True)
+    reference_paiement = models.CharField(max_length=100, blank=True)
+
+    statut = models.CharField(max_length=15, choices=STATUT_CHOICES, default=STATUT_RECUE)
+    commentaire_agent = models.TextField(blank=True)
+    agent_traitant = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="demandes_traitees"
+    )
+
+    date_demande = models.DateTimeField(auto_now_add=True)
+    date_maj = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Demande de service"
+        verbose_name_plural = "Demandes de service"
+        ordering = ['-date_demande']
+
+    def save(self, *args, **kwargs):
+        if not self.numero_dossier:
+            import uuid
+            annee = timezone.now().year
+            self.numero_dossier = f"KMSN-DS-{annee}-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.numero_dossier} ù {self.type_demande}"
+
+
+

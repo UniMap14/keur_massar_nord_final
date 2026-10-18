@@ -23,8 +23,31 @@
     }
     .gal-page *{ box-sizing:border-box; }
 
+    /* ---- Bandeau photo (hero) ---- */
+    .gal-hero{ position:relative; height:110px; overflow:hidden; }
+    .gal-hero-img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .gal-hero-overlay{
+        position:absolute; inset:0;
+        background:linear-gradient(180deg, rgba(20,14,10,.4) 0%, rgba(20,14,10,.68) 100%);
+    }
+    .gal-hero-content{
+        position:absolute; inset:0; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:14px; padding:24px;
+        text-align:center;
+    }
+    .gal-hero-content h1{
+        font-family:'Playfair Display', serif; font-weight:800;
+        font-size:clamp(28px,4vw,44px); color:#F7F2E8; margin:0;
+        text-shadow:0 4px 18px rgba(0,0,0,.55);
+    }
+    .gal-hero-content p{
+        max-width:680px; font-size:14.5px; line-height:1.7; color:#F0E6D2;
+        margin:0; text-shadow:0 2px 10px rgba(0,0,0,.5);
+    }
+    @media (max-width: 700px){ .gal-hero{ height:95px; } }
+
     /* ---- Grille de photos ---- */
-    .gal-grid-section{ max-width:1320px; margin:0 auto; padding:56px 60px 0; }
+    .gal-grid-section{ max-width:1320px; margin:0 auto; padding:40px 60px 0; }
     .gal-grid{
         display:grid; grid-template-columns: repeat(3, 1fr); gap:22px;
     }
@@ -70,6 +93,18 @@
         transition: background .2s ease;
     }
     .gal-lightbox-close:hover{ background: var(--gp-gold); color: var(--gp-brown-dark); }
+    .gal-lightbox-download{
+        position:absolute; top:24px; left:24px; z-index:2;
+        width:42px; height:42px; border-radius:50%; border:none;
+        background:rgba(255,255,255,.12); color:#fff; font-size:16px; cursor:pointer;
+        display:flex; align-items:center; justify-content:center;
+        text-decoration:none;
+        transition: background .2s ease;
+    }
+    .gal-lightbox-download:hover{ background: var(--gp-gold); color: var(--gp-brown-dark); }
+    @media (max-width: 700px){
+        .gal-lightbox-download{ top:14px; left:14px; width:38px; height:38px; font-size:13px; }
+    }
     .gal-lightbox-nav{
         position:absolute; top:50%; transform:translateY(-50%); z-index:2;
         width:48px; height:48px; border-radius:50%; border:none;
@@ -99,6 +134,15 @@
 {% block content %}
 <div class="gal-page">
 
+    <div class="gal-hero">
+        <img src="{% static 'foncier/img/cartotheque-hero.jpg' %}" alt="Keur Massar Nord" class="gal-hero-img">
+        <div class="gal-hero-overlay"></div>
+        <div class="gal-hero-content">
+            <h1>Galerie photo</h1>
+            <p>Photos et images officielles de la commune de Keur Massar Nord.</p>
+        </div>
+    </div>
+
     <section class="gal-grid-section">
         <div class="gal-grid" id="galGrid">
             {% for p in photos %}
@@ -121,6 +165,7 @@
 
 <!-- ===================== LIGHTBOX PLEIN ECRAN ===================== -->
 <div class="gal-lightbox-overlay" id="galLightbox">
+    <a href="#" class="gal-lightbox-download" id="galLightboxDownload" download aria-label="T&eacute;l&eacute;charger l'image"><i class="fa-solid fa-download"></i></a>
     <button type="button" class="gal-lightbox-close" id="galLightboxClose" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
     <button type="button" class="gal-lightbox-nav gal-lightbox-prev" id="galLightboxPrev" aria-label="Image pr&eacute;c&eacute;dente"><i class="fa-solid fa-chevron-left"></i></button>
     <button type="button" class="gal-lightbox-nav gal-lightbox-next" id="galLightboxNext" aria-label="Image suivante"><i class="fa-solid fa-chevron-right"></i></button>
@@ -141,6 +186,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const caption = document.getElementById('galLightboxCaption');
     const compteur = document.getElementById('galLightboxCount');
     const btnFermer = document.getElementById('galLightboxClose');
+    const btnTelecharger = document.getElementById('galLightboxDownload');
     const btnPrev = document.getElementById('galLightboxPrev');
     const btnNext = document.getElementById('galLightboxNext');
 
@@ -153,6 +199,9 @@ document.addEventListener('DOMContentLoaded', function () {
         img.alt = carte.getAttribute('data-caption');
         caption.textContent = carte.getAttribute('data-caption');
         compteur.textContent = (indexActuel + 1) + ' / ' + cartes.length;
+        const nomFichier = (carte.getAttribute('data-caption') || 'photo').trim().replace(/[^\w\-]+/g, '_');
+        btnTelecharger.href = carte.getAttribute('data-src');
+        btnTelecharger.setAttribute('download', nomFichier + '.jpg');
     }
 
     cartes.forEach(function (carte, index) {

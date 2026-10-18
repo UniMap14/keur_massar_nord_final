@@ -4,6 +4,7 @@
 {% block header_title %}Tableau de bord{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
     .stats-charts-row {
         display: grid;
@@ -33,14 +34,14 @@
     }
 
     .kpi-card .kpi-icon {
-        width           : 40px;
-        height          : 40px;
-        border-radius   : 11px;
+        width           : 32px;
+        height          : 32px;
+        border-radius   : 9px;
         display         : flex;
         align-items     : center;
         justify-content : center;
-        margin-bottom   : 14px;
-        font-size       : 16px;
+        margin-bottom   : 8px;
+        font-size       : 14px;
     }
 
     .kpi-card.tone-green .kpi-icon { background: rgba(58,125,68,0.12); color: #3a7d44; }
@@ -71,6 +72,20 @@
         position: relative;
         z-index: 1;
         color: inherit;
+    }
+    .kpi-sparkline-wrap {
+        position: relative;
+        width: 100%;
+        height: 22px;
+        margin-top: 6px;
+        z-index: 1;
+        overflow: hidden;
+    }
+    .kpi-sparkline-wrap canvas {
+        position: absolute;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
     }
     .kpi-card .label { color: var(--ink-quiet, #7a7266) !important; }
     .kpi-card .value { color: var(--ink, #2a2620) !important; }
@@ -214,10 +229,9 @@
 
     /* ===== Tuile d'acces au Geoportail (mise en avant) ===== */
     .geo-access-card {
-        grid-column: 1 / -1;
         background: linear-gradient(135deg, #3c2a20 0%, #1a100b 100%);
-        border-radius: 14px;
-        padding: 26px 28px;
+        border-radius: 12px;
+        padding: 16px 18px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -246,29 +260,82 @@
         display: flex; align-items: center; gap: 18px;
     }
     .geo-access-icon {
-        width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+        width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
         background: linear-gradient(135deg, #e0b854, #c9982e);
         display: flex; align-items: center; justify-content: center;
         font-size: 21px; color: #3c2a20;
         box-shadow: 0 6px 14px rgba(201,152,46,.3);
     }
     .geo-access-text h3 {
-        font-size: 16.5px; font-weight: 700; color: #fff; margin: 0 0 4px;
+        font-size: 14px; font-weight: 700; color: #fff; margin: 0 0 2px;
     }
     .geo-access-text p {
-        font-size: 12.5px; color: rgba(255,255,255,.7); margin: 0;
+        font-size: 11px; color: rgba(255,255,255,.7); margin: 0;
     }
     .geo-access-btn {
         position: relative; z-index: 1;
-        display: inline-flex; align-items: center; gap: 9px;
+        display: inline-flex; align-items: center; gap: 7px;
         background: linear-gradient(135deg, #e0b854, #c9982e);
-        color: #3c2a20; font-weight: 700; font-size: 13.5px;
-        padding: 12px 22px; border-radius: 999px; white-space: nowrap;
+        color: #3c2a20; font-weight: 700; font-size: 12px;
+        padding: 8px 16px; border-radius: 999px; white-space: nowrap;
         transition: box-shadow .2s ease;
     }
     .geo-access-card:hover .geo-access-btn {
         box-shadow: 0 8px 18px rgba(201,152,46,.4);
     }
+
+    /* ===== ACTIONS RAPIDES (bandeau + tuiles) ===== */
+    .quick-actions-panel { overflow: hidden; }
+    .quick-actions-banner {
+        background: linear-gradient(135deg, #3c2a20 0%, #1a100b 100%);
+        padding: 14px 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    .quick-actions-banner::before {
+        content: "";
+        position: absolute; inset: 0;
+        background-image:
+            linear-gradient(rgba(201,152,46,.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(201,152,46,.08) 1px, transparent 1px);
+        background-size: 30px 30px;
+    }
+    .quick-actions-banner-text { position: relative; z-index: 1; }
+    .quick-actions-banner-text .eyebrow {
+        font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+        color: #c9982e; font-weight: 700; margin-bottom: 4px;
+    }
+    .quick-actions-banner-text .title {
+        font-family: 'Playfair Display', serif; font-weight: 700;
+        font-size: 17px; color: #fff;
+    }
+    .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1px;
+        background: rgba(43,30,22,.08);
+    }
+    .quick-action-tile {
+        display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+        background: #fdfcfa;
+        padding: 12px 14px;
+        text-decoration: none;
+        transition: background .15s ease, transform .15s ease;
+    }
+    .quick-action-tile:hover { background: rgba(201,152,46,0.06); transform: translateY(-2px); }
+    .quick-action-tile span {
+        font-size: 12.5px; font-weight: 600; color: #2a2620;
+        line-height: 1.3;
+    }
+    .quick-action-icon {
+        width: 34px; height: 34px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px;
+    }
+    .quick-action-icon.tone-green { background: rgba(58,125,68,0.12); color: #3a7d44; }
+    .quick-action-icon.tone-red   { background: rgba(179,38,30,0.10); color: #b3261e; }
+    .quick-action-icon.tone-gold  { background: rgba(201,152,46,0.14); color: #a3791f; }
+    .quick-action-icon.tone-blue  { background: rgba(45,100,160,0.10); color: #2d64a0; }
 
     @media (prefers-reduced-motion: reduce) {
         .kpi-card, .panel, .recouvrement-bar-fill::after {
@@ -277,12 +344,444 @@
             transform: none !important;
         }
     }
+
+    /* ===== Redesign : graphiques a hauteur fixe + empty states harmonises ===== */
+    .chart-wrap { position: relative; width: 100%; height: 140px; }
+    .chart-wrap-sm { height: 110px; }
+    .stats-charts-row .panel-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 220px;
+    }
+    .stats-charts-row .panel-body p { margin: 0 auto; max-width: 320px; }
+
+    /* ===== Nouvelles cartes KPI + legende donut (phase 2) ===== */
+    .kpi-card.tone-purple .kpi-icon { background: rgba(123,63,160,0.12); color: #7b3fa0; }
+    .kpi-card.tone-purple { color: #7b3fa0; }
+
+    .kpi-delta-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        margin-left: 8px;
+    }
+    .kpi-delta-badge i { font-size: 9px; }
+    .kpi-delta-badge.up { background: rgba(58,125,68,0.12); color: #3a7d44; }
+    .kpi-delta-badge.down { background: rgba(179,38,30,0.10); color: #b3261e; }
+    .kpi-delta-row { margin-top: 6px; }
+
+    .chart-legend-list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .chart-legend-list li { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+    .chart-legend-list .legend-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .chart-legend-list .legend-label { flex: 1; color: var(--ink, #2a2620); }
+    .chart-legend-list .legend-pct { font-weight: 700; color: var(--ink-quiet, #7a7266); }
+
+    /* ===== Grille compacte du tableau de bord (phase 3) ===== */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        align-items: stretch;
+    }
+    .cell-taux { grid-column: 1; grid-row: 1; }
+    .cell-evolution { grid-column: 2; grid-row: 1; }
+    .cell-geo-banner { grid-column: 3; grid-row: 1; margin: 0; flex-direction: column; align-items: flex-start; text-align: left; }
+    .cell-geo-banner .geo-access-btn { margin-top: 10px; }
+    .cell-stats-row { grid-column: 1 / 3; grid-row: 2; margin: 0; }
+    .cell-map { grid-column: 3; grid-row: 2; }
+    .cell-paiements { grid-column: 1; grid-row: 3; }
+    .cell-retardataires { grid-column: 2; grid-row: 3; }
+    .cell-activite { grid-column: 3; grid-row: 3; }
+    .cell-quick-actions { grid-column: 1 / -1; grid-row: 4; }
+
+    @media (max-width: 1100px) {
+        .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .cell-taux, .cell-evolution, .cell-geo-banner, .cell-map,
+        .cell-paiements, .cell-retardataires, .cell-activite {
+            grid-column: auto; grid-row: auto;
+        }
+        .cell-stats-row, .cell-quick-actions { grid-column: 1 / -1; grid-row: auto; }
+    }
+    @media (max-width: 720px) {
+        .dashboard-grid { grid-template-columns: 1fr; }
+        .cell-stats-row, .cell-quick-actions { grid-column: 1; }
+    }
+
+    /* ===== Mini-carte de la commune ===== */
+    .mini-map-canvas { height: 110px; width: 100%; }
+    .mini-map-stats {
+        display: flex;
+        justify-content: space-around;
+        padding: 8px 8px;
+        border-top: 1px solid var(--border, #eee6d6);
+    }
+    .mini-map-stats > div { text-align: center; }
+    .mini-map-stats .mm-value { display: block; font-size: 16px; font-weight: 800; color: var(--ink, #2a2620); }
+    .mini-map-stats .mm-label { display: block; font-size: 10.5px; color: var(--ink-quiet, #7a7266); text-transform: uppercase; letter-spacing: .04em; }
+
+    /* ===== Fil d'activite recente ===== */
+    .activity-feed { list-style: none; margin: 0; padding: 10px 14px; display: flex; flex-direction: column; gap: 9px; }
+    .activity-feed li { display: flex; align-items: flex-start; gap: 12px; }
+    .activity-icon {
+        width: 30px; height: 30px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; flex-shrink: 0;
+    }
+    .activity-icon.tone-green { background: rgba(58,125,68,0.12); color: #3a7d44; }
+    .activity-icon.tone-gold { background: rgba(201,152,46,0.14); color: #a3791f; }
+    .activity-icon.tone-red { background: rgba(179,38,30,0.10); color: #b3261e; }
+    .activity-icon.tone-blue { background: rgba(45,100,160,0.10); color: #2d64a0; }
+    .activity-icon.tone-purple { background: rgba(123,63,160,0.12); color: #7b3fa0; }
+    .activity-text { flex: 1; }
+    .activity-title { font-size: 12.5px; color: var(--ink, #2a2620); line-height: 1.4; }
+    .activity-time { font-size: 11px; color: var(--ink-quiet, #7a7266); margin-top: 2px; }
+
+    /* ===== Plafond de hauteur + defilement interne (tient sur un ecran) ===== */
+    .dashboard-grid .panel-body.flush { max-height: 140px; overflow-y: auto; }
+
+    /* ===== Compaction round 3 : force le padding sans toucher au CSS partage ===== */
+    .dashboard-grid .panel-header {
+        padding: 4px 10px !important;
+        min-height: 0 !important;
+    }
+    .dashboard-grid .panel-header h2 {
+        font-size: 11.5px !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: flex !important;
+        min-width: 0 !important;
+    }
+    .dashboard-grid .panel-header h2 i { flex-shrink: 0 !important; }
+    .dashboard-grid .panel-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
+    }
+    .dashboard-grid .panel-header .btn {
+        font-size: 9px !important;
+        padding: 2px 7px !important;
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+    }
+    .dashboard-grid .panel-body {
+        padding: 8px 12px !important;
+    }
+    .dashboard-grid .panel-body.flush {
+        padding: 0 !important;
+    }
+    .kpi-grid {
+        gap: 10px !important;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+    }
+    .kpi-grid .kpi-card {
+        padding: 10px 12px !important;
+    }
+    .kpi-grid .kpi-card .value {
+        font-size: 15px !important;
+    }
+    .kpi-grid .kpi-card .label {
+        font-size: 10.5px !important;
+    }
+    .kpi-grid .kpi-card .delta {
+        font-size: 10px !important;
+    }
+    .quick-actions-banner-text .title { font-size: 14px !important; }
+    .quick-action-tile span { font-size: 11px !important; }
+    .data-table th, .data-table td { padding: 5px 8px !important; font-size: 11.5px !important; }
+    .activity-feed { padding: 6px 10px !important; gap: 6px !important; }
+    .activity-icon { width: 24px !important; height: 24px !important; }
+
+    /* ===== Grille unifiee 6 colonnes, tuiles toutes egales ===== */
+    .kpi-grid {
+        grid-template-columns: repeat(6, 1fr) !important;
+        grid-auto-rows: 115px !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+    .kpi-grid .kpi-card {
+        grid-column: auto !important;
+        grid-row: auto !important;
+        height: 115px !important;
+        overflow: hidden !important;
+    }
+    .dashboard-grid {
+        grid-template-columns: repeat(6, 1fr) !important;
+        grid-auto-rows: 135px !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+    .dashboard-grid .panel,
+    .dashboard-grid .geo-access-card {
+        grid-column: auto !important;
+        grid-row: auto !important;
+        height: 135px !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+    }
+
+    /* ===== Organisation identique a l'image de reference (round 12) ===== */
+    .dashboard-grid .cell-geo-banner      { grid-column: span 2 !important; order: 1  !important; }
+    .dashboard-grid .cell-taux            { grid-column: span 1 !important; order: 2  !important; }
+    .dashboard-grid .cell-evolution       { grid-column: span 1 !important; order: 3  !important; }
+    .dashboard-grid .cell-taxes           { grid-column: span 1 !important; order: 4  !important; }
+    .dashboard-grid .cell-map             { grid-column: span 1 !important; order: 5  !important; }
+    .dashboard-grid .cell-paiements       { grid-column: span 2 !important; order: 6 !important; }
+    .dashboard-grid .cell-retardataires   { grid-column: span 2 !important; order: 7 !important; }
+    .dashboard-grid .cell-quick-actions   { grid-column: span 1 !important; order: 8 !important; }
+    .dashboard-grid .cell-activite        { grid-column: span 1 !important; order: 9 !important; }
+
+    /* ===== Etat vide compact dans les tuiles reduites (round 13) ===== */
+    .dashboard-grid .empty-state {
+        padding: 10px 8px !important;
+        font-size: 11px !important;
+        line-height: 1.35 !important;
+    }
+    .dashboard-grid .empty-state .icon {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 11px !important;
+        margin: 0 auto 6px !important;
+    }
+
+    /* ===== Texte simple + legende compacts dans les tuiles reduites (round 14) ===== */
+    .dashboard-grid .panel-body p {
+        font-size: 10.5px !important;
+        line-height: 1.3 !important;
+        margin: 4px 0 0 !important;
+    }
+    .dashboard-grid .chart-legend-list {
+        margin: 4px 0 0 !important;
+        gap: 3px !important;
+    }
+    .dashboard-grid .chart-legend-list li {
+        font-size: 10.5px !important;
+    }
+
+    /* ===== Comble la 2e ligne de KPI incomplete (round 15) ===== */
+    .kpi-grid .kpi-span2 {
+        grid-column: span 2 !important;
+    }
+
+    /* La ligne zones+taxes redevient deux tuiles normales de la grille */
+    .stats-charts-row { display: contents !important; }
+    .dashboard-grid .panel-body {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+    .dashboard-grid .panel-body.flush {
+        max-height: none !important;
+        height: 100% !important;
+        overflow-y: auto !important;
+    }
+    .dashboard-grid .chart-wrap,
+    .dashboard-grid .chart-wrap-sm {
+        height: 85px !important;
+    }
+    .dashboard-grid .mini-map-canvas { height: 60px !important; }
+    .dashboard-grid .mini-map-stats { padding: 2px 6px !important; }
+    .dashboard-grid .mini-map-stats .mm-value { font-size: 13px !important; }
+    .dashboard-grid .mini-map-stats .mm-label { font-size: 8.5px !important; }
+    /* Le bandeau "Que voulez-vous faire ?" devient une tuile normale : le
+       texte d'intro et les 4 actions se compressent dans la meme tuile */
+    .dashboard-grid .quick-actions-banner { padding: 6px 10px !important; }
+    .dashboard-grid .quick-actions-banner-text .eyebrow { display: none !important; }
+    .dashboard-grid .quick-actions-banner-text .title { font-size: 11px !important; }
+    .dashboard-grid .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        height: calc(100% - 26px) !important;
+    }
+
+    /* ===== Fond de page epure, sans motif quadrille (round 21) ===== */
+    body,
+    .content,
+    .main {
+        background-image: none !important;
+    }
+    .panel,
+    .kpi-card {
+        box-shadow: 0 1px 3px rgba(42,38,32,0.06) !important;
+        border: 1px solid rgba(42,38,32,0.07) !important;
+    }
+
+    /* ===== Panneaux agrandissables au clic (round 23) ===== */
+    .panel-expand-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(20,15,10,0.55);
+        z-index: 999;
+    }
+    .dashboard-grid .panel-header:hover {
+        background: rgba(42,38,32,0.04);
+    }
+    .dashboard-grid .panel.expanded {
+        position: fixed !important;
+        top: 6vh !important;
+        left: 6vw !important;
+        right: 6vw !important;
+        bottom: 6vh !important;
+        width: auto !important;
+        height: auto !important;
+        z-index: 1000 !important;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.35) !important;
+        overflow: auto !important;
+    }
+    .dashboard-grid .panel.expanded .panel-body,
+    .dashboard-grid .panel.expanded .panel-body.flush {
+        height: calc(100% - 50px) !important;
+        max-height: none !important;
+    }
+    .dashboard-grid .panel.expanded .chart-wrap,
+    .dashboard-grid .panel.expanded .chart-wrap-sm,
+    .dashboard-grid .panel.expanded .mini-map-canvas {
+        height: 70% !important;
+    }
+    .dashboard-grid .quick-action-tile { padding: 4px 6px !important; gap: 4px !important; }
+    .dashboard-grid .quick-action-icon { width: 22px !important; height: 22px !important; font-size: 10px !important; }
+    .dashboard-grid .quick-action-tile span { font-size: 9px !important; line-height: 1.2 !important; }
+
+    /* ===== Donut "Taux de recouvrement" (round 8) ===== */
+    .recouvrement-donut-wrap {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        margin: 2px auto 0;
+    }
+    .recouvrement-donut-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+    .recouvrement-donut-pct {
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--ink, #2a2620);
+    }
+
+    /* ===== Fond quadrille attenue (round 8) ===== */
+    .geo-access-card::before,
+    .quick-actions-banner::before {
+        background-size: 42px 42px !important;
+        opacity: 0.45 !important;
+    }
+
+    /* ===== Icone de coin sur les cartes KPI (round 9) ===== */
+    .kpi-card { position: relative !important; }
+    .kpi-corner-icon {
+        position: absolute;
+        right: 10px;
+        bottom: 8px;
+        font-size: 13px;
+        opacity: 0.16;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<a href="{% url 'geoportail_admin' %}" class="geo-access-card">
+<div class="kpi-grid">
+{% if peut_fiscal %}
+  <div class="kpi-card tone-green">
+    <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-sack-dollar"></i></span>
+    <div class="label">Recouvrement total</div>
+    <div class="value">{{ total_recouvre_fmt }}</div>
+    <div class="delta">Total des taxes collectées</div>
+    <div class="kpi-sparkline-wrap"><canvas id="kpiSparkRecouvrement"></canvas></div>
+    {% if delta_recouvrement is not None %}<div class="kpi-delta-row"><span class="kpi-delta-badge {% if delta_recouvrement >= 0 %}up{% else %}down{% endif %}"><i class="fa-solid fa-arrow-{% if delta_recouvrement >= 0 %}up{% else %}down{% endif %}"></i> {{ delta_recouvrement }}% vs mois precedent</span></div>{% endif %}
+  </div>
+
+  <div class="kpi-card tone-red">
+    <div class="kpi-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-hourglass-half"></i></span>
+    <div class="label">Restes à recouvrer</div>
+    <div class="value">{{ reste_a_recouvrer_fmt }}</div>
+    <div class="delta">Montant encore dû</div>
+  </div>
+
+{% endif %}
+{% if peut_fiscal %}
+  <div class="kpi-card tone-gold">
+    <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+    <div class="label">Contentieux fonciers</div>
+    <div class="value">{{ parcelles_en_retard }}</div>
+    <div class="delta">Parcelles en retard de paiement</div>
+  </div>
+
+{% endif %}
+{% if peut_technique %}
+  <div class="kpi-card tone-blue">
+    <div class="kpi-icon"><i class="fa-solid fa-map"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-map"></i></span>
+    <div class="label">Total parcelles cadastrees</div>
+    <div class="value">{{ nb_parcelles }}</div>
+  </div>
+
+  <div class="kpi-card tone-blue">
+    <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-users"></i></span>
+    <div class="label">Propriétaires enregistrés</div>
+    <div class="value">{{ total_proprios }}</div>
+    <div class="delta">Citoyens dans la base SIG</div>
+  </div>
+
+{% endif %}
+{% if peut_fiscal %}
+  <a href="{% url 'dashboard_contribuable_list' %}" class="kpi-card tone-purple" style="text-decoration:none; color:inherit; display:block;">
+    <div class="kpi-icon"><i class="fa-solid fa-id-card"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-id-card"></i></span>
+    <div class="label">Contribuables enregistres</div>
+    <div class="value">{{ nb_contribuables }}</div>
+    <div class="delta">Inscrits au role fiscal</div>
+    {% if delta_contribuables is not None %}<div class="kpi-delta-row"><span class="kpi-delta-badge {% if delta_contribuables >= 0 %}up{% else %}down{% endif %}"><i class="fa-solid fa-arrow-{% if delta_contribuables >= 0 %}up{% else %}down{% endif %}"></i> {{ delta_contribuables }}%</span></div>{% endif %}
+    <div class="kpi-sparkline-wrap"><canvas id="kpiSparkContribuables"></canvas></div>
+  </a>
+
+{% endif %}
+  <a href="{% url 'dashboard_demande_list' %}" class="kpi-card tone-gold" style="text-decoration:none; color:inherit; display:block;">
+    <div class="kpi-icon"><i class="fa-solid fa-folder-open"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-folder-open"></i></span>
+    <div class="label">Demandes en cours</div>
+    <div class="value">{{ nb_demandes_en_cours }}</div>
+    <div class="delta">Dossiers a traiter</div>
+    {% if delta_demandes is not None %}<div class="kpi-delta-row"><span class="kpi-delta-badge {% if delta_demandes >= 0 %}up{% else %}down{% endif %}"><i class="fa-solid fa-arrow-{% if delta_demandes >= 0 %}up{% else %}down{% endif %}"></i> {{ delta_demandes }}%</span></div>{% endif %}
+    <div class="kpi-sparkline-wrap"><canvas id="kpiSparkDemandes"></canvas></div>
+  </a>
+
+{% if peut_technique %}
+  <div class="kpi-card tone-blue">
+    <div class="kpi-icon"><i class="fa-solid fa-road-bridge"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-road-bridge"></i></span>
+    <div class="label">Infrastructures recensees</div>
+    <div class="value">{{ nb_infrastructures }}</div>
+    <div class="delta">Equipements suivis</div>
+    {% if delta_infra is not None %}<div class="kpi-delta-row"><span class="kpi-delta-badge {% if delta_infra >= 0 %}up{% else %}down{% endif %}"><i class="fa-solid fa-arrow-{% if delta_infra >= 0 %}up{% else %}down{% endif %}"></i> {{ delta_infra }}%</span></div>{% endif %}
+    <div class="kpi-sparkline-wrap"><canvas id="kpiSparkInfra"></canvas></div>
+  </div>
+
+{% endif %}
+  <a href="{% url 'dashboard_message_list' %}" class="kpi-card tone-gold" style="text-decoration:none; color:inherit; display:block;">
+    <div class="kpi-icon"><i class="fa-solid fa-envelope-open-text"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-envelope-open-text"></i></span>
+    <div class="label">Messages non traités</div>
+    <div class="value">{{ nb_messages_non_traites|default:0 }}</div>
+    <div class="delta">En attente de réponse</div>
+  </a>
+</div>
+
+<div class="dashboard-grid">
+<a href="{% url 'geoportail_admin' %}" class="geo-access-card cell-geo-banner">
   <div class="geo-access-left">
     <div class="geo-access-icon"><i class="fa-solid fa-map-location-dot"></i></div>
     <div class="geo-access-text">
@@ -293,67 +792,19 @@
   <span class="geo-access-btn">Acceder au Geoportail <i class="fa-solid fa-arrow-right"></i></span>
 </a>
 
-<div class="kpi-grid">
-{% if peut_fiscal %}
-  <div class="kpi-card tone-green">
-    <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
-    <div class="label">Recouvrement total</div>
-    <div class="value">{{ total_recouvre_fmt }}</div>
-    <div class="delta">Total des taxes collectées</div>
-  </div>
-
-  <div class="kpi-card tone-red">
-    <div class="kpi-icon"><i class="fa-solid fa-hourglass-half"></i></div>
-    <div class="label">Restes à recouvrer</div>
-    <div class="value">{{ reste_a_recouvrer_fmt }}</div>
-    <div class="delta">Montant encore dû</div>
-  </div>
-
-{% endif %}
-{% if peut_fiscal %}
-  <div class="kpi-card tone-gold">
-    <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-    <div class="label">Contentieux fonciers</div>
-    <div class="value">{{ parcelles_en_retard }}</div>
-    <div class="delta">Parcelles en retard de paiement</div>
-  </div>
-
-{% endif %}
-{% if peut_technique %}
-  <div class="kpi-card tone-blue">
-    <div class="kpi-icon"><i class="fa-solid fa-map"></i></div>
-    <div class="label">Total parcelles cadastrees</div>
-    <div class="value">{{ nb_parcelles }}</div>
-  </div>
-
-  <div class="kpi-card tone-blue">
-    <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
-    <div class="label">Propriétaires enregistrés</div>
-    <div class="value">{{ total_proprios }}</div>
-    <div class="delta">Citoyens dans la base SIG</div>
-  </div>
-
-{% endif %}
-  <a href="{% url 'dashboard_message_list' %}" class="kpi-card tone-gold" style="text-decoration:none; color:inherit; display:block;">
-    <div class="kpi-icon"><i class="fa-solid fa-envelope-open-text"></i></div>
-    <div class="label">Messages non traités</div>
-    <div class="value">{{ nb_messages_non_traites|default:0 }}</div>
-    <div class="delta">En attente de réponse</div>
-  </a>
-</div>
-
 {% if peut_fiscal %}
 <!-- ============ TAUX DE RECOUVREMENT ============ -->
-<div class="panel">
+<div class="panel cell-taux">
   <div class="panel-header">
     <h2><i class="fa-solid fa-chart-line"></i> Taux de recouvrement</h2>
     <span style="font-weight:700; font-size:15px;">{{ taux_recouvrement }} %</span>
   </div>
   <div class="panel-body">
-    <div class="recouvrement-bar-track">
-      <div class="recouvrement-bar-fill" data-target="{{ taux_recouvrement }}" style="
-        background: {% if taux_recouvrement >= 75 %}#3a7d44{% elif taux_recouvrement >= 40 %}#c9982e{% else %}#b3261e{% endif %};
-      "></div>
+    <div class="recouvrement-donut-wrap">
+      <canvas id="chartRecouvrementDonut"></canvas>
+      <div class="recouvrement-donut-center">
+        <span class="recouvrement-donut-pct">{{ taux_recouvrement }}%</span>
+      </div>
     </div>
     <p style="color:var(--ink-quiet); font-size:13px; margin:10px 0 0;">
       {{ total_recouvre_fmt }} recouvrés — {{ reste_a_recouvrer_fmt }} restant à percevoir.
@@ -364,38 +815,24 @@
 {% endif %}
 {% if peut_fiscal %}
 <!-- ============ GRAPHIQUES ============ -->
-<div class="panel">
+<div class="panel cell-evolution">
   <div class="panel-header">
     <h2><i class="fa-solid fa-chart-column"></i> Évolution des paiements (12 derniers mois)</h2>
   </div>
   <div class="panel-body">
-    <canvas id="chartEvolution" height="90"></canvas>
+    <div class="chart-wrap"><canvas id="chartEvolution"></canvas></div>
   </div>
 </div>
 
-<div class="stats-charts-row">
-  <div class="panel">
+<div class="stats-charts-row cell-stats-row">
+  <div class="panel cell-taxes">
     <div class="panel-header">
-      <h2><i class="fa-solid fa-map-location-dot"></i> Taux de recouvrement par zone</h2>
-    </div>
-    <div class="panel-body">
-      {% if chart_zones_has_data %}
-        <canvas id="chartZones" height="220"></canvas>
-      {% else %}
-        <p style="color:var(--ink-quiet); font-size:13px;">
-          Pas encore assez de données par zone (il faut des parcelles rattachées à une zone, avec des taxations).
-        </p>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-header">
-      <h2><i class="fa-solid fa-chart-pie"></i> Répartition par type de taxe</h2>
+      <h2><i class="fa-solid fa-chart-pie"></i> Infrastructures et parcelles</h2>
     </div>
     <div class="panel-body">
       {% if chart_taxes_has_data %}
-        <canvas id="chartTaxes" height="220"></canvas>
+        <div class="chart-wrap chart-wrap-sm"><canvas id="chartTaxes"></canvas></div>
+      <ul id="legendeTaxes" class="chart-legend-list"></ul>
       {% else %}
         <p style="color:var(--ink-quiet); font-size:13px;">
           Aucune taxation enregistrée pour le moment.
@@ -406,22 +843,56 @@
 </div>
 
 {% endif %}
-<!-- ============ ACTIONS RAPIDES ============ -->
-<div class="panel">
+<!-- ============ MINI CARTE ============ -->
+<div class="panel cell-map">
   <div class="panel-header">
-    <h2><i class="fa-solid fa-bolt"></i> Actions rapides</h2>
+    <h2><i class="fa-solid fa-map"></i> Carte de la commune</h2>
+    <a href="{% url 'geoportail_admin' %}" class="btn btn-outline btn-sm">Voir tout</a>
   </div>
-  <div class="panel-body" style="display:flex; gap:12px; flex-wrap:wrap;">
-    {% if peut_technique %}<a href="{% url 'dashboard_parcelle_create' %}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i>Nouvelle parcelle</a>{% endif %}
+  <div class="panel-body flush">
+    <div id="miniCarteCommune" class="mini-map-canvas"></div>
+    <div class="mini-map-stats">
+      <div><span class="mm-value">{{ map_superficie_km2 }}</span><span class="mm-label">km2</span></div>
+      <div><span class="mm-value">{{ map_nb_zones }}</span><span class="mm-label">Zones</span></div>
+      <div><span class="mm-value">{{ map_nb_parcelles_actives }}</span><span class="mm-label">Parcelles actives</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ACTIONS RAPIDES ============ -->
+<div class="panel quick-actions-panel cell-quick-actions">
+  <div class="quick-actions-banner">
+    <div class="quick-actions-banner-text">
+      <div class="eyebrow">Keur Massar Nord</div>
+      <div class="title">Que voulez-vous faire ?</div>
+    </div>
+  </div>
+  <div class="quick-actions-grid">
+    {% if peut_technique %}
+    <a href="{% url 'dashboard_parcelle_create' %}" class="quick-action-tile">
+      <div class="quick-action-icon tone-green"><i class="fa-solid fa-plus"></i></div>
+      <span>Nouvelle parcelle</span>
+    </a>
+    {% endif %}
     {% if peut_fiscal %}
-<a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="btn btn-outline btn-sm"><i class="fa-solid fa-clock-rotate-left"></i>Voir les retardataires</a>
-    <a href="{% url 'dashboard_message_list' %}?statut=non_traite" class="btn btn-outline btn-sm"><i class="fa-solid fa-envelope"></i>Traiter les messages</a>
-{% endif %}
+    <a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="quick-action-tile">
+      <div class="quick-action-icon tone-red"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <span>Voir les retardataires</span>
+    </a>
+    {% endif %}
+    <a href="{% url 'dashboard_message_list' %}?statut=non_traite" class="quick-action-tile">
+      <div class="quick-action-icon tone-gold"><i class="fa-solid fa-envelope"></i></div>
+      <span>Traiter les messages</span>
+    </a>
+    <a href="{% url 'dashboard_demande_list' %}" class="quick-action-tile">
+      <div class="quick-action-icon tone-blue"><i class="fa-solid fa-folder-open"></i></div>
+      <span>Démarches en ligne</span>
+    </a>
   </div>
 </div>
 
 {% if peut_fiscal %}
-<div class="panel">
+<div class="panel cell-paiements">
   <div class="panel-header">
     <h2><i class="fa-solid fa-receipt"></i> Derniers paiements</h2>
     <a href="{% url 'dashboard_paiement_list' %}" class="btn btn-outline btn-sm">Voir tout</a>
@@ -461,7 +932,7 @@
 
 {% endif %}
 {% if peut_fiscal %}
-<div class="panel">
+<div class="panel cell-retardataires">
   <div class="panel-header">
     <h2><i class="fa-solid fa-scale-unbalanced"></i> Parcelles en retard — les plus élevées</h2>
     <a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="btn btn-outline btn-sm">Voir tout</a>
@@ -482,8 +953,8 @@
         {% for parcelle in top_retardaires %}
         <tr>
           <td>{{ parcelle.nicad }}</td>
-          <td>{{ parcelle.proprietaire }}</td>
-          <td>{{ parcelle.zone }}</td>
+          <td>{% if parcelle.proprietaire and parcelle.proprietaire != "None" %}{{ parcelle.proprietaire }}{% else %}<span style="color:var(--ink-quiet, #7a7266);">&mdash;</span>{% endif %}</td>
+          <td>{% if parcelle.zone and parcelle.zone != "None" %}{{ parcelle.zone }}{% else %}<span style="color:var(--ink-quiet, #7a7266);">&mdash;</span>{% endif %}</td>
           <td><span class="badge badge-danger">{{ parcelle.montant_taxe_annuelle|floatformat:0 }} FCFA</span></td>
           <td>
             <a href="{% url 'dashboard_parcelle_update' parcelle.pk %}" class="btn btn-outline btn-sm"><i class="fa-solid fa-pen"></i>Modifier</a>
@@ -502,6 +973,35 @@
 </div>
 
 {% endif %}
+<!-- ============ ACTIVITE RECENTE ============ -->
+<div class="panel cell-activite">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-clock-rotate-left"></i> Activite recente</h2>
+  </div>
+  <div class="panel-body flush">
+    {% if activite_recente %}
+    <ul class="activity-feed">
+      {% for item in activite_recente %}
+      <li>
+        <span class="activity-icon tone-{{ item.tone }}"><i class="fa-solid {{ item.icone }}"></i></span>
+        <div class="activity-text">
+          <div class="activity-title">{{ item.titre }}</div>
+          <div class="activity-time">Il y a {{ item.il_y_a }}</div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon icon-neutral"><i class="fa-regular fa-circle"></i></div>
+      Aucune activite recente.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     // Anime la barre de recouvrement de 0 jusqu'à sa valeur réelle
@@ -521,26 +1021,80 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var palette = ['#2f7a4f', '#c9982e', '#3a7d44', '#b3261e', '#6f6a5e', '#8a8276', '#a3791f', '#7a7266'];
 
+    var elSparkRecouvrement = document.getElementById('kpiSparkRecouvrement');
+    if (elSparkRecouvrement) {
+        new Chart(elSparkRecouvrement, {
+            type: 'line',
+            data: {
+                labels: {{ chart_mois_labels|safe }},
+                datasets: [{
+                    data: {{ chart_mois_valeurs|safe }},
+                    borderColor: '#3a7d44',
+                    backgroundColor: 'rgba(58,125,68,0.12)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.35,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: { x: { display: false }, y: { display: false } },
+            }
+        });
+    }
+
+    var elRecouvrementDonut = document.getElementById('chartRecouvrementDonut');
+    if (elRecouvrementDonut) {
+        var tauxRecouvrement = {{ taux_recouvrement|default:0 }};
+        var couleurRecouvrement = tauxRecouvrement >= 75 ? '#3a7d44' : (tauxRecouvrement >= 40 ? '#c9982e' : '#b3261e');
+        new Chart(elRecouvrementDonut, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [tauxRecouvrement, Math.max(0, 100 - tauxRecouvrement)],
+                    backgroundColor: [couleurRecouvrement, '#eee6d6'],
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '72%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            }
+        });
+    }
+
     var elEvolution = document.getElementById('chartEvolution');
     if (elEvolution) {
         new Chart(elEvolution, {
-            type: 'bar',
+            type: 'line',
             data: {
                 labels: {{ chart_mois_labels|safe }},
                 datasets: [{
                     label: 'Paiements reçus (FCFA)',
                     data: {{ chart_mois_valeurs|safe }},
-                    backgroundColor: 'rgba(47,122,79,0.75)',
-                    borderRadius: 5,
-                    maxBarThickness: 34,
+                    borderColor: '#c9982e',
+                    backgroundColor: 'rgba(201,152,46,0.18)',
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#c9982e',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
                     y: {
@@ -568,14 +1122,103 @@ document.addEventListener('DOMContentLoaded', function () {
             options: {
                 indexAxis: 'y',
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: { x: { beginAtZero: true, max: 100, ticks: { callback: function (v) { return v + '%'; } } } }
             }
         });
     }
 
+    var elSparkContribuables = document.getElementById('kpiSparkContribuables');
+    if (elSparkContribuables) {
+        new Chart(elSparkContribuables, {
+            type: 'line',
+            data: {
+                labels: {{ chart_mois_labels|safe }},
+                datasets: [{
+                    data: {{ chart_contribuables_valeurs|safe }},
+                    borderColor: '#7b3fa0',
+                    backgroundColor: 'rgba(123,63,160,0.12)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.35,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: { x: { display: false }, y: { display: false } },
+            }
+        });
+    }
+
+    var elSparkDemandes = document.getElementById('kpiSparkDemandes');
+    if (elSparkDemandes) {
+        new Chart(elSparkDemandes, {
+            type: 'line',
+            data: {
+                labels: {{ chart_mois_labels|safe }},
+                datasets: [{
+                    data: {{ chart_demandes_valeurs|safe }},
+                    borderColor: '#a3791f',
+                    backgroundColor: 'rgba(201,152,46,0.12)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.35,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: { x: { display: false }, y: { display: false } },
+            }
+        });
+    }
+
+    var elSparkInfra = document.getElementById('kpiSparkInfra');
+    if (elSparkInfra) {
+        new Chart(elSparkInfra, {
+            type: 'line',
+            data: {
+                labels: {{ chart_mois_labels|safe }},
+                datasets: [{
+                    data: {{ chart_infra_valeurs|safe }},
+                    borderColor: '#2d64a0',
+                    backgroundColor: 'rgba(45,100,160,0.12)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.35,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: { x: { display: false }, y: { display: false } },
+            }
+        });
+    }
+
     var elTaxes = document.getElementById('chartTaxes');
     if (elTaxes) {
+        var elLegendeTaxes = document.getElementById('legendeTaxes');
+        if (elLegendeTaxes) {
+            var labelsTaxesLegende = {{ chart_taxes_labels|safe }};
+            var valeursTaxesLegende = {{ chart_taxes_valeurs|safe }};
+            var totalTaxesLegende = valeursTaxesLegende.reduce(function (a, b) { return a + b; }, 0);
+            elLegendeTaxes.innerHTML = labelsTaxesLegende.map(function (label, i) {
+                var pct = totalTaxesLegende > 0 ? Math.round((valeursTaxesLegende[i] / totalTaxesLegende) * 100) : 0;
+                var couleur = palette[i % palette.length];
+                return '<li><span class="legend-swatch" style="background:' + couleur + ';"></span>' +
+                       '<span class="legend-label">' + label + '</span>' +
+                       '<span class="legend-pct">' + pct + '%</span></li>';
+            }).join('');
+        }
         new Chart(elTaxes, {
             type: 'doughnut',
             data: {
@@ -589,12 +1232,84 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
                 }
             }
         });
     }
+    var elMiniMap = document.getElementById('miniCarteCommune');
+    if (elMiniMap && window.L) {
+        var miniMap = L.map('miniCarteCommune', {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false,
+        }).setView([14.79, -17.31], 13);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+        }).addTo(miniMap);
+
+        L.circle([14.79, -17.31], {
+            radius: 2500,
+            color: '#c9982e',
+            weight: 2,
+            fillColor: '#c9982e',
+            fillOpacity: 0.12,
+        }).addTo(miniMap);
+
+        L.marker([14.79, -17.31]).addTo(miniMap).bindPopup('Keur Massar Nord');
+    }
+
+    // ===== Panneaux cliquables / agrandissables (round 23) =====
+    var overlayExpansion = document.createElement('div');
+    overlayExpansion.className = 'panel-expand-overlay';
+    overlayExpansion.style.display = 'none';
+    document.body.appendChild(overlayExpansion);
+
+    function redimensionnerGraphiques() {
+        if (window.Chart && Chart.instances) {
+            Object.values(Chart.instances).forEach(function (inst) { inst.resize(); });
+        }
+        if (typeof miniMap !== 'undefined' && miniMap) {
+            miniMap.invalidateSize();
+        }
+    }
+
+    function fermerExpansion() {
+        var ouvert = document.querySelector('.panel.expanded');
+        if (ouvert) { ouvert.classList.remove('expanded'); }
+        overlayExpansion.style.display = 'none';
+        setTimeout(redimensionnerGraphiques, 50);
+    }
+
+    overlayExpansion.addEventListener('click', fermerExpansion);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { fermerExpansion(); }
+    });
+
+    document.querySelectorAll('.dashboard-grid .panel-header').forEach(function (header) {
+        header.style.cursor = 'zoom-in';
+        header.addEventListener('click', function (e) {
+            if (e.target.closest('a') || e.target.closest('button')) { return; }
+            var panel = header.closest('.panel');
+            if (!panel) { return; }
+            var dejaOuvert = panel.classList.contains('expanded');
+            document.querySelectorAll('.panel.expanded').forEach(function (p) { p.classList.remove('expanded'); });
+            if (dejaOuvert) {
+                overlayExpansion.style.display = 'none';
+            } else {
+                panel.classList.add('expanded');
+                overlayExpansion.style.display = 'block';
+            }
+            setTimeout(redimensionnerGraphiques, 50);
+        });
+    });
 });
 </script>
 {% endblock %}

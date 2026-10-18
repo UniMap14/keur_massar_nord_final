@@ -651,6 +651,9 @@ class CarteThematique(models.Model):
 # À AJOUTER DANS : foncier/models.py (à la fin du fichier)
 # ============================================================
 
+from django.utils import timezone
+
+
 class Actualite(models.Model):
     """Avis, communiqués, projets et appels d'offres publiés sur l'accueil."""
 
@@ -674,7 +677,7 @@ class Actualite(models.Model):
     categorie = models.CharField(max_length=20, choices=CATEGORIES, default='AVIS')
     photo = models.ImageField(upload_to='actualites/', blank=True, null=True)
 
-    date_publication = models.DateField(verbose_name="Date à afficher")
+    date_publication = models.DateField(verbose_name="Date à afficher", default=timezone.now)
     date_creation = models.DateTimeField(auto_now_add=True)
 
     publie = models.BooleanField(

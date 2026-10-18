@@ -22,52 +22,147 @@
     }
     .carto-page *{ box-sizing:border-box; }
 
-    .carto-intro{ max-width:760px; margin:0 auto; padding:56px 24px 10px; text-align:center; }
-    .carto-intro h1{
-        font-family:'Playfair Display', serif; font-size:clamp(26px,3.6vw,38px); font-weight:800;
-        color:var(--cp-brown-dark); margin:0 0 14px;
+    .carto-hero{ position:relative; height:110px; overflow:hidden; }
+    .carto-hero-img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .carto-hero-overlay{
+        position:absolute; inset:0;
+        background:linear-gradient(180deg, rgba(20,14,10,.4) 0%, rgba(20,14,10,.68) 100%);
     }
-    .carto-intro p{ font-size:15px; line-height:1.7; color:var(--cp-brown-light); margin:0; }
+    .carto-hero-content{
+        position:absolute; inset:0; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:14px; padding:24px;
+        text-align:center;
+    }
+    .carto-hero-content h1{
+        font-family:'Playfair Display', serif; font-weight:800;
+        font-size:clamp(28px,4vw,44px); color:#F7F2E8; margin:0;
+        text-shadow:0 4px 18px rgba(0,0,0,.55);
+    }
+    .carto-hero-content p{
+        max-width:680px; font-size:14.5px; line-height:1.7; color:#F0E6D2;
+        margin:0; text-shadow:0 2px 10px rgba(0,0,0,.5);
+    }
+    @media (max-width: 700px){ .carto-hero{ height:95px; } }
 
-    .carto-list{ max-width:1100px; margin:0 auto; padding:34px 24px 0; display:flex; flex-direction:column; gap:30px; }
+    .carto-toolbar{
+        max-width:620px; margin:26px auto 0; padding:0 24px;
+        display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .carto-search-wrap{ position:relative; width:100%; }
+    .carto-search-wrap i{
+        position:absolute; left:18px; top:50%; transform:translateY(-50%);
+        color:var(--cp-gold-muted); font-size:15px; pointer-events:none;
+    }
+    .carto-search-input{
+        width:100%; padding:13px 44px 13px 44px; border-radius:999px;
+        border:1px solid var(--cp-border); background:#fff; font-size:14.5px;
+        color:var(--cp-brown-dark); box-shadow: 0 2px 10px rgba(43,27,20,.05);
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+    .carto-search-input:focus{
+        outline:none; border-color:var(--cp-gold); box-shadow:0 0 0 3px rgba(217,165,43,.18);
+    }
+    .carto-search-clear{
+        position:absolute; right:10px; top:50%; transform:translateY(-50%);
+        width:26px; height:26px; border:none; border-radius:50%; background:var(--cp-cream-2);
+        color:var(--cp-brown-light); cursor:pointer; display:none; align-items:center; justify-content:center;
+        font-size:12px; transition: background .2s ease;
+    }
+    .carto-search-clear:hover{ background:var(--cp-gold); color:#fff; }
+    .carto-search-clear.visible{ display:flex; }
+    .carto-results-count{ font-size:12.5px; color:var(--cp-brown-light); }
+    .carto-results-count strong{ color:var(--cp-brown-dark); }
+
+    .carto-list{
+        max-width:1280px; margin:0 auto; padding:34px 24px 0;
+        display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:28px;
+    }
 
     .carto-card{
         background:#fff; border:1px solid var(--cp-border); border-radius:var(--cp-radius);
-        overflow:hidden; display:grid; grid-template-columns: 1.15fr 1fr;
-        box-shadow:var(--cp-shadow-md); transition: box-shadow .25s ease, transform .25s ease;
+        overflow:hidden; display:flex; flex-direction:column;
+        box-shadow:var(--cp-shadow-md); transition: box-shadow .25s ease, transform .25s ease, opacity .25s ease;
+        opacity:0; transform:translateY(16px);
     }
-    .carto-card:hover{ box-shadow:var(--cp-shadow-lg); transform:translateY(-4px); }
-    .carto-card:nth-child(even){ grid-template-columns: 1fr 1.15fr; }
-    .carto-card:nth-child(even) .carto-card-img{ order:2; }
+    .carto-card.carto-visible{ opacity:1; transform:translateY(0); }
+    .carto-card:hover{ box-shadow:var(--cp-shadow-lg); transform:translateY(-6px); }
+    .carto-card.carto-visible:hover{ transform:translateY(-6px); }
+    .carto-card.carto-hidden{ display:none; }
 
     .carto-card-img{
-        position:relative; cursor:zoom-in; min-height:280px; overflow:hidden; background:var(--cp-cream-2);
+        position:relative; cursor:zoom-in; aspect-ratio:4/3; overflow:hidden; background:var(--cp-cream-2);
     }
     .carto-card-img img{ width:100%; height:100%; object-fit:cover; display:block; transition: transform .4s ease; }
-    .carto-card-img:hover img{ transform:scale(1.04); }
+    .carto-card-img::after{
+        content:""; position:absolute; inset:0;
+        background:linear-gradient(180deg, rgba(43,27,20,0) 45%, rgba(43,27,20,.6) 100%);
+        opacity:0; transition:opacity .25s ease;
+    }
+    .carto-card-img:hover img{ transform:scale(1.06); }
+    .carto-card-img:hover::after{ opacity:1; }
     .carto-card-zoom{
-        position:absolute; bottom:14px; right:14px; width:36px; height:36px; border-radius:50%;
-        background:rgba(43,27,20,.75); color:#fff; display:flex; align-items:center; justify-content:center;
-        font-size:13px;
+        position:absolute; bottom:14px; right:14px; width:34px; height:34px; border-radius:50%;
+        background:rgba(255,255,255,.95); color:var(--cp-brown-dark); display:flex; align-items:center; justify-content:center;
+        font-size:12px; opacity:0; transform:translateY(6px); transition: all .25s ease;
     }
+    .carto-card-img:hover .carto-card-zoom{ opacity:1; transform:translateY(0); }
 
-    .carto-card-body{ padding:34px 38px; display:flex; flex-direction:column; justify-content:center; }
+    .carto-card-body{ padding:22px 24px; display:flex; flex-direction:column; flex:1; }
+    .carto-theme-badge{
+        display:inline-flex; align-self:flex-start; align-items:center; gap:6px;
+        background:var(--cp-cream-2); color:var(--cp-gold-muted); border:1px solid var(--cp-border);
+        padding:4px 12px; border-radius:999px; font-size:11.5px; font-weight:700;
+        text-transform:uppercase; letter-spacing:.04em; margin-bottom:14px;
+    }
+    .carto-theme-badge i{ font-size:10px; }
     .carto-card-body h3{
-        font-family:'Playfair Display', serif; font-size:21px; font-weight:800;
-        color:var(--cp-brown-dark); margin:0 0 14px; line-height:1.3;
+        font-family:'Playfair Display', serif; font-size:18px; font-weight:800;
+        color:var(--cp-brown-dark); margin:0 0 10px; line-height:1.3;
     }
-    .carto-card-body p{ font-size:14px; line-height:1.75; color:var(--cp-brown-light); margin:0; white-space:pre-line; }
+    .carto-card-body p{
+        font-size:13.5px; line-height:1.65; color:var(--cp-brown-light); margin:0;
+        display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden;
+    }
 
-    .carto-empty{
+    .carto-filtre-select{
+        width:100%; max-width:320px; margin-top:6px; padding:12px 40px 12px 18px; border-radius:999px;
+        border:1px solid var(--cp-border); background-color:#fff; color:var(--cp-brown-dark);
+        font-size:14px; font-weight:600; cursor:pointer; appearance:none; -webkit-appearance:none;
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' stroke='%235a3d2c' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+        background-repeat:no-repeat; background-position:right 16px center;
+        box-shadow:0 2px 10px rgba(43,27,20,.05);
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+    .carto-filtre-select:focus{ outline:none; border-color:var(--cp-gold); box-shadow:0 0 0 3px rgba(217,165,43,.18); }
+
+    .carto-empty, .carto-no-results, .carto-choisir-filtre{
         text-align:center; padding:70px 20px; color:var(--cp-brown-light);
     }
-    .carto-empty i{ font-size:32px; color:var(--cp-gold); margin-bottom:16px; display:block; }
+    .carto-empty i, .carto-no-results i, .carto-choisir-filtre i{ font-size:32px; color:var(--cp-gold); margin-bottom:16px; display:block; }
+    .carto-no-results{ display:none; }
+    .carto-no-results.visible{ display:block; }
+    .carto-choisir-filtre{ display:none; grid-column:1/-1; }
+    .carto-choisir-filtre.visible{ display:block; }
+
+    .carto-card.carto-card-full{
+        grid-column: 1 / -1;
+        display:grid; grid-template-columns: 1.1fr 1fr;
+    }
+    .carto-card.carto-card-full .carto-card-img{ aspect-ratio:auto; min-height:360px; }
+    .carto-card.carto-card-full .carto-card-body{ justify-content:center; padding:40px 48px; }
+    .carto-card.carto-card-full .carto-card-body h3{ font-size:24px; }
+    .carto-card.carto-card-full .carto-card-body p{
+        -webkit-line-clamp:unset; display:block; overflow:visible; font-size:15px; line-height:1.75;
+    }
 
     @media (max-width: 860px){
-        .carto-card, .carto-card:nth-child(even){ grid-template-columns: 1fr; }
-        .carto-card:nth-child(even) .carto-card-img{ order:0; }
-        .carto-card-img{ min-height:220px; }
-        .carto-card-body{ padding:26px 24px; }
+        .carto-list{ grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:20px; }
+        .carto-card.carto-card-full{ grid-template-columns: 1fr; }
+        .carto-card.carto-card-full .carto-card-img{ min-height:240px; }
+        .carto-card.carto-card-full .carto-card-body{ padding:26px 24px; }
+    }
+    @media (max-width: 520px){
+        .carto-list{ grid-template-columns: 1fr; }
     }
 
     /* ---- Lightbox plein ecran (reprend celui de la galerie) ---- */
@@ -96,19 +191,49 @@
 {% block content %}
 <div class="carto-page">
 
-    <div class="carto-intro">
-        <h1>La cartothèque</h1>
-        <p>Les cartes d'analyse réalisées sur le territoire de Keur Massar Nord — modèle numérique de terrain, pente, densité et autres données géographiques — avec leur explication.</p>
+    <div class="carto-hero">
+        <img src="{% static 'foncier/img/cartotheque-hero.jpg' %}" alt="Keur Massar Nord" class="carto-hero-img">
+        <div class="carto-hero-overlay"></div>
+        <div class="carto-hero-content">
+            <h1>La cartothèque</h1>
+            <p>Les cartes d'analyse réalisées sur le territoire de Keur Massar Nord — modèle numérique de terrain, pente, densité et autres données géographiques — avec leur explication.</p>
+        </div>
     </div>
 
-    <div class="carto-list">
+    {% if cartes %}
+    <div class="carto-toolbar">
+        <div class="carto-search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="cartoSearchInput" class="carto-search-input"
+                   placeholder="Rechercher une carte (relief, drainage, santé, écoles...)"
+                   autocomplete="off">
+            <button type="button" id="cartoSearchClear" class="carto-search-clear" aria-label="Effacer">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="carto-results-count" id="cartoResultsCount"></div>
+        <select class="carto-filtre-select" id="cartoFiltreSelect">
+            <option value="" disabled selected>Choisir un filtre...</option>
+            <option value="__TOUTES__">Toutes les cartes</option>
+            <option value="Relief &amp; pentes">Relief &amp; pentes</option>
+            <option value="Hydrologie">Hydrologie</option>
+            <option value="Infrastructures">Infrastructures</option>
+            <option value="Éducation">Éducation</option>
+            <option value="Santé">Santé</option>
+            <option value="Analyse territoriale">Analyse territoriale</option>
+        </select>
+    </div>
+    {% endif %}
+
+    <div class="carto-list" id="cartoList">
         {% for c in cartes %}
-        <div class="carto-card">
+        <div class="carto-card" data-search="{{ c.titre|lower }} {{ c.explication|lower }}" data-theme="{{ c.theme }}">
             <div class="carto-card-img" data-src="{{ c.image.url }}" data-caption="{{ c.titre }}">
                 <img src="{{ c.image.url }}" alt="{{ c.titre }}">
                 <span class="carto-card-zoom"><i class="fa-solid fa-expand"></i></span>
             </div>
             <div class="carto-card-body">
+                <span class="carto-theme-badge"><i class="fa-solid fa-layer-group"></i> {{ c.theme }}</span>
                 <h3>{{ c.titre }}</h3>
                 <p>{{ c.explication }}</p>
             </div>
@@ -119,6 +244,16 @@
             Aucune carte pour le moment.
         </div>
         {% endfor %}
+
+        <div class="carto-no-results" id="cartoNoResults">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            Aucune carte ne correspond à votre recherche.
+        </div>
+
+        <div class="carto-choisir-filtre visible" id="cartoChoisirFiltre">
+            <i class="fa-solid fa-filter"></i>
+            Choisissez un thème ci-dessus (ou « Toutes ») pour afficher les cartes.
+        </div>
     </div>
 
 </div>
@@ -163,6 +298,102 @@ document.addEventListener('DOMContentLoaded', function () {
         if (img.requestFullscreen) img.requestFullscreen();
         else if (img.webkitRequestFullscreen) img.webkitRequestFullscreen();
     });
+
+    // ---- Apparition progressive des cartes au defilement ----
+    const toutesLesCartes = Array.from(document.querySelectorAll('.carto-card'));
+    if ('IntersectionObserver' in window) {
+        const observeur = new IntersectionObserver(function (entries, obs) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('carto-visible');
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15 });
+        toutesLesCartes.forEach(function (carte) { observeur.observe(carte); });
+    } else {
+        toutesLesCartes.forEach(function (carte) { carte.classList.add('carto-visible'); });
+    }
+
+    // ---- Recherche texte + filtre par theme (chips) ----
+    const champRecherche = document.getElementById('cartoSearchInput');
+    const boutonEffacer = document.getElementById('cartoSearchClear');
+    const compteurResultats = document.getElementById('cartoResultsCount');
+    const messageAucunResultat = document.getElementById('cartoNoResults');
+    const totalCartes = toutesLesCartes.length;
+    const selectFiltre = document.getElementById('cartoFiltreSelect');
+    const messageChoisirFiltre = document.getElementById('cartoChoisirFiltre');
+    let themeActif = '';
+    let aucunFiltreChoisi = true;
+
+    function appliquerRecherche() {
+        const requete = champRecherche ? champRecherche.value.trim().toLowerCase() : '';
+        let visibles = 0;
+
+        if (aucunFiltreChoisi) {
+            toutesLesCartes.forEach(function (carte) { carte.classList.add('carto-hidden'); });
+            if (messageChoisirFiltre) messageChoisirFiltre.classList.add('visible');
+            if (messageAucunResultat) messageAucunResultat.classList.remove('visible');
+            if (compteurResultats) compteurResultats.textContent = '';
+            if (boutonEffacer) boutonEffacer.classList.toggle('visible', requete !== '');
+            return;
+        }
+        if (messageChoisirFiltre) messageChoisirFiltre.classList.remove('visible');
+
+        toutesLesCartes.forEach(function (carte) {
+            const texte = carte.getAttribute('data-search') || '';
+            const correspondTexte = requete === '' || texte.includes(requete);
+            const correspondTheme = themeActif === '' || carte.getAttribute('data-theme') === themeActif;
+            const correspond = correspondTexte && correspondTheme;
+            carte.classList.toggle('carto-hidden', !correspond);
+            if (correspond) {
+                visibles++;
+                carte.classList.add('carto-visible');
+            }
+        });
+
+        toutesLesCartes.forEach(function (carte) { carte.classList.remove('carto-card-full'); });
+        if (visibles === 1) {
+            const carteUnique = toutesLesCartes.find(function (carte) { return !carte.classList.contains('carto-hidden'); });
+            if (carteUnique) carteUnique.classList.add('carto-card-full');
+        }
+
+        if (boutonEffacer) boutonEffacer.classList.toggle('visible', requete !== '');
+
+        const filtreActif = requete !== '' || themeActif !== '';
+        if (!filtreActif) {
+            compteurResultats.textContent = '';
+        } else {
+            compteurResultats.innerHTML = '<strong>' + visibles + '</strong> carte' +
+                (visibles !== 1 ? 's' : '') + ' sur ' + totalCartes;
+        }
+
+        if (messageAucunResultat) {
+            messageAucunResultat.classList.toggle('visible', filtreActif && visibles === 0);
+        }
+    }
+
+    if (selectFiltre) {
+        selectFiltre.addEventListener('change', function () {
+            aucunFiltreChoisi = false;
+            const valeur = selectFiltre.value;
+            themeActif = (valeur === '__TOUTES__') ? '' : valeur;
+            appliquerRecherche();
+        });
+    }
+
+    if (champRecherche) {
+        champRecherche.addEventListener('input', function () {
+            aucunFiltreChoisi = false;
+            appliquerRecherche();
+        });
+        boutonEffacer.addEventListener('click', function () {
+            champRecherche.value = '';
+            aucunFiltreChoisi = false;
+            appliquerRecherche();
+            champRecherche.focus();
+        });
+    }
 });
 </script>
 {% endblock %}

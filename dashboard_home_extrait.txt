@@ -1,0 +1,210 @@
+﻿def dashboard_home(request):
+    total_recouvre = Paiement.objects.aggregate(Sum("montant"))["montant__sum"] or 0
+    total_du = Taxation.objects.aggregate(Sum("montant_du"))["montant_du__sum"] or 0
+    parcelles_en_retard = Parcelle.objects.filter(statut_fiscal="EN_RETARD").count()
+    total_proprios = PropriÚtaire.objects.count()
+
+    derniers_paiements = (
+        Paiement.objects.select_related("taxation", "taxation__contribuable")
+        .order_by("-date_paiement")[:3]
+    )
+
+    top_retardaires = (
+        Parcelle.objects.filter(statut_fiscal="EN_RETARD")
+        .select_related("proprietaire", "zone")
+        .order_by("-montant_taxe_annuelle")[:3]
+    )
+
+    taux_recouvrement = round((total_recouvre / total_du) * 100, 1) if total_du else 0
+
+    # --- Graphique 1 : Úvolution des paiements sur les 12 derniers mois ---
+    aujourd_hui = date.today()
+    debut_periode = (aujourd_hui.replace(day=1) - timedelta(days=365)).replace(day=1)
+
+    paiements_par_mois = (
+        Paiement.objects.filter(date_paiement__gte=debut_periode)
+        .annotate(mois=TruncMonth("date_paiement"))
+        .values("mois")
+        .annotate(total=Sum("montant"))
+        .order_by("mois")
+    )
+    totaux_par_mois = {p["mois"]: float(p["total"] or 0) for p in paiements_par_mois}
+
+    labels_mois, valeurs_mois = [], []
+    mois_cursor = debut_periode
+    for _ in range(12):
+        labels_mois.append(f"{calendar.month_abbr[mois_cursor.month].capitalize()} {mois_cursor.year}")
+        valeurs_mois.append(totaux_par_mois.get(mois_cursor, 0))
+        annee = mois_cursor.year + (1 if mois_cursor.month == 12 else 0)
+        mois = 1 if mois_cursor.month == 12 else mois_cursor.month + 1
+        mois_cursor = date(annee, mois, 1)
+
+    # --- Graphique 2 : recouvrement par zone ---
+    zones_stats = []
+    for zone in Zone.objects.order_by("nom"):
+        parcelles_zone = Parcelle.objects.filter(zone=zone)
+        du_zone = Taxation.objects.filter(parcelle__in=parcelles_zone).aggregate(t=Sum("montant_du"))["t"] or 0
+        paye_zone = Paiement.objects.filter(taxation__parcelle__in=parcelles_zone).aggregate(t=Sum("montant"))["t"] or 0
+        if du_zone > 0:
+            zones_stats.append({
+                "nom": zone.nom,
+                "taux": round((paye_zone / du_zone) * 100, 1),
+            })
+    zones_stats.sort(key=lambda z: z["taux"])
+    zones_stats = zones_stats[:10]
+
+    # --- Graphique 3 : rÚpartition des montants dus par type de taxe ---
+    repartition_taxes = (
+        Taxation.objects.values("type_taxe__libelle")
+        .annotate(total=Sum("montant_du"))
+        .order_by("-total")
+    )
+    labels_taxes = [r["type_taxe__libelle"] for r in repartition_taxes]
+    valeurs_taxes = [float(r["total"] or 0) for r in repartition_taxes]
+
+    # --- Nouveaux indicateurs KPI avec tendance reelle sur 12 mois ---
+    _labels_demandes, valeurs_demandes = _serie_mensuelle(
+        DemandeService.objects.all(), "date_demande", debut_periode
+    )
+    _labels_infra, valeurs_infra = _serie_mensuelle(
+        Infrastructure.objects.all(), "date_ajout", debut_periode
+    )
+    _labels_contribuables, valeurs_contribuables = _serie_mensuelle(
+        Contribuable.objects.all(), "date_creation", debut_periode
+    )
+
+    nb_demandes_en_cours = DemandeService.objects.filter(
+        statut__in=[DemandeService.STATUT_RECUE, DemandeService.STATUT_EN_COURS]
+    ).count()
+    nb_infrastructures = Infrastructure.objects.count()
+    nb_contribuables = Contribuable.objects.count()
+
+    # --- Fil d'activite recente (evenements reels, tries par date) ---
+    evenements = []
+
+    for p in Paiement.objects.select_related("taxation__contribuable").order_by("-date_paiement")[:5]:
+        evenements.append({
+            "date": p.date_paiement,
+            "titre": f"Paiement recu ({_fcfa(p.montant)})",
+            "icone": "fa-credit-card",
+            "tone": "green",
+        })
+
+    for d in DemandeService.objects.order_by("-date_demande")[:5]:
+        evenements.append({
+            "date": d.date_demande,
+            "titre": f"Nouvelle demande {d.numero_dossier}",
+            "icone": "fa-folder-open",
+            "tone": "gold",
+        })
+
+    for s in Signalement.objects.order_by("-date_signalement")[:5]:
+        evenements.append({
+            "date": s.date_signalement,
+            "titre": f"Signalement : {s.titre}",
+            "icone": "fa-triangle-exclamation",
+            "tone": "red",
+        })
+
+    for m in MessageContact.objects.order_by("-date_envoi")[:5]:
+        evenements.append({
+            "date": m.date_envoi,
+            "titre": f"Message : {m.sujet}" if getattr(m, "sujet", None) else "Nouveau message de contact",
+            "icone": "fa-envelope",
+            "tone": "blue",
+        })
+
+    for i in Infrastructure.objects.order_by("-date_ajout")[:5]:
+        evenements.append({
+            "date": i.date_ajout,
+            "titre": f"Infrastructure recensee : {i.nom}",
+            "icone": "fa-road-bridge",
+            "tone": "purple",
+        })
+
+    evenements = [e for e in evenements if e["date"] is not None]
+    evenements.sort(key=lambda e: e["date"].isoformat(), reverse=True)
+    activite_recente = evenements[:4]
+    for _e in activite_recente:
+        _e["il_y_a"] = _il_y_a_francais(_e["date"])
+
+    # --- Stats de la mini-carte de la commune (donnees reelles) ---
+    map_superficie_m2 = Parcelle.objects.aggregate(t=Sum("superficie"))["t"] or 0
+    map_superficie_km2 = round(float(map_superficie_m2) / 1000000, 1)
+    map_nb_zones = Zone.objects.count()
+    map_nb_parcelles_actives = Parcelle.objects.filter(parcelle_active=True).count()
+
+    context = {
+        "active_section": "home",
+        "peut_fiscal": a_role(request.user, 'fiscal'),
+        "peut_technique": a_role(request.user, 'technique'),
+        "nb_parcelles": Parcelle.objects.count(),
+        "total_recouvre_fmt": _fcfa(total_recouvre),
+        "reste_a_recouvrer_fmt": _fcfa(total_du - total_recouvre),
+        "taux_recouvrement": taux_recouvrement,
+        "parcelles_en_retard": parcelles_en_retard,
+        "total_proprios": total_proprios,
+        "derniers_paiements": derniers_paiements,
+        "top_retardaires": top_retardaires,
+        "chart_mois_labels": json.dumps(labels_mois),
+        "chart_mois_valeurs": json.dumps(valeurs_mois),
+        "chart_zones_labels": json.dumps([z["nom"] for z in zones_stats]),
+        "chart_zones_valeurs": json.dumps([z["taux"] for z in zones_stats]),
+        "chart_zones_has_data": len(zones_stats) > 0,
+        "chart_taxes_labels": json.dumps(labels_taxes),
+        "chart_taxes_valeurs": json.dumps(valeurs_taxes),
+        "chart_taxes_has_data": len(labels_taxes) > 0,
+
+        "delta_recouvrement": _delta_pct(valeurs_mois),
+
+        "nb_demandes_en_cours": nb_demandes_en_cours,
+        "chart_demandes_valeurs": json.dumps(valeurs_demandes),
+        "delta_demandes": _delta_pct(valeurs_demandes),
+
+        "nb_infrastructures": nb_infrastructures,
+        "chart_infra_valeurs": json.dumps(valeurs_infra),
+        "delta_infra": _delta_pct(valeurs_infra),
+
+        "nb_contribuables": nb_contribuables,
+        "chart_contribuables_valeurs": json.dumps(valeurs_contribuables),
+        "delta_contribuables": _delta_pct(valeurs_contribuables),
+
+        "activite_recente": activite_recente,
+        "map_superficie_km2": map_superficie_km2,
+        "map_nb_zones": map_nb_zones,
+        "map_nb_parcelles_actives": map_nb_parcelles_actives,
+    }
+    return render(request, "dashboard/home.html", context)
+
+
+# ------------------------------------------------------------
+# FORMULAIRE PARCELLE
+# ------------------------------------------------------------
+
+class ParcelleForm(forms.ModelForm):
+    class Meta:
+        model = Parcelle
+        fields = [
+            "nicad",
+            "proprietaire",
+            "zone",
+            "superficie",
+            "type_document",
+            "adresse_parcelle",
+            "valeur_locative",
+            "montant_taxe_annuelle",
+            "statut_fiscal",
+            "geom",
+        ]
+        widgets = {
+            "geom": LeafletPolygonWidget(),
+        }
+
+
+# ------------------------------------------------------------
+# CRUD PARCELLE ù pattern Ó dupliquer pour les autres modÞles
+# ------------------------------------------------------------
+
+@staff_member_required(login_url='dashboard_login')
+@role_requis('technique')
+

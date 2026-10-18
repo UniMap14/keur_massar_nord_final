@@ -51,6 +51,33 @@
     gap: 14px;
   }
 
+  .geo-wrap { transition: grid-template-columns .3s ease; }
+  .geo-wrap.panneau-droit-masque { grid-template-columns: 280px minmax(0, 1fr) 0px; }
+  .geo-sidebar-right { transition: opacity .2s ease; }
+  .geo-wrap.panneau-droit-masque .geo-sidebar-right { opacity: 0; pointer-events: none; overflow: hidden; }
+
+  .geo-panel-toggle-btn {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 46px;
+    border-radius: 10px;
+    border: 1px solid var(--geo-bordure);
+    background: rgba(255,255,255,0.97);
+    color: var(--geo-brun-fonce);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+    font-size: 13px;
+    z-index: 1150;
+    transition: background .15s ease;
+  }
+  .geo-panel-toggle-btn:hover { background: #faf6ec; }
+
   .geo-panel {
     background: #fff;
     border: 1px solid var(--geo-bordure);
@@ -114,6 +141,7 @@
   .geo-layer-list { display: flex; flex-direction: column; gap: 9px; }
   .geo-layer-item { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--geo-brun-fonce); cursor: pointer; margin: 0; }
   .geo-layer-item input { accent-color: var(--geo-vert); width: 15px; height: 15px; }
+  .geo-disabled { opacity: 0.4 !important; pointer-events: none !important; cursor: not-allowed !important; }
 
   .geo-tool-result { font-size: 12.5px; margin-top: 8px; min-height: 16px; }
 
@@ -270,9 +298,26 @@
   .geo-quartier-top3-item { display:flex; align-items:center; gap:8px; font-size:12.5px; }
   .geo-quartier-top3-rank { width:20px; height:20px; border-radius:50%; background:var(--geo-or); color:#fff; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 
+  /* ===== Accordeon sur les panneaux lateraux (NOUVEAU) ===== */
+  .geo-panel-title { cursor: pointer; user-select: none; }
+  .geo-panel-chevron { margin-left: auto; font-size: 11px; color: var(--geo-texte-mute); transition: transform .2s ease; }
+  .geo-panel.is-collapsed .geo-panel-chevron { transform: rotate(-90deg); }
+  .geo-panel-body { overflow: hidden; max-height: 2000px; transition: max-height .25s ease, opacity .2s ease; opacity: 1; }
+  .geo-panel.is-collapsed .geo-panel-body { max-height: 0; opacity: 0; pointer-events: none; }
+
+  /* ===== Onglets thematiques au-dessus des panneaux (NOUVEAU) ===== */
+  .geo-tab-bar { display: flex; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+  .geo-tab-btn {
+    flex: 1; border: 1.5px solid var(--geo-bordure); background: #fff; color: var(--geo-texte-mute);
+    font-size: 12px; font-weight: 700; padding: 8px 10px; border-radius: 999px; cursor: pointer;
+    transition: all .15s ease; white-space: nowrap;
+  }
+  .geo-tab-btn:hover { background: #faf6ec; }
+  .geo-tab-btn.active { background: var(--geo-brun); border-color: var(--geo-brun); color: #fff; }
+
   @media (max-width: 1150px) {
     .geo-wrap { grid-template-columns: 1fr; height: auto; }
-    .geo-map-col { min-height: 460px; }
+    .geo-map-col { min-height: 460px; order: -1; }
     .geo-sidebar-left, .geo-sidebar-right { max-height: none; }
   }
 </style>
@@ -283,6 +328,7 @@
 
     <!-- ===================== COLONNE GAUCHE : RECHERCHER / FILTRES ===================== -->
     <div class="geo-sidebar-left">
+      <div class="geo-tab-bar" id="tabsGauche"></div>
 
       <div class="geo-panel">
         <h2 class="geo-panel-title"><i class="fa-solid fa-magnifying-glass"></i> Rechercher</h2>
@@ -338,7 +384,7 @@
       </div>
 
       <div class="geo-panel">
-        <h2 class="geo-panel-title"><i class="fa-solid fa-circle-dot"></i> Rayon de couverture</h2>
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-circle-dot"></i> Rayon de couverture</h2>
         <label class="geo-field-label" for="rayon-infra-select">Centrer sur une infrastructure</label>
         <select id="rayon-infra-select" class="geo-field-select">
           <option value="">Choisir une infrastructure...</option>
@@ -350,7 +396,7 @@
       </div>
 
       <div class="geo-panel">
-        <h2 class="geo-panel-title"><i class="fa-solid fa-triangle-exclamation"></i> Zones sous-desservies</h2>
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-triangle-exclamation"></i> Zones sous-desservies</h2>
         <label class="geo-field-label">Distance seuil</label>
         <select id="seuil-desserte" class="geo-field-select">
           <option value="300">300 m</option>
@@ -365,7 +411,7 @@
 
       <!-- ===== NOUVEAU : Statistiques par quartier ===== -->
       <div class="geo-panel">
-        <h2 class="geo-panel-title"><i class="fa-solid fa-map-location-dot"></i> Statistiques par quartier</h2>
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-map-location-dot"></i> Statistiques par quartier</h2>
         <label class="geo-field-label" for="quartier-select">Sélectionner un quartier</label>
         <select id="quartier-select" class="geo-field-select">
           <option value="">-- Tous les quartiers --</option>
@@ -384,14 +430,14 @@
 
       <!-- ===== NOUVEAU : Comparaison des quartiers ===== -->
       <div class="geo-panel">
-        <h2 class="geo-panel-title"><i class="fa-solid fa-chart-column"></i> Comparaison des quartiers</h2>
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-chart-column"></i> Comparaison des quartiers</h2>
         <div id="quartiers-classement" class="geo-quartier-top3"></div>
         <div id="quartiers-barchart" style="margin-top:12px;"></div>
         <button type="button" id="quartiers-voir-plus" class="geo-quartier-voir-plus"></button>
       </div>
 
       <div class="geo-panel">
-        <h2 class="geo-panel-title"><i class="fa-solid fa-diagram-project"></i> Zones de desserte (Voronoï)</h2>
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-diagram-project"></i> Zones de desserte (Voronoï)</h2>
         <label class="geo-layer-item">
           <input type="checkbox" id="toggle-voronoi">
           <span>Afficher les zones de desserte</span>
@@ -415,6 +461,10 @@
           <i class="fa-solid fa-expand"></i>
         </button>
       </div>
+
+      <button type="button" class="geo-panel-toggle-btn" id="btnTogglePanneauDroit" title="Masquer le panneau">
+        <i class="fa-solid fa-angles-right"></i>
+      </button>
 
       <div id="legendeDensite"></div>
       <div id="mapLoader" class="map-loader">
@@ -445,6 +495,7 @@
 
     <!-- ===================== COLONNE DROITE : STATS / COUCHES / ITINERAIRE / EXPORT ===================== -->
     <div class="geo-sidebar-right">
+      <div class="geo-tab-bar" id="tabsDroite"></div>
 
       <div class="geo-panel">
         <h2 class="geo-panel-title"><i class="fa-solid fa-chart-simple"></i> Statistiques</h2>
@@ -464,16 +515,21 @@
 
       <div class="geo-panel">
         <h2 class="geo-panel-title"><i class="fa-solid fa-layer-group"></i> Couches SIG</h2>
+        <label class="geo-field-label" style="margin-top:0;">Affichage</label>
+        <div class="geo-tab-bar" id="modeAffichageBar" style="margin-bottom:10px;">
+          <button type="button" class="geo-tab-btn" data-mode="PARCELLES">Parcelles</button>
+          <button type="button" class="geo-tab-btn" data-mode="INFRA">Infrastructures</button>
+          <button type="button" class="geo-tab-btn active" data-mode="TOUS">Les deux</button>
+        </div>
         <div class="geo-layer-list">
           <label class="geo-layer-item"><input type="checkbox" id="toggle-zones" checked><span>Zones/Quartiers</span></label>
-          <label class="geo-layer-item"><input type="checkbox" id="toggle-parcelles" checked><span>Parcelles</span></label>
           <label class="geo-layer-item"><input type="checkbox" id="toggle-sections"><span>Sections cadastrales</span></label>
           <label class="geo-layer-item"><input type="checkbox" id="toggle-limites" checked><span>Limites administratives</span></label>
         </div>
       </div>
 
       <div class="geo-panel">
-        <h2 class="geo-panel-title"><i class="fa-solid fa-draw-polygon"></i> Sélection spatiale</h2>
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-draw-polygon"></i> Sélection spatiale</h2>
         <div class="geo-measure-group" style="margin-top:0;">
           <button type="button" class="geo-measure-btn" id="btnDessinPolygone"><i class="fa-solid fa-draw-polygon"></i> Polygone</button>
           <button type="button" class="geo-measure-btn" id="btnDessinRectangle"><i class="fa-regular fa-square"></i> Rectangle</button>
@@ -494,7 +550,7 @@
       </div>
 
       <div class="geo-panel">
-        <h2 class="geo-panel-title"><i class="fa-solid fa-location-crosshairs"></i> Itinéraire</h2>
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-location-crosshairs"></i> Itinéraire</h2>
         <button id="btnGeolocaliser" class="geo-btn geo-btn-ghost geo-btn-block">
           <i class="fa-solid fa-location-dot"></i> Me géolocaliser
         </button>
@@ -525,7 +581,7 @@
       </div>
 
       <div class="geo-panel">
-        <h2 class="geo-panel-title"><i class="fa-solid fa-download"></i> Exporter</h2>
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-download"></i> Exporter</h2>
         <button id="btnExportCSV" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-bottom:8px;">
           <i class="fa-solid fa-file-csv"></i> Exporter en CSV
         </button>
@@ -570,6 +626,93 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.geo-sidebar-left > .geo-panel, .geo-sidebar-right > .geo-panel').forEach(function (panel) {
+    const titre = panel.querySelector('.geo-panel-title');
+    if (!titre) return;
+
+    // Regroupe tout le contenu du panneau (sauf le titre) dans un conteneur repliable.
+    const corps = document.createElement('div');
+    corps.className = 'geo-panel-body';
+    while (titre.nextSibling) {
+      corps.appendChild(titre.nextSibling);
+    }
+    panel.appendChild(corps);
+
+    const chevron = document.createElement('i');
+    chevron.className = 'fa-solid fa-chevron-down geo-panel-chevron';
+    titre.appendChild(chevron);
+
+    if (titre.dataset.collapsed === 'true') {
+      panel.classList.add('is-collapsed');
+    }
+
+    titre.addEventListener('click', function () {
+      panel.classList.toggle('is-collapsed');
+    });
+  });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const GROUPES = {
+    gauche: {
+      conteneur: '.geo-sidebar-left',
+      barre: 'tabsGauche',
+      groupes: [
+        { id: 'recherche', label: 'Recherche', titres: ['Rechercher', 'Filtres', 'Rayon de couverture'] },
+        { id: 'analyse', label: 'Analyse', titres: ['Zones sous-desservies', 'Zones de desserte (Voronoï)'] },
+        { id: 'quartiers', label: 'Quartiers', titres: ['Statistiques par quartier', 'Comparaison des quartiers'] },
+      ],
+    },
+    droite: {
+      conteneur: '.geo-sidebar-right',
+      barre: 'tabsDroite',
+      groupes: [
+        { id: 'vue', label: 'Vue', titres: ['Statistiques', 'Couches SIG'] },
+        { id: 'outils', label: 'Outils', titres: ['Sélection spatiale', 'Itinéraire'] },
+        { id: 'export', label: 'Export', titres: ['Exporter'] },
+      ],
+    },
+  };
+
+  Object.values(GROUPES).forEach(function (config) {
+    const barre = document.getElementById(config.barre);
+    const panels = document.querySelectorAll(config.conteneur + ' > .geo-panel');
+    if (!barre || !panels.length) return;
+
+    // Associe chaque panneau a son groupe, d'apres le texte de son titre.
+    panels.forEach(function (panel) {
+      const titreEl = panel.querySelector('.geo-panel-title');
+      if (!titreEl) return;
+      const texte = titreEl.textContent.trim();
+      const groupe = config.groupes.find(function (g) { return g.titres.indexOf(texte) !== -1; });
+      panel.dataset.group = groupe ? groupe.id : config.groupes[0].id;
+    });
+
+    function activerGroupe(groupeId) {
+      panels.forEach(function (panel) {
+        panel.style.display = (panel.dataset.group === groupeId) ? '' : 'none';
+      });
+      barre.querySelectorAll('.geo-tab-btn').forEach(function (btn) {
+        btn.classList.toggle('active', btn.dataset.group === groupeId);
+      });
+    }
+
+    config.groupes.forEach(function (g, index) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'geo-tab-btn';
+      btn.dataset.group = g.id;
+      btn.textContent = g.label;
+      btn.addEventListener('click', function () { activerGroupe(g.id); });
+      barre.appendChild(btn);
+      if (index === 0) activerGroupe(g.id);
+    });
+  });
+});
+</script>
 <script>
   const URL_UPDATE_TEMPLATE = '{% url "parcelle_update_fiscal" 0 %}';
   const URL_INFRA_UPDATE_TEMPLATE = '{% url "dashboard_infrastructure_update" 0 %}';
@@ -616,6 +759,8 @@
   let map;
   let coucheZones, coucheParcelles, coucheItineraire, userMarker, coucheSections, coucheLimites;
   let zonesVisible = true, parcellesVisible = true, sectionsVisible = false, limitesVisible = true;
+  let infrastructuresVisible = true;
+  let modeAffichage = 'TOUS';
   let allZones = { type: 'FeatureCollection', features: [] };
   let allSections = { type: 'FeatureCollection', features: [] };
   let allLimites = { type: 'FeatureCollection', features: [] };
@@ -948,27 +1093,34 @@
 
   function mettreAJourStats(features) {
     const elParcelles = document.getElementById('statParcelles');
-    if (elParcelles) elParcelles.textContent = features.length.toLocaleString('fr-FR');
+    if (elParcelles) elParcelles.textContent = parcellesVisible ? features.length.toLocaleString('fr-FR') : '—';
 
     let superficieTotale = 0;
     features.forEach(function (f) { superficieTotale += (f.properties.superficie || 0); });
     const elSuperficie = document.getElementById('statSuperficie');
     if (elSuperficie) {
-      elSuperficie.textContent = superficieTotale >= 10000
+      elSuperficie.textContent = !parcellesVisible ? '—' : (superficieTotale >= 10000
         ? (superficieTotale / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' ha'
-        : Math.round(superficieTotale).toLocaleString('fr-FR') + ' m²';
+        : Math.round(superficieTotale).toLocaleString('fr-FR') + ' m²');
     }
 
     let totalInfra = infraSansParcelle.length;
     features.forEach(function (f) { totalInfra += (f.properties.infrastructures || []).length; });
     const elInfra = document.getElementById('statInfra');
-    if (elInfra) elInfra.textContent = totalInfra.toLocaleString('fr-FR');
+    if (elInfra) elInfra.textContent = infrastructuresVisible ? totalInfra.toLocaleString('fr-FR') : '—';
   }
 
   function remplirTableauParcelles(features) {
     const corps = document.getElementById('dataTableAdminBody');
     const meta = document.getElementById('tableMetaAdmin');
     if (!corps) return;
+
+    if (!parcellesVisible) {
+      const nbColonnesMasque = peutFiscal ? 5 : 3;
+      meta.textContent = 'Couche masquée';
+      corps.innerHTML = '<tr><td colspan="' + nbColonnesMasque + '" class="table-empty">Activez la couche « Parcelles » (panneau Couches SIG) pour afficher ce tableau.</td></tr>';
+      return;
+    }
 
     const LIMITE = 200;
     const total = features.length;
@@ -1035,6 +1187,19 @@
     document.querySelectorAll('.geo-basemap-chip').forEach(function (chip) {
       chip.classList.toggle('active', chip.getAttribute('data-basemap') === cle);
     });
+  }
+
+  function basculerPanneauDroit() {
+    const conteneur = document.querySelector('.geo-wrap');
+    const bouton = document.getElementById('btnTogglePanneauDroit');
+    if (!conteneur) return;
+    const masque = conteneur.classList.toggle('panneau-droit-masque');
+    if (bouton) {
+      const icone = bouton.querySelector('i');
+      if (icone) icone.className = masque ? 'fa-solid fa-angles-left' : 'fa-solid fa-angles-right';
+      bouton.title = masque ? 'Afficher le panneau' : 'Masquer le panneau';
+    }
+    setTimeout(function () { if (map) map.invalidateSize(); }, 320);
   }
 
   function basculerPleinEcran() {
@@ -1878,7 +2043,9 @@
       L.marker([infra.latitude, infra.longitude], { icon: icone }).bindPopup(construirePopupInfra(infra)).addTo(coucheInfrastructures);
     });
 
-    if (modeChaleurActif) {
+    if (!infrastructuresVisible) {
+      // Couche masquee : rien a afficher
+    } else if (modeChaleurActif) {
       afficherGrilleDensite(infrasAffichees);
     } else {
       coucheInfrastructures.addTo(map);
@@ -2083,6 +2250,52 @@
     document.getElementById('route-info').style.display = 'none';
   }
 
+  const OUTILS_PARCELLES = ['search-nicad', 'btnSearchParcelle', 'filter-occupation', 'filter-statut', 'quartier-select', 'toggle-choropleth', 'btnDessinPolygone', 'btnDessinRectangle', 'btnDessinCercle', 'btnExportCSV', 'btnExportGeoJSON'];
+  const OUTILS_INFRA = ['search-infra', 'btnSearchInfra', 'filter-infra-categorie', 'toggle-carte-chaleur', 'rayon-infra-select', 'rayon-slider', 'seuil-desserte', 'btnAnalyserDesserte', 'toggle-voronoi'];
+
+  function definirDisponibilite(ids, actif) {
+    ids.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.disabled = !actif;
+      el.title = actif ? '' : "Indisponible : activez d'abord la couche correspondante dans « Couches SIG ».";
+      const conteneur = el.closest('.geo-layer-item') || el;
+      conteneur.classList.toggle('geo-disabled', !actif);
+    });
+  }
+
+  function appliquerDisponibiliteOutils() {
+    definirDisponibilite(OUTILS_PARCELLES, parcellesVisible);
+    definirDisponibilite(OUTILS_INFRA, infrastructuresVisible);
+
+    if (!parcellesVisible) {
+      effacerSelection();
+      const choroBox = document.getElementById('toggle-choropleth');
+      if (choroBox && choroBox.checked) { choroBox.checked = false; basculerChoropleth(false); }
+    }
+    if (!infrastructuresVisible) {
+      const voronoiBox = document.getElementById('toggle-voronoi');
+      if (voronoiBox && voronoiBox.checked) { voronoiBox.checked = false; basculerVoronoi(false); }
+      const chaleurBox = document.getElementById('toggle-carte-chaleur');
+      if (chaleurBox && chaleurBox.checked) { chaleurBox.checked = false; basculerCarteChaleur(false); }
+    }
+  }
+
+  function definirModeAffichage(mode) {
+    modeAffichage = mode;
+    parcellesVisible = (mode !== 'INFRA');
+    infrastructuresVisible = (mode !== 'PARCELLES');
+    const barre = document.getElementById('modeAffichageBar');
+    if (barre) {
+      barre.querySelectorAll('.geo-tab-btn').forEach(function (btn) {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+    }
+    appliquerDisponibiliteOutils();
+    redessinerCouches();
+    afficherIconesInfrastructures(dernieresDonneesInfra || allParcelles);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     function onEvent(id, evenement, gestionnaire) {
       const el = document.getElementById(id);
@@ -2104,10 +2317,14 @@
     onEvent('btnExportCSV', 'click', exportCSV);
     onEvent('btnExportGeoJSON', 'click', exportGeoJSON);
     onEvent('toggle-zones', 'change', function (e) { zonesVisible = e.target.checked; redessinerCouches(); });
-    onEvent('toggle-parcelles', 'change', function (e) { parcellesVisible = e.target.checked; redessinerCouches(); });
+    document.querySelectorAll('#modeAffichageBar .geo-tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { definirModeAffichage(btn.dataset.mode); });
+    });
+    appliquerDisponibiliteOutils();
     onEvent('toggle-sections', 'change', function (e) { sectionsVisible = e.target.checked; redessinerCouches(); });
     onEvent('toggle-limites', 'change', function (e) { limitesVisible = e.target.checked; redessinerCouches(); });
     onEvent('btnFullscreen', 'click', basculerPleinEcran);
+    onEvent('btnTogglePanneauDroit', 'click', basculerPanneauDroit);
     document.querySelectorAll('.geo-basemap-chip').forEach(function (chip) { chip.addEventListener('click', function () { changerFondDeCarte(chip.getAttribute('data-basemap')); }); });
     onEvent('btnMesureDistance', 'click', function () { activerModeMesure('distance'); });
     onEvent('btnMesureSurface', 'click', function () { activerModeMesure('surface'); });

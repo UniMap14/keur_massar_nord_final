@@ -16,7 +16,7 @@ from django.contrib.auth.models import User, Group
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count
 from django.db.models.functions import TruncMonth
 from django.urls import reverse_lazy, reverse
 from django import forms
@@ -66,6 +66,87 @@ def _fcfa(valeur):
     if valeur is None:
         valeur = 0
     return f"{valeur:,.0f} FCFA".replace(",", " ")
+
+
+def _serie_mensuelle(queryset, champ_date, debut_periode):
+    """Retourne (labels, valeurs) sur 12 mois a partir d'un queryset et
+    d'un champ date/datetime reel du modele, en reprenant le meme
+    decoupage mensuel que le graphique des paiements."""
+    annote = (
+        queryset.filter(**{f"{champ_date}__gte": debut_periode})
+        .annotate(mois=TruncMonth(champ_date))
+        .values("mois")
+        .annotate(total=Count("id"))
+        .order_by("mois")
+    )
+    totaux = {}
+    for a in annote:
+        mois_valeur = a["mois"]
+        if hasattr(mois_valeur, "date"):
+            mois_valeur = mois_valeur.date()
+        totaux[mois_valeur] = a["total"]
+
+    labels, valeurs = [], []
+    mois_cursor = debut_periode
+    for _ in range(12):
+        labels.append(f"{calendar.month_abbr[mois_cursor.month].capitalize()} {mois_cursor.year}")
+        valeurs.append(totaux.get(mois_cursor, 0))
+        annee = mois_cursor.year + (1 if mois_cursor.month == 12 else 0)
+        mois = 1 if mois_cursor.month == 12 else mois_cursor.month + 1
+        mois_cursor = date(annee, mois, 1)
+    return labels, valeurs
+
+
+def _il_y_a_francais(dt):
+    """Formate une date/datetime en "il y a ..." en francais, sans
+    dependre de LANGUAGE_CODE (qui vaut 'en-us' dans ce projet et ferait
+    parler anglais a |timesince)."""
+    from django.utils import timezone as _tz
+    from datetime import datetime as _datetime
+
+    maintenant = _tz.now()
+    if not isinstance(dt, _datetime):
+        dt = _tz.make_aware(_datetime.combine(dt, _datetime.min.time()), _tz.get_current_timezone())
+    elif _tz.is_naive(dt):
+        dt = _tz.make_aware(dt, _tz.get_current_timezone())
+
+    secondes = max((maintenant - dt).total_seconds(), 0)
+    minutes = secondes / 60
+    heures = minutes / 60
+    jours = heures / 24
+
+    if secondes < 60:
+        return "moins d'une minute"
+    if minutes < 60:
+        n = int(minutes)
+        return f"{n} minute{'s' if n > 1 else ''}"
+    if heures < 24:
+        n = int(heures)
+        return f"{n} heure{'s' if n > 1 else ''}"
+    if jours < 7:
+        n = int(jours)
+        return f"{n} jour{'s' if n > 1 else ''}"
+    if jours < 30:
+        n = int(jours / 7)
+        return f"{n} semaine{'s' if n > 1 else ''}"
+    if jours < 365:
+        n = int(jours / 30)
+        return f"{n} mois"
+    n = int(jours / 365)
+    return f"{n} an{'s' if n > 1 else ''}"
+
+
+def _delta_pct(valeurs):
+    """Variation en % entre les deux derniers mois d'une serie reelle.
+    Retourne None (pas de badge affiche) si le mois precedent est a 0 :
+    une division par zero donnerait un pourcentage absurde, on prefere
+    ne rien afficher plutot que d'inventer un chiffre."""
+    if len(valeurs) < 2:
+        return None
+    dernier, precedent = valeurs[-1], valeurs[-2]
+    if not precedent:
+        return None
+    return round((dernier - precedent) / precedent * 100, 1)
 
 
 # ------------------------------------------------------------
@@ -167,13 +248,24 @@ def dashboard_home(request):
 
     derniers_paiements = (
         Paiement.objects.select_related("taxation", "taxation__contribuable")
-        .order_by("-date_paiement")[:6]
+        .order_by("-date_paiement")[:3]
     )
 
     top_retardaires = (
         Parcelle.objects.filter(statut_fiscal="EN_RETARD")
         .select_related("proprietaire", "zone")
-        .order_by("-montant_taxe_annuelle")[:6]
+        .order_by("-montant_taxe_annuelle")[:3]
+    )
+
+    dernieres_demandes = (
+        DemandeService.objects.select_related("demandeur", "type_demande")
+        .order_by("-date_demande")[:4]
+    )
+
+    parcelle_recente = (
+        Parcelle.objects.select_related("proprietaire")
+        .order_by("-pk")
+        .first()
     )
 
     taux_recouvrement = round((total_recouvre / total_du) * 100, 1) if total_du else 0
@@ -215,16 +307,103 @@ def dashboard_home(request):
     zones_stats = zones_stats[:10]
 
     # --- Graphique 3 : répartition des montants dus par type de taxe ---
-    repartition_taxes = (
-        Taxation.objects.values("type_taxe__libelle")
-        .annotate(total=Sum("montant_du"))
-        .order_by("-total")
+    nb_infra_dans_parcelle = Infrastructure.objects.filter(parcelle__isnull=False).count()
+
+    proprietaires_contribuables_ids = set(
+        Contribuable.objects.values_list("proprietaire_id", flat=True)
     )
-    labels_taxes = [r["type_taxe__libelle"] for r in repartition_taxes]
-    valeurs_taxes = [float(r["total"] or 0) for r in repartition_taxes]
+    nb_parcelles_contribuables = Parcelle.objects.filter(
+        proprietaire_id__in=proprietaires_contribuables_ids
+    ).count()
+    nb_parcelles_non_contribuables = Parcelle.objects.count() - nb_parcelles_contribuables
+
+    labels_taxes = [
+        "Infrastructures dans une parcelle",
+        "Parcelles contribuables",
+        "Parcelles non contribuables",
+    ]
+    valeurs_taxes = [
+        nb_infra_dans_parcelle,
+        nb_parcelles_contribuables,
+        nb_parcelles_non_contribuables,
+    ]
+
+    # --- Nouveaux indicateurs KPI avec tendance reelle sur 12 mois ---
+    _labels_demandes, valeurs_demandes = _serie_mensuelle(
+        DemandeService.objects.all(), "date_demande", debut_periode
+    )
+    _labels_infra, valeurs_infra = _serie_mensuelle(
+        Infrastructure.objects.all(), "date_ajout", debut_periode
+    )
+    _labels_contribuables, valeurs_contribuables = _serie_mensuelle(
+        Contribuable.objects.all(), "date_creation", debut_periode
+    )
+
+    nb_demandes_en_cours = DemandeService.objects.filter(
+        statut__in=[DemandeService.STATUT_RECUE, DemandeService.STATUT_EN_COURS]
+    ).count()
+    nb_infrastructures = Infrastructure.objects.count()
+    nb_contribuables = Contribuable.objects.count()
+
+    # --- Fil d'activite recente (evenements reels, tries par date) ---
+    evenements = []
+
+    for p in Paiement.objects.select_related("taxation__contribuable").order_by("-date_paiement")[:5]:
+        evenements.append({
+            "date": p.date_paiement,
+            "titre": f"Paiement recu ({_fcfa(p.montant)})",
+            "icone": "fa-credit-card",
+            "tone": "green",
+        })
+
+    for d in DemandeService.objects.order_by("-date_demande")[:5]:
+        evenements.append({
+            "date": d.date_demande,
+            "titre": f"Nouvelle demande {d.numero_dossier}",
+            "icone": "fa-folder-open",
+            "tone": "gold",
+        })
+
+    for s in Signalement.objects.order_by("-date_signalement")[:5]:
+        evenements.append({
+            "date": s.date_signalement,
+            "titre": f"Signalement : {s.titre}",
+            "icone": "fa-triangle-exclamation",
+            "tone": "red",
+        })
+
+    for m in MessageContact.objects.order_by("-date_envoi")[:5]:
+        evenements.append({
+            "date": m.date_envoi,
+            "titre": f"Message : {m.sujet}" if getattr(m, "sujet", None) else "Nouveau message de contact",
+            "icone": "fa-envelope",
+            "tone": "blue",
+        })
+
+    for i in Infrastructure.objects.order_by("-date_ajout")[:5]:
+        evenements.append({
+            "date": i.date_ajout,
+            "titre": f"Infrastructure recensee : {i.nom}",
+            "icone": "fa-road-bridge",
+            "tone": "purple",
+        })
+
+    evenements = [e for e in evenements if e["date"] is not None]
+    evenements.sort(key=lambda e: e["date"].isoformat(), reverse=True)
+    activite_recente = evenements[:4]
+    for _e in activite_recente:
+        _e["il_y_a"] = _il_y_a_francais(_e["date"])
+
+    # --- Stats de la mini-carte de la commune (donnees reelles) ---
+    map_superficie_m2 = Parcelle.objects.aggregate(t=Sum("superficie"))["t"] or 0
+    map_superficie_km2 = round(float(map_superficie_m2) / 1000000, 1)
+    map_nb_zones = Zone.objects.count()
+    map_nb_parcelles_actives = Parcelle.objects.filter(parcelle_active=True).count()
 
     context = {
         "active_section": "home",
+        "peut_fiscal": a_role(request.user, 'fiscal'),
+        "peut_technique": a_role(request.user, 'technique'),
         "nb_parcelles": Parcelle.objects.count(),
         "total_recouvre_fmt": _fcfa(total_recouvre),
         "reste_a_recouvrer_fmt": _fcfa(total_du - total_recouvre),
@@ -233,6 +412,8 @@ def dashboard_home(request):
         "total_proprios": total_proprios,
         "derniers_paiements": derniers_paiements,
         "top_retardaires": top_retardaires,
+        "dernieres_demandes": dernieres_demandes,
+        "parcelle_recente": parcelle_recente,
         "chart_mois_labels": json.dumps(labels_mois),
         "chart_mois_valeurs": json.dumps(valeurs_mois),
         "chart_zones_labels": json.dumps([z["nom"] for z in zones_stats]),
@@ -241,6 +422,25 @@ def dashboard_home(request):
         "chart_taxes_labels": json.dumps(labels_taxes),
         "chart_taxes_valeurs": json.dumps(valeurs_taxes),
         "chart_taxes_has_data": len(labels_taxes) > 0,
+
+        "delta_recouvrement": _delta_pct(valeurs_mois),
+
+        "nb_demandes_en_cours": nb_demandes_en_cours,
+        "chart_demandes_valeurs": json.dumps(valeurs_demandes),
+        "delta_demandes": _delta_pct(valeurs_demandes),
+
+        "nb_infrastructures": nb_infrastructures,
+        "chart_infra_valeurs": json.dumps(valeurs_infra),
+        "delta_infra": _delta_pct(valeurs_infra),
+
+        "nb_contribuables": nb_contribuables,
+        "chart_contribuables_valeurs": json.dumps(valeurs_contribuables),
+        "delta_contribuables": _delta_pct(valeurs_contribuables),
+
+        "activite_recente": activite_recente,
+        "map_superficie_km2": map_superficie_km2,
+        "map_nb_zones": map_nb_zones,
+        "map_nb_parcelles_actives": map_nb_parcelles_actives,
     }
     return render(request, "dashboard/home.html", context)
 
@@ -925,7 +1125,7 @@ class ActualiteForm(forms.ModelForm):
         widgets = {
             "chapo": forms.Textarea(attrs={"rows": 3}),
             "contenu": forms.Textarea(attrs={"rows": 8}),
-            "date_publication": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+            "date_publication": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
 
@@ -2261,6 +2461,7 @@ def dashboard_mutation_traiter(request, pk):
 # ============================================================
 
 @staff_member_required(login_url='dashboard_login')
+@role_requis('technique')
 def dashboard_morcellement_fusion_list(request):
     """Liste des demandes de morcellement/fusion, filtrable par statut."""
     statut_filtre = request.GET.get("statut", "")

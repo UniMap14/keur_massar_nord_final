@@ -38,6 +38,7 @@ from django.conf import settings
 import json
 from decimal import Decimal, ROUND_HALF_UP
 
+from .permissions import a_role
 from .models import Signalement
 from .forms import SignalementForm
 
@@ -71,7 +72,10 @@ from django.db.models import Count, Q, Prefetch
 
 
 def _est_agent(user):
-    return user.is_staff
+    # Tout compte staff ne suffit plus : il faut aussi detenir un role
+    # reconnu (technique ou fiscal). Superviseur et comptes historiques
+    # sans groupe assigne restent couverts par a_role() (retrocompatibilite).
+    return user.is_staff and a_role(user, 'technique', 'fiscal')
 
 
 def home_page(request):
@@ -589,6 +593,32 @@ def parcelle_update_fiscal(request, parcelle_id):
     except Parcelle.DoesNotExist:
         return JsonResponse({"ok": False, "error": "Parcelle introuvable."}, status=404)
 
+    # --- Controle de role selon les champs soumis (edition depuis la carte) ---
+    # Un Gestionnaire/Chef Cadastre peut modifier les champs cadastraux, mais
+    # pas les champs fiscaux, et inversement pour le service Fiscalite. Le
+    # Superviseur (et un compte historique sans role assigne) passe toujours
+    # via a_role(). Evite qu'un agent d'un service modifie les donnees de
+    # l'autre service via ce point d'entree (contrairement au dashboard
+    # classique qui etait deja correctement restreint).
+    CHAMPS_CADASTRAUX = {
+        "nicad", "adresse_parcelle", "type_document", "occupation_sol",
+        "reference_arrete", "section_cadastrale", "numero_parcelle",
+        "numero_lot", "numero_titre_foncier", "proprietaire_cni",
+    }
+    CHAMPS_FISCAUX = {"statut_fiscal", "montant_taxe_annuelle", "valeur_locative"}
+
+    champs_soumis = set(request.POST.keys())
+    if (champs_soumis & CHAMPS_CADASTRAUX) and not a_role(request.user, 'technique'):
+        return JsonResponse({
+            "ok": False,
+            "error": "Vous n'avez pas les droits pour modifier les informations cadastrales de cette parcelle."
+        }, status=403)
+    if (champs_soumis & CHAMPS_FISCAUX) and not a_role(request.user, 'fiscal'):
+        return JsonResponse({
+            "ok": False,
+            "error": "Vous n'avez pas les droits pour modifier les informations fiscales de cette parcelle."
+        }, status=403)
+
     champs_modifies = []
 
     # --- Identifiant NICAD ---
@@ -1027,7 +1057,25 @@ def galerie(request):
 def cartotheque(request):
     """Page publique presentant les cartes thematiques d'analyse (MNT, pente, etc.)."""
     from .models import CarteThematique
-    cartes = CarteThematique.objects.order_by('ordre', '-date_ajout')
+    cartes = list(CarteThematique.objects.order_by('ordre', '-date_ajout'))
+
+    # Badge thematique calcule a la volee (pas de champ en base, donc aucune
+    # migration necessaire) : simple reconnaissance de mots-cles dans le titre.
+    regles_theme = [
+        ('pente', 'Relief & pentes'),
+        ('drainage', 'Hydrologie'),
+        ('densité', 'Infrastructures'),
+        ('scolaire', 'Éducation'),
+        ('santé', 'Santé'),
+    ]
+    for c in cartes:
+        titre_minuscule = c.titre.lower()
+        c.theme = 'Analyse territoriale'
+        for mot_cle, libelle in regles_theme:
+            if mot_cle in titre_minuscule:
+                c.theme = libelle
+                break
+
     return render(request, 'foncier/cartotheque.html', {'cartes': cartes})
 
 

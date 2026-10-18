@@ -50,14 +50,24 @@ def dashboard_counts(request):
     except Exception:
         nb_signalements_en_cours = 0
 
+    peut_technique = a_role(request.user, "technique")
+
+    nb_notifications_total = (
+        nb_messages_non_traites
+        + nb_demandes_a_traiter
+        + nb_inscriptions_en_attente
+        + (nb_signalements_en_cours if peut_technique else 0)
+    )
+
     return {
         "nb_messages_non_traites": nb_messages_non_traites,
         "nb_demandes_a_traiter": nb_demandes_a_traiter,
         "nb_inscriptions_en_attente": nb_inscriptions_en_attente,
         "nb_signalements_en_cours": nb_signalements_en_cours,
+        "nb_notifications_total": nb_notifications_total,
         "libelle_role_utilisateur": libelle_role(request.user),
         "peut_fiscal": a_role(request.user, "fiscal"),
-        "peut_technique": a_role(request.user, "technique"),
+        "peut_technique": peut_technique,
         "est_superviseur": (
             request.user.is_superuser
             or request.user.groups.filter(name="Superviseur").exists()

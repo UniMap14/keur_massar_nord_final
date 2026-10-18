@@ -329,7 +329,7 @@
   <!-- ============ SIDEBAR ============ -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <div class="mark">K</div>
+      <img src="{% static 'foncier/images/logo.jpeg' %}" alt="Logo Keur Massar Nord">
       <div class="sidebar-brand-text">
         <div class="name">KEUR MASSAR NORD</div>
         <div class="sub">Foncier &amp; Fiscal</div>
@@ -486,6 +486,11 @@
       </a></li>
     </ul>
 
+    <div class="sidebar-emblem">
+      <div class="sidebar-emblem-icon"><i class="fa-solid fa-landmark-dome"></i></div>
+      <p class="sidebar-emblem-tagline">Une commune connectee<br>pour un foncier securise</p>
+    </div>
+
     <div class="sidebar-footer">
       <div class="sidebar-user">
         {% if mon_profil_agent.photo %}
@@ -518,6 +523,49 @@
         {% block header_subtitle %}<div class="topbar-subtitle">Vue d'ensemble de l'activité foncière et fiscale</div>{% endblock %}
       </div>
       {% block topbar_extra %}{% endblock %}
+
+      {% if peut_technique %}
+      <form method="get" action="{% url 'dashboard_parcelle_list' %}" class="topbar-search">
+        <input type="text" name="q" placeholder="Rechercher une parcelle, un proprietaire...">
+      </form>
+      {% endif %}
+
+      <div class="topbar-actions">
+        <button type="button" class="topbar-icon-btn" id="topbarNotifBtn" aria-label="Notifications">
+          <i class="fa-regular fa-bell"></i>
+          {% if nb_notifications_total %}<span class="topbar-notif-badge">{{ nb_notifications_total }}</span>{% endif %}
+        </button>
+        <div class="topbar-notif-panel" id="topbarNotifPanel">
+          <div class="topbar-notif-panel-header">Notifications</div>
+          {% if nb_messages_non_traites %}
+          <a href="{% url 'dashboard_message_list' %}" class="topbar-notif-item">
+            <span>Messages non traites</span><span class="count">{{ nb_messages_non_traites }}</span>
+          </a>
+          {% endif %}
+          {% if nb_demandes_a_traiter %}
+          <a href="{% url 'dashboard_demande_list' %}" class="topbar-notif-item">
+            <span>Demarches a traiter</span><span class="count">{{ nb_demandes_a_traiter }}</span>
+          </a>
+          {% endif %}
+          {% if nb_inscriptions_en_attente %}
+          <a href="{% url 'gestion_inscriptions' %}" class="topbar-notif-item">
+            <span>Inscriptions en attente</span><span class="count">{{ nb_inscriptions_en_attente }}</span>
+          </a>
+          {% endif %}
+          {% if peut_technique and nb_signalements_en_cours %}
+          <a href="{% url 'dashboard_signalement_list' %}" class="topbar-notif-item">
+            <span>Signalements en cours</span><span class="count">{{ nb_signalements_en_cours }}</span>
+          </a>
+          {% endif %}
+          {% if not nb_notifications_total %}
+          <div class="topbar-notif-empty">Rien a signaler pour le moment.</div>
+          {% endif %}
+        </div>
+        <button type="button" class="topbar-icon-btn" id="topbarFullscreenBtn" aria-label="Plein ecran">
+          <i class="fa-solid fa-expand"></i>
+        </button>
+      </div>
+
       <div class="topbar-user-chip">
         {% if mon_profil_agent.photo %}
           <img src="{{ mon_profil_agent.photo.url }}" alt="" class="tuc-avatar" style="object-fit:cover;">
@@ -603,6 +651,39 @@
         el.style.transform = "translateY(-6px)";
         setTimeout(function () { el.remove(); }, 400);
       }, 5000 + i * 300);
+    });
+  })();
+
+  // Notifications : ouverture/fermeture du panneau au clic sur la cloche
+  (function () {
+    var btn = document.getElementById("topbarNotifBtn");
+    var panel = document.getElementById("topbarNotifPanel");
+    if (!btn || !panel) return;
+
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      panel.classList.toggle("open");
+    });
+    document.addEventListener("click", function (e) {
+      if (panel.classList.contains("open") && !panel.contains(e.target) && e.target !== btn) {
+        panel.classList.remove("open");
+      }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") panel.classList.remove("open");
+    });
+  })();
+
+  // Plein ecran : bascule sur le document entier
+  (function () {
+    var btn = document.getElementById("topbarFullscreenBtn");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function () {});
+      } else {
+        document.exitFullscreen();
+      }
     });
   })();
 </script>
