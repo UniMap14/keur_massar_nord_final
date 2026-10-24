@@ -389,6 +389,9 @@
         <select id="rayon-infra-select" class="geo-field-select">
           <option value="">Choisir une infrastructure...</option>
         </select>
+        <button type="button" id="btnRayonPointLibre" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px; margin-bottom:8px;">
+          <i class="fa-solid fa-map-pin"></i> Choisir un point sur la carte
+        </button>
         <label class="geo-field-label">Rayon</label>
         <input type="range" id="rayon-slider" min="100" max="3000" step="100" value="500" class="geo-field-range">
         <div class="geo-radius-value"><span id="rayon-value">500</span> m</div>
@@ -426,6 +429,34 @@
           <input type="checkbox" id="toggle-choropleth">
           <span>Carte de pression foncière (densité de parcelles)</span>
         </label>
+      </div>
+
+      <!-- ===== NOUVEAU : Pression fonciere (admin uniquement) ===== -->
+      <div class="geo-panel">
+        <h2 class="geo-panel-title" data-collapsed="true"><i class="fa-solid fa-chart-pie"></i> Pression foncière <em style="font-weight:400; color:var(--geo-texte-mute);">(admin)</em></h2>
+
+        <label class="geo-field-label" style="margin-top:0;">Taux de bâti par quartier</label>
+        <button type="button" id="btnAnalyserBati" class="geo-btn geo-btn-primary geo-btn-block">
+          <i class="fa-solid fa-chart-column"></i> Analyser
+        </button>
+        <div id="batiResult" class="geo-tool-result"></div>
+
+        <label class="geo-field-label" style="margin-top:14px;">Parcelles non bâties près des infrastructures</label>
+        <select id="seuil-non-bati" class="geo-field-select">
+          <option value="300">300 m</option>
+          <option value="500" selected>500 m</option>
+          <option value="1000">1 km</option>
+        </select>
+        <button type="button" id="btnAnalyserNonBati" class="geo-btn geo-btn-primary geo-btn-block" style="margin-top:8px;">
+          <i class="fa-solid fa-magnifying-glass-chart"></i> Analyser
+        </button>
+        <div id="nonBatiResult" class="geo-tool-result"></div>
+
+        <label class="geo-field-label" style="margin-top:14px;">Parcelles sans titre foncier</label>
+        <button type="button" id="btnAnalyserSansTitre" class="geo-btn geo-btn-primary geo-btn-block">
+          <i class="fa-solid fa-file-circle-exclamation"></i> Analyser
+        </button>
+        <div id="sansTitreResult" class="geo-tool-result"></div>
       </div>
 
       <!-- ===== NOUVEAU : Comparaison des quartiers ===== -->
@@ -540,11 +571,17 @@
           <div class="geo-stat-card"><div class="geo-stat-label">Parcelles sélectionnées</div><div class="geo-stat-value" id="selNbParcelles">--</div></div>
           <div class="geo-stat-card"><div class="geo-stat-label">Superficie cumulée</div><div class="geo-stat-value" id="selSuperficie">--</div></div>
           <div id="selOccupation" class="geo-tool-result" style="color:#766c5d;"></div>
+          <div id="selZones" class="geo-tool-result" style="color:#766c5d;"></div>
           <div id="selection-liste" class="geo-selection-liste"></div>
+          <div id="selInfraSection" style="margin-top:8px; display:none;">
+            <label class="geo-field-label" style="margin-top:0;">Infrastructures dans la zone</label>
+            <div id="selInfraListe" class="geo-selection-liste"></div>
+          </div>
           <div style="display:flex; gap:8px; margin-top:10px;">
             <button type="button" id="btnSelectionCSV" class="geo-btn geo-btn-ghost geo-btn-block"><i class="fa-solid fa-file-csv"></i> CSV</button>
             <button type="button" id="btnSelectionGeoJSON" class="geo-btn geo-btn-ghost geo-btn-block"><i class="fa-solid fa-map"></i> GeoJSON</button>
           </div>
+          <button type="button" id="btnSelectionItineraire" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px;"><i class="fa-solid fa-route"></i> Itinéraire vers cette zone</button>
           <button type="button" id="btnSelectionEffacer" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px;"><i class="fa-solid fa-trash"></i> Effacer la sélection</button>
         </div>
       </div>
@@ -555,6 +592,10 @@
           <i class="fa-solid fa-location-dot"></i> Me géolocaliser
         </button>
         <div id="position-status" style="margin-top:8px; font-size:12px;" aria-live="polite"></div>
+
+        <button type="button" id="btnChoisirDestination" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px;">
+          <i class="fa-solid fa-map-pin"></i> Choisir une destination sur la carte
+        </button>
 
         <div id="proximite-section" style="margin-top:12px; display:none;">
           <label class="geo-field-label" style="margin-top:0;">Infrastructures les plus proches</label>
@@ -572,10 +613,25 @@
         <div class="geo-measure-result" id="measureResult"></div>
 
         <div id="route-info" style="margin-top:8px; font-size:13px; display:none;">
-          <div><b>Distance :</b> <span id="route-distance"></span></div>
-          <div><b>Durée estimée :</b> <span id="route-duree"></span></div>
-          <button id="btnEffacerItineraire" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px;">
-            <i class="fa-solid fa-xmark"></i> Effacer l'itinéraire
+          <div style="font-size:11px; color:#766c5d; margin-bottom:6px;">Depuis votre position jusqu'a la parcelle</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #e6ded0;">
+            <span><i class="fa-solid fa-person-walking" style="width:18px; color:#766c5d;"></i> A pied</span>
+            <span id="route-pied" style="font-weight:700; color:#3c2a20;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #e6ded0;">
+            <span><i class="fa-solid fa-bicycle" style="width:18px; color:#766c5d;"></i> Velo</span>
+            <span id="route-velo" style="font-weight:700; color:#3c2a20;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #e6ded0;">
+            <span><i class="fa-solid fa-motorcycle" style="width:18px; color:#766c5d;"></i> Moto <span style="font-size:10px; color:#766c5d;">(estime)</span></span>
+            <span id="route-moto" style="font-weight:700; color:#3c2a20;"></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0;">
+            <span><i class="fa-solid fa-car" style="width:18px; color:#766c5d;"></i> Voiture</span>
+            <span id="route-voiture" style="font-weight:700; color:#3c2a20;"></span>
+          </div>
+          <button id="btnEffacerItineraire" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:10px;">
+            <i class="fa-solid fa-xmark"></i> Effacer l'itineraire
           </button>
         </div>
       </div>
@@ -841,6 +897,13 @@ document.addEventListener('DOMContentLoaded', function () {
   function contenuFicheParcelle(feature) {
     const p = feature.properties;
 
+    let fpDistanceTexte = '';
+    if (userLatLng) {
+      const centreFiche = L.geoJSON(feature).getBounds().getCenter();
+      const fpDist = L.latLng(userLatLng[0], userLatLng[1]).distanceTo(centreFiche);
+      fpDistanceTexte = fpDist >= 1000 ? (fpDist / 1000).toFixed(2) + ' km' : Math.round(fpDist) + ' m';
+    }
+
     let champsAdmin = '';
     if (peutFiscal) {
       champsAdmin =
@@ -865,6 +928,7 @@ document.addEventListener('DOMContentLoaded', function () {
       (p.occupation_sol ? '<div class="fp-row"><span class="fp-label">Occupation du sol</span><span class="fp-value">' + p.occupation_sol + '</span></div>' : '') +
       (p.zone_nom ? '<div class="fp-row"><span class="fp-label">Zone</span><span class="fp-value">' + p.zone_nom + '</span></div>' : '') +
       (p.adresse_parcelle ? '<div class="fp-row"><span class="fp-label">Secteur</span><span class="fp-value">' + p.adresse_parcelle + '</span></div>' : '') +
+      (fpDistanceTexte ? '<div class="fp-row"><span class="fp-label">Distance (votre position)</span><span class="fp-value">' + fpDistanceTexte + '</span></div>' : '') +
       champsAdmin +
       ((p.infrastructures && p.infrastructures.length > 0) ?
         '<div class="fp-row" style="flex-direction:column; align-items:flex-start; gap:4px;">' +
@@ -875,6 +939,7 @@ document.addEventListener('DOMContentLoaded', function () {
       '<div class="fp-actions">' +
         '<a class="fp-link" href="{% url "recherche_cadastrale" %}?q=' + encodeURIComponent(p.nicad || '') + '" target="_blank" rel="noopener">Voir la fiche complète →</a>' +
         '<button type="button" class="fp-link" id="fpShareBtn" style="border:none; background:none; cursor:pointer;"><i class="fa-solid fa-share-nodes"></i> Partager</button>' +
+        '<button type="button" class="fp-link" id="fpRouteBtn" style="border:none; background:none; cursor:pointer;"><i class="fa-solid fa-route"></i> Itineraire</button>' +
         (peutTechnique ? '<button type="button" class="fp-edit-btn" id="fpEditBtn"><i class="fa-solid fa-pen"></i> Modifier</button>' : '') +
       '</div>' +
     '</div>';
@@ -928,6 +993,11 @@ document.addEventListener('DOMContentLoaded', function () {
           setTimeout(function () { shareBtn.innerHTML = '<i class="fa-solid fa-share-nodes"></i> Partager'; }, 2000);
         });
       }
+    });
+    const centreItineraire = L.geoJSON(feature).getBounds().getCenter();
+    const routeBtn = document.getElementById('fpRouteBtn');
+    if (routeBtn) routeBtn.addEventListener('click', function () {
+      calculerItineraire(centreItineraire.lat, centreItineraire.lng);
     });
 
     const editBtn = document.getElementById('fpEditBtn');
@@ -1173,7 +1243,7 @@ document.addEventListener('DOMContentLoaded', function () {
     sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19, attribution: 'Tiles &copy; Esri'
     }),
-    light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_4oyr_1_cbaf3d5a68a580cf4fadb759', {
       maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
     }),
   };
@@ -1262,28 +1332,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ===== Rayon de couverture =====
   let coucheRayon = null;
-  function mettreAJourRayon() {
-    const select = document.getElementById('rayon-infra-select');
-    const opt = select.options[select.selectedIndex];
-    const result = document.getElementById('rayon-result');
+let modeChoixRayon = false;
+let formeSelectionRayon = null;
+let modeChoixDestination = false;
+  function calculerRayonAutour(centre, rayon) {
     if (coucheRayon) { map.removeLayer(coucheRayon); coucheRayon = null; }
-    if (!opt || !opt.value) { if (result) result.textContent = ''; return; }
-
-    const lat = parseFloat(opt.dataset.lat);
-    const lng = parseFloat(opt.dataset.lng);
-    const rayon = parseInt(document.getElementById('rayon-slider').value, 10);
-    const centre = L.latLng(lat, lng);
+    const result = document.getElementById('rayon-result');
 
     coucheRayon = L.circle(centre, { radius: rayon, color: '#b23b2e', weight: 2.5, fillColor: '#b23b2e', fillOpacity: 0.15 }).addTo(map);
     map.flyTo(centre, 15);
 
-    let compte = 0;
-    (allParcelles.features || []).forEach(function (f) {
-      if (!f.geometry) return;
-      const centreParcelle = L.geoJSON(f).getBounds().getCenter();
-      if (centre.distanceTo(centreParcelle) <= rayon) compte++;
-    });
-    if (result) result.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-circle-check"></i> ' + compte + ' parcelle' + (compte > 1 ? 's' : '') + ' dans ce rayon</span>';
+    if (typeof turf !== 'undefined') {
+      const forme = turf.circle([centre.lng, centre.lat], rayon / 1000, { steps: 64, units: 'kilometers' });
+      formeSelectionRayon = forme;
+      if (coucheFormeSelection) { map.removeLayer(coucheFormeSelection); coucheFormeSelection = null; }
+      calculerSelection(forme);
+      if (result) {
+        result.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-circle-check"></i> Zone de ' + rayon + ' m calculée. Voir le détail dans le panneau « Sélection spatiale » ci-dessous.</span>';
+      }
+    } else if (result) {
+      result.innerHTML = '<span style="color:#b23b2e;">Turf.js indisponible.</span>';
+    }
+  }
+
+  function mettreAJourRayon() {
+    const select = document.getElementById('rayon-infra-select');
+    const opt = select.options[select.selectedIndex];
+    const result = document.getElementById('rayon-result');
+    if (!opt || !opt.value) {
+      if (coucheRayon) { map.removeLayer(coucheRayon); coucheRayon = null; }
+      if (result) result.textContent = '';
+      return;
+    }
+
+    const lat = parseFloat(opt.dataset.lat);
+    const lng = parseFloat(opt.dataset.lng);
+    const rayon = parseInt(document.getElementById('rayon-slider').value, 10);
+    calculerRayonAutour(L.latLng(lat, lng), rayon);
   }
 
   // ===== Zones sous-desservies =====
@@ -1291,21 +1376,31 @@ document.addEventListener('DOMContentLoaded', function () {
   function analyserZonesSousDesservies() {
     const seuil = parseInt(document.getElementById('seuil-desserte').value, 10);
     const resultEl = document.getElementById('sousDesservisResult');
+
     if (coucheSousDesservis) { map.removeLayer(coucheSousDesservis); coucheSousDesservis = null; }
 
-    const infras = toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle })
-      .filter(function (i) { return i.latitude != null && i.longitude != null; });
-    if (infras.length === 0) { resultEl.innerHTML = '<span style="color:#b23b2e;">Aucune infrastructure à analyser.</span>'; return; }
+    const infras = infrastructuresFiltrees({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle });
+
+    if (infras.length === 0) {
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Aucune infrastructure à analyser.</span>';
+      return;
+    }
 
     resultEl.textContent = 'Calcul en cours...';
+
     setTimeout(function () {
-      const bounds = (coucheParcelles && coucheParcelles.getBounds().isValid()) ? coucheParcelles.getBounds() : map.getBounds();
-      const pas = 0.0018;
+      const bounds = (allLimites && allLimites.features && allLimites.features.length)
+        ? L.geoJSON(allLimites).getBounds()
+        : ((coucheParcelles && coucheParcelles.getBounds().isValid()) ? coucheParcelles.getBounds() : map.getBounds());
+      const pas = 0.0018; // environ 180 m a cette latitude
       const groupe = L.layerGroup();
-      let cellulesSousDesservies = 0, totalCellules = 0;
+      let cellulesSousDesservies = 0;
+      let totalCellules = 0;
+      const comptesParZone = {};
 
       for (let lat = bounds.getSouth(); lat <= bounds.getNorth(); lat += pas) {
         for (let lng = bounds.getWest(); lng <= bounds.getEast(); lng += pas) {
+          if (!celluleDansLaCommune(lat, lng)) continue;
           totalCellules++;
           const point = L.latLng(lat, lng);
           let distMin = Infinity;
@@ -1315,15 +1410,68 @@ document.addEventListener('DOMContentLoaded', function () {
           }
           if (distMin > seuil) {
             cellulesSousDesservies++;
-            L.rectangle([[lat - pas / 2, lng - pas / 2], [lat + pas / 2, lng + pas / 2]], { color: 'transparent', fillColor: '#b23b2e', fillOpacity: 0.35, weight: 0 }).addTo(groupe);
+            L.rectangle(
+              [[lat - pas / 2, lng - pas / 2], [lat + pas / 2, lng + pas / 2]],
+              { color: 'transparent', fillColor: '#b23b2e', fillOpacity: 0.35, weight: 0 }
+            ).addTo(groupe);
+
+            if (typeof turf !== 'undefined' && allZones && allZones.features && allZones.features.length) {
+              for (let z = 0; z < allZones.features.length; z++) {
+                try {
+                  if (turf.booleanPointInPolygon(turf.point([lng, lat]), allZones.features[z])) {
+                    const nomZone = (allZones.features[z].properties || {}).nom || 'Zone inconnue';
+                    comptesParZone[nomZone] = (comptesParZone[nomZone] || 0) + 1;
+                    break;
+                  }
+                } catch (e) {}
+              }
+            }
           }
         }
       }
+
       coucheSousDesservis = groupe;
       coucheSousDesservis.addTo(map);
+
+      const baseParcelles = (typeof filteredParcelles !== 'undefined' && filteredParcelles.length > 0) ? filteredParcelles : (allParcelles.features || []);
+      let parcellesConcernees = 0;
+      baseParcelles.forEach(function (f) {
+        if (!f.geometry) return;
+        let centre;
+        try { centre = turf.centroid(f).geometry.coordinates; } catch (e) { return; }
+        const point = L.latLng(centre[1], centre[0]);
+        let distMin = Infinity;
+        for (let i = 0; i < infras.length; i++) {
+          const d = point.distanceTo(L.latLng(infras[i].latitude, infras[i].longitude));
+          if (d < distMin) distMin = d;
+        }
+        if (distMin > seuil) parcellesConcernees++;
+      });
+
       const pct = totalCellules > 0 ? Math.round((cellulesSousDesservies / totalCellules) * 100) : 0;
       const seuilTxt = seuil >= 1000 ? (seuil / 1000) + ' km' : seuil + ' m';
-      resultEl.innerHTML = '<span style="color:#b23b2e;"><i class="fa-solid fa-triangle-exclamation"></i> ' + pct + '% du territoire affiché est à plus de ' + seuilTxt + ' de toute infrastructure</span>';
+
+      const zonesTriees = Object.keys(comptesParZone).sort(function (a, b) { return comptesParZone[b] - comptesParZone[a]; }).slice(0, 5);
+      let listeZonesHTML = '';
+      if (zonesTriees.length) {
+        listeZonesHTML = '<div class="geo-selection-liste" style="margin-top:8px;">' +
+          zonesTriees.map(function (nom) {
+            return '<div class="geo-selection-item" data-zone="' + echapperHtml(nom) + '"><span class="nom">' + echapperHtml(nom) + '</span><span class="val">' + comptesParZone[nom] + ' cellule(s)</span></div>';
+          }).join('') + '</div>';
+      }
+
+      resultEl.innerHTML =
+        '<span style="color:#b23b2e;"><i class="fa-solid fa-triangle-exclamation"></i> ' + pct + '% de la commune est à plus de ' + seuilTxt + ' de toute infrastructure' +
+        (filtreInfraCategorie ? ' (' + filtreInfraCategorie + ')' : '') + '</span>' +
+        '<div style="margin-top:4px; font-size:12px; color:#766c5d;">' + parcellesConcernees.toLocaleString('fr-FR') + ' parcelle(s) concernée(s)</div>' +
+        listeZonesHTML;
+
+      resultEl.querySelectorAll('.geo-selection-item').forEach(function (el) {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', function () {
+          selectionnerQuartier(el.getAttribute('data-zone'));
+        });
+      });
     }, 50);
   }
 
@@ -1333,27 +1481,72 @@ document.addEventListener('DOMContentLoaded', function () {
     if (coucheVoronoi) { map.removeLayer(coucheVoronoi); coucheVoronoi = null; }
     const resultEl = document.getElementById('voronoiResult');
     if (!active) { resultEl.textContent = ''; return; }
-    if (typeof turf === 'undefined') { resultEl.innerHTML = '<span style="color:#b23b2e;">Bibliothèque Turf.js indisponible.</span>'; return; }
 
-    const infras = toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle })
-      .filter(function (i) { return i.latitude != null && i.longitude != null; });
-    if (infras.length < 3) { resultEl.innerHTML = '<span style="color:#b23b2e;">Il faut au moins 3 infrastructures.</span>'; return; }
+    if (typeof turf === 'undefined') {
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Bibliothèque Turf.js indisponible.</span>';
+      return;
+    }
+
+    const infras = infrastructuresFiltrees({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle });
+
+    if (infras.length < 3) {
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Il faut au moins 3 infrastructures pour calculer des zones de desserte.</span>';
+      return;
+    }
 
     try {
-      const points = turf.featureCollection(infras.map(function (i) { return turf.point([i.longitude, i.latitude], { nom: i.nom, categorie: i.categorie }); }));
-      const bounds = (coucheParcelles && coucheParcelles.getBounds().isValid()) ? coucheParcelles.getBounds() : map.getBounds();
+      const points = turf.featureCollection(
+        infras.map(function (i) { return turf.point([i.longitude, i.latitude], { nom: i.nom, categorie: i.categorie, couleur: i.couleur }); })
+      );
+      const bounds = (allLimites && allLimites.features && allLimites.features.length)
+        ? L.geoJSON(allLimites).getBounds()
+        : ((coucheParcelles && coucheParcelles.getBounds().isValid()) ? coucheParcelles.getBounds() : map.getBounds());
       const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+
       const voronoiPolygones = turf.voronoi(points, { bbox: bbox });
 
+      voronoiPolygones.features.forEach(function (f, idx) {
+        if (!f) return;
+        f.properties = f.properties || {};
+        const infra = infras[idx];
+        if (infra) { f.properties.nom = infra.nom; f.properties.categorie = infra.categorie; }
+      });
+
+      let limiteUnion = null;
+      if (allLimites && allLimites.features && allLimites.features.length) {
+        limiteUnion = allLimites.features[0];
+        for (let i = 1; i < allLimites.features.length; i++) {
+          try { limiteUnion = turf.union(limiteUnion, allLimites.features[i]); } catch (e) {}
+        }
+      }
+
+      if (limiteUnion) {
+        voronoiPolygones.features = voronoiPolygones.features
+          .filter(function (f) { return f && f.geometry; })
+          .map(function (f) {
+            try {
+              const clip = turf.intersect(f, limiteUnion);
+              if (clip) { clip.properties = f.properties; return clip; }
+              return null;
+            } catch (e) { return f; }
+          })
+          .filter(function (f) { return f && f.geometry; });
+      }
+
       coucheVoronoi = L.geoJSON(voronoiPolygones, {
-        style: function () { return { color: '#6b4a35', weight: 1.3, fillColor: '#c9982e', fillOpacity: 0.06, dashArray: '3 4' }; },
+        style: function () {
+          return { color: '#6b4a35', weight: 1.3, fillColor: '#c9982e', fillOpacity: 0.06, dashArray: '3 4' };
+        },
         onEachFeature: function (feature, layer) {
-          const idx = voronoiPolygones.features.indexOf(feature);
-          const infra = infras[idx];
-          if (infra) layer.bindPopup('<strong>Zone de desserte</strong><br>' + infra.nom + '<br><span style="color:#766c5d; font-size:12px;">' + infra.categorie + '</span>');
+          const props = feature.properties || {};
+          if (props.nom) {
+            layer.bindPopup('<strong>Zone de desserte</strong><br>' + props.nom + '<br><span style="color:#766c5d; font-size:12px;">' + (props.categorie || '') + '</span>');
+          }
         }
       }).addTo(map);
-      resultEl.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-circle-check"></i> ' + infras.length + ' zones de desserte calculées</span>';
+
+      resultEl.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-circle-check"></i> ' + infras.length + ' zones de desserte calculées' +
+        (filtreInfraCategorie ? ' (' + filtreInfraCategorie + ')' : '') + '</span>';
     } catch (e) {
       console.error('Erreur Voronoi:', e);
       resultEl.innerHTML = '<span style="color:#b23b2e;">Erreur lors du calcul des zones de desserte.</span>';
@@ -1394,6 +1587,140 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     statsParQuartier.sort(function (a, b) { return b.nbParcelles - a.nbParcelles; });
     maxDensiteQuartiers = statsParQuartier.reduce(function (m, s) { return Math.max(m, s.densite); }, 0);
+  }
+
+  // ===== NOUVEAU : Pression fonciere (admin uniquement) =====
+  function estBati(occ) {
+    const o = (occ || '').toLowerCase();
+    return o.indexOf('bati') !== -1 || o.indexOf('b\u00e2ti') !== -1;
+  }
+
+  function analyserTauxBati() {
+    const resultEl = document.getElementById('batiResult');
+    if (!statsParQuartier.length) calculerStatsQuartiers();
+
+    const lignes = (allZones.features || []).map(function (zoneFeature) {
+      const nom = nomZone(zoneFeature);
+      const parcellesDuQuartier = parcellesParZone[nom] || [];
+      const total = parcellesDuQuartier.length;
+      let batiCount = 0;
+      parcellesDuQuartier.forEach(function (f) { if (estBati(f.properties.occupation_sol)) batiCount++; });
+      const taux = total > 0 ? Math.round((batiCount / total) * 100) : 0;
+      return { nom: nom, total: total, batiCount: batiCount, taux: taux };
+    }).filter(function (l) { return l.total > 0; });
+
+    lignes.sort(function (a, b) { return b.taux - a.taux; });
+
+    if (!lignes.length) {
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Aucune donn\u00e9e disponible.</span>';
+      return;
+    }
+
+    resultEl.innerHTML = '<div class="geo-selection-liste">' +
+      lignes.map(function (l) {
+        return '<div class="geo-selection-item" data-zone="' + echapperHtml(l.nom) + '"><span class="nom">' + echapperHtml(l.nom) + '</span><span class="val">' + l.taux + '% b\u00e2ti (' + l.batiCount + '/' + l.total + ')</span></div>';
+      }).join('') + '</div>';
+
+    resultEl.querySelectorAll('.geo-selection-item').forEach(function (el) {
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', function () { selectionnerQuartier(el.getAttribute('data-zone')); });
+    });
+  }
+
+  function analyserNonBatiProches() {
+    const resultEl = document.getElementById('nonBatiResult');
+    const seuil = parseInt(document.getElementById('seuil-non-bati').value, 10);
+
+    const infras = (typeof infrastructuresFiltrees === 'function')
+      ? infrastructuresFiltrees({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle })
+      : toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle }).filter(function (i) { return i.latitude != null && i.longitude != null; });
+
+    if (!infras.length) {
+      resultEl.innerHTML = '<span style="color:#b23b2e;">Aucune infrastructure \u00e0 analyser.</span>';
+      return;
+    }
+
+    resultEl.textContent = 'Calcul en cours...';
+
+    setTimeout(function () {
+      const nonBaties = (allParcelles.features || []).filter(function (f) {
+        return f.geometry && !estBati(f.properties.occupation_sol);
+      });
+
+      const resultats = [];
+      nonBaties.forEach(function (f) {
+        let centre;
+        try { centre = turf.centroid(f).geometry.coordinates; } catch (e) { return; }
+        const point = L.latLng(centre[1], centre[0]);
+        let distMin = Infinity;
+        for (let i = 0; i < infras.length; i++) {
+          const d = point.distanceTo(L.latLng(infras[i].latitude, infras[i].longitude));
+          if (d < distMin) distMin = d;
+        }
+        if (distMin <= seuil) resultats.push({ f: f, distance: distMin });
+      });
+
+      resultats.sort(function (a, b) { return a.distance - b.distance; });
+
+      if (!resultats.length) {
+        resultEl.innerHTML = '<span style="color:#766c5d;">Aucune parcelle non b\u00e2tie \u00e0 moins de ' + seuil + ' m d\'une infrastructure.</span>';
+        return;
+      }
+
+      const LIMITE = 30;
+      let html = '<div style="font-size:12px; color:#766c5d; margin-bottom:6px;">' + resultats.length + ' parcelle(s) non b\u00e2tie(s) \u00e0 moins de ' + seuil + ' m</div>';
+      html += '<div class="geo-selection-liste">' + resultats.slice(0, LIMITE).map(function (r) {
+        const p = r.f.properties;
+        const distTxt = r.distance >= 1000 ? (r.distance / 1000).toFixed(1) + ' km' : Math.round(r.distance) + ' m';
+        return '<div class="geo-selection-item" data-nicad="' + echapperHtml(p.nicad) + '"><span class="nom">' + echapperHtml(p.nicad || '\u2014') + '</span><span class="val">' + distTxt + '</span></div>';
+      }).join('') + '</div>';
+      if (resultats.length > LIMITE) {
+        html += '<div class="geo-selection-plus">+ ' + (resultats.length - LIMITE) + ' autres</div>';
+      }
+      resultEl.innerHTML = html;
+
+      resultEl.querySelectorAll('.geo-selection-item').forEach(function (el) {
+        el.addEventListener('click', function () {
+          const nicad = el.getAttribute('data-nicad');
+          const trouve = resultats.find(function (r) { return r.f.properties.nicad === nicad; });
+          if (trouve) {
+            map.fitBounds(L.geoJSON(trouve.f).getBounds(), { padding: [60, 60], maxZoom: 19 });
+          }
+        });
+      });
+    }, 50);
+  }
+
+  function analyserSansTitre() {
+    const resultEl = document.getElementById('sansTitreResult');
+
+    const sansTitre = (allParcelles.features || []).filter(function (f) {
+      return !f.properties.numero_titre_foncier;
+    });
+
+    if (!sansTitre.length) {
+      resultEl.innerHTML = '<span style="color:#2f7a4f;">Toutes les parcelles ont un titre foncier renseign\u00e9.</span>';
+      return;
+    }
+
+    const comptesParZone = {};
+    sansTitre.forEach(function (f) {
+      const nom = f.properties.zone_nom || 'Zone inconnue';
+      comptesParZone[nom] = (comptesParZone[nom] || 0) + 1;
+    });
+
+    const zonesTriees = Object.keys(comptesParZone).sort(function (a, b) { return comptesParZone[b] - comptesParZone[a]; });
+
+    let html = '<div style="font-size:12px; color:#766c5d; margin-bottom:6px;">' + sansTitre.length + ' parcelle(s) sans titre foncier</div>';
+    html += '<div class="geo-selection-liste">' + zonesTriees.map(function (nom) {
+      return '<div class="geo-selection-item" data-zone="' + echapperHtml(nom) + '"><span class="nom">' + echapperHtml(nom) + '</span><span class="val">' + comptesParZone[nom] + '</span></div>';
+    }).join('') + '</div>';
+    resultEl.innerHTML = html;
+
+    resultEl.querySelectorAll('.geo-selection-item').forEach(function (el) {
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', function () { selectionnerQuartier(el.getAttribute('data-zone')); });
+    });
   }
 
   function formaterSurface(valeur) {
@@ -1598,6 +1925,10 @@ document.addEventListener('DOMContentLoaded', function () {
   let rendererSelection = null;
   let selectionFeatures = [];
   let selectionSet = new Set();
+  let formeSelectionActuelle = null;
+  let selectionZones = [];
+  let selectionInfra = [];
+  let coucheInfraSurlignee = null;
   const cacheBbox = new WeakMap();
   const LIMITE_LISTE_SELECTION = 50;
   const STYLE_FORME_SELECTION = { color: '#3468a8', weight: 2, dashArray: '6 4', fillColor: '#3468a8', fillOpacity: 0.12 };
@@ -1689,6 +2020,7 @@ document.addEventListener('DOMContentLoaded', function () {
       interactive: false,
       style: function () { return STYLE_FORME_SELECTION; }
     }).addTo(map);
+    formeSelectionActuelle = forme;
     calculerSelection(forme);
   }
 
@@ -1704,6 +2036,29 @@ document.addEventListener('DOMContentLoaded', function () {
         if (b[0] > bb[2] || b[2] < bb[0] || b[1] > bb[3] || b[3] < bb[1]) return;
         try { if (turf.booleanIntersects(f, forme)) trouvees.push(f); } catch (err) {}
       });
+
+      const zonesTouchees = [];
+      (allZones.features || []).forEach(function (z) {
+        try {
+          if (turf.booleanIntersects(z, forme)) {
+            const p = z.properties || {};
+            zonesTouchees.push(p.nom || p.layer || 'zone inconnue');
+          }
+        } catch (err) {}
+      });
+
+      const infraTouchees = [];
+      toutesLesInfrastructures({ features: allParcelles.features, infrastructures_hors_parcelle: infraSansParcelle }).forEach(function (infra) {
+        if (infra.latitude == null || infra.longitude == null) return;
+        try {
+          if (turf.booleanPointInPolygon(turf.point([infra.longitude, infra.latitude]), forme)) {
+            infraTouchees.push(infra);
+          }
+        } catch (err) {}
+      });
+
+      selectionZones = zonesTouchees;
+      selectionInfra = infraTouchees;
       selectionFeatures = trouvees;
       selectionSet = new Set(trouvees);
       afficherResultatSelection();
@@ -1730,6 +2085,36 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('selOccupation').textContent = Object.keys(compteOcc)
       .sort(function (a, b) { return compteOcc[b] - compteOcc[a]; }).slice(0, 3)
       .map(function (o) { return o + ' : ' + compteOcc[o]; }).join(' · ');
+
+    const zonesUniques = Array.from(new Set(selectionZones));
+    const champZones = document.getElementById('selZones');
+    if (champZones) {
+      champZones.textContent = zonesUniques.length
+        ? 'Quartiers couverts : ' + zonesUniques.join(', ')
+        : '';
+    }
+
+    const sectionInfra = document.getElementById('selInfraSection');
+    const listeInfra = document.getElementById('selInfraListe');
+    if (sectionInfra && listeInfra) {
+      if (selectionInfra.length) {
+        listeInfra.innerHTML = selectionInfra.map(function (i) {
+          return '<div class="geo-selection-item" data-lat="' + i.latitude + '" data-lng="' + i.longitude + '"><span class="nom">' + echapperHtml(i.nom || 'Infrastructure') + '</span></div>';
+        }).join('');
+        sectionInfra.style.display = 'block';
+        listeInfra.querySelectorAll('.geo-selection-item').forEach(function (el) {
+          el.style.cursor = 'pointer';
+          el.addEventListener('click', function () {
+            const lat = parseFloat(el.getAttribute('data-lat'));
+            const lng = parseFloat(el.getAttribute('data-lng'));
+            surlignerInfrastructure(lat, lng);
+          });
+        });
+      } else {
+        listeInfra.innerHTML = '';
+        sectionInfra.style.display = 'none';
+      }
+    }
 
     if (selectionFeatures.length === 0) {
       liste.innerHTML = '<div class="geo-selection-plus">Aucune parcelle dans cette zone.</div>';
@@ -1758,11 +2143,28 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function surlignerInfrastructure(lat, lng) {
+    if (isNaN(lat) || isNaN(lng)) return;
+    if (coucheInfraSurlignee) { map.removeLayer(coucheInfraSurlignee); coucheInfraSurlignee = null; }
+    coucheInfraSurlignee = L.circleMarker([lat, lng], {
+      radius: 10,
+      color: '#ffffff',
+      weight: 2,
+      fillColor: '#d12f2f',
+      fillOpacity: 0.95
+    }).addTo(map);
+    map.flyTo([lat, lng], Math.max(map.getZoom(), 18));
+  }
+
   function effacerSelection() {
     arreterDessin();
     if (coucheFormeSelection) { map.removeLayer(coucheFormeSelection); coucheFormeSelection = null; }
     selectionFeatures = [];
     selectionSet = new Set();
+    formeSelectionActuelle = null;
+    selectionZones = [];
+    selectionInfra = [];
+    if (coucheInfraSurlignee) { map.removeLayer(coucheInfraSurlignee); coucheInfraSurlignee = null; }
     const bloc = document.getElementById('selection-resultat');
     if (bloc) bloc.style.display = 'none';
     definirAideSelection('Choisissez une forme, puis dessinez-la sur la carte.');
@@ -1793,11 +2195,73 @@ document.addEventListener('DOMContentLoaded', function () {
     ajouterControlesCarte();
     initialiserDessin();
 
+    map.on('popupopen', function (e) {
+      const source = e.popup._source;
+      if (source && typeof source.infraLat === 'number') {
+        const champDistance = document.getElementById('infraDistance');
+        if (champDistance) {
+          if (userLatLng) {
+            const d = L.latLng(userLatLng[0], userLatLng[1]).distanceTo(L.latLng(source.infraLat, source.infraLng));
+            champDistance.innerHTML = '<i class="fa-solid fa-location-dot"></i> ' + (d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m') + ' de votre position';
+          } else {
+            champDistance.innerHTML = '<span style="color:#b23b2e;">Géolocalisez-vous pour voir la distance.</span>';
+          }
+        }
+        const boutonRoute = document.getElementById('infraRouteBtn');
+        if (boutonRoute) {
+          boutonRoute.addEventListener('click', function () {
+            calculerItineraire(source.infraLat, source.infraLng);
+          });
+        }
+      }
+    });
+
     map.on('click', function (e) {
+      if (modeChoixRayon) {
+        modeChoixRayon = false;
+        const conteneurCarteR = document.getElementById('map');
+        if (conteneurCarteR) conteneurCarteR.style.cursor = '';
+        const btnRayon = document.getElementById('btnRayonPointLibre');
+        if (btnRayon) btnRayon.innerHTML = '<i class="fa-solid fa-map-pin"></i> Choisir un point sur la carte';
+        const selectInfra = document.getElementById('rayon-infra-select');
+        if (selectInfra) selectInfra.value = '';
+        const rayon = parseInt(document.getElementById('rayon-slider').value, 10);
+        calculerRayonAutour(e.latlng, rayon);
+        return;
+      }
+      if (modeChoixDestination) {
+        modeChoixDestination = false;
+        const conteneurCarteD = document.getElementById('map');
+        if (conteneurCarteD) conteneurCarteD.style.cursor = '';
+        const btnDest = document.getElementById('btnChoisirDestination');
+        if (btnDest) btnDest.innerHTML = '<i class="fa-solid fa-map-pin"></i> Choisir une destination sur la carte';
+        calculerItineraire(e.latlng.lat, e.latlng.lng);
+        return;
+      }
       if (!modeMesure) return;
       pointsMesure.push(e.latlng);
       redessinerMesure();
     });
+
+    const btnRayonPointLibre = document.getElementById('btnRayonPointLibre');
+    if (btnRayonPointLibre) {
+      btnRayonPointLibre.addEventListener('click', function () {
+        modeChoixRayon = true;
+        const conteneurCarte = document.getElementById('map');
+        if (conteneurCarte) conteneurCarte.style.cursor = 'crosshair';
+        btnRayonPointLibre.innerHTML = '<i class="fa-solid fa-crosshairs"></i> Clique sur la carte pour choisir...';
+      });
+    }
+
+    const btnChoisirDestination = document.getElementById('btnChoisirDestination');
+    if (btnChoisirDestination) {
+      btnChoisirDestination.addEventListener('click', function () {
+        modeChoixDestination = true;
+        const conteneurCarteD2 = document.getElementById('map');
+        if (conteneurCarteD2) conteneurCarteD2.style.cursor = 'crosshair';
+        btnChoisirDestination.innerHTML = '<i class="fa-solid fa-crosshairs"></i> Clique sur la carte...';
+      });
+    }
 
     Promise.all([loadZones(), loadParcelles(), loadSections(), loadLimites()]).finally(function () {
       const loader = document.getElementById('mapLoader');
@@ -1878,6 +2342,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (peutTechnique && infra.id) {
       html += '<a href="' + URL_INFRA_UPDATE_TEMPLATE.replace('0', infra.id) + '" target="_blank" rel="noopener" style="display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:#2f7a4f; text-decoration:none;"><i class="fa-solid fa-pen"></i> Modifier cette infrastructure</a>';
     }
+    html += '<div id="infraDistance" style="margin-top:8px; font-size:12px; color:#766c5d;"></div>';
+    html += '<button type="button" id="infraRouteBtn" style="margin-top:6px; width:100%; padding:6px; border:1px solid #d8cdb8; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:#3c2a20;"><i class="fa-solid fa-route"></i> Itinéraire jusqu\'ici</button>';
     html += '</div>';
     return html;
   }
@@ -2040,7 +2506,11 @@ document.addEventListener('DOMContentLoaded', function () {
         html: '<div style="background:' + apparence.couleur + '; width:24px; height:24px; border-radius:50%; border:2px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center;"><i class="fa-solid ' + apparence.icone + '" style="color:white; font-size:11px;"></i></div>',
         iconSize: [24, 24], iconAnchor: [12, 12],
       });
-      L.marker([infra.latitude, infra.longitude], { icon: icone }).bindPopup(construirePopupInfra(infra)).addTo(coucheInfrastructures);
+      const marqueurInfra = L.marker([infra.latitude, infra.longitude], { icon: icone })
+        .bindPopup(construirePopupInfra(infra))
+        .addTo(coucheInfrastructures);
+      marqueurInfra.infraLat = infra.latitude;
+      marqueurInfra.infraLng = infra.longitude;
     });
 
     if (!infrastructuresVisible) {
@@ -2207,6 +2677,35 @@ document.addEventListener('DOMContentLoaded', function () {
     section.style.display = 'block';
   }
 
+  function afficherZoneEtParcelle(lat, lng) {
+    const status = document.getElementById('position-status');
+    let messageSupplementaire = '';
+
+    if (typeof turf !== 'undefined' && allZones && allZones.features && allZones.features.length) {
+      const point = turf.point([lng, lat]);
+      let zoneTrouvee = null;
+      for (let i = 0; i < allZones.features.length; i++) {
+        try {
+          if (turf.booleanPointInPolygon(point, allZones.features[i])) {
+            zoneTrouvee = allZones.features[i];
+            break;
+          }
+        } catch (e) {}
+      }
+      if (zoneTrouvee) {
+        const proprietes = zoneTrouvee.properties || {};
+        const nomZone = proprietes.nom || proprietes.layer || 'zone inconnue';
+        messageSupplementaire += '<div style="margin-top:4px;"><i class="fa-solid fa-draw-polygon"></i> Vous êtes dans : <strong>' + nomZone + '</strong></div>';
+      } else {
+        messageSupplementaire += '<div style="margin-top:4px; color:#766c5d;"><i class="fa-solid fa-draw-polygon"></i> Hors des zones cartographiées.</div>';
+      }
+    }
+
+    if (messageSupplementaire) {
+      status.innerHTML += messageSupplementaire;
+    }
+  }
+
   function localiserMoi() {
     const status = document.getElementById('position-status');
     if (!navigator.geolocation) { status.innerHTML = '<span style="color:#b23b2e;">Géolocalisation non supportée.</span>'; return; }
@@ -2218,32 +2717,86 @@ document.addEventListener('DOMContentLoaded', function () {
         const icone = L.divIcon({ className: '', html: '<div style="background:#c9982e; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>', iconSize: [16, 16] });
         userMarker = L.marker(userLatLng, { icon: icone }).addTo(map).bindPopup('Vous êtes ici');
         map.flyTo(userLatLng, 15);
-        status.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-check"></i> Position trouvée.</span>';
+        const coordAffichees = formaterCoordonnees({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        status.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-check"></i> Position trouvée : ' + coordAffichees + '</span>';
         afficherInfrastructuresProches();
+        afficherZoneEtParcelle(pos.coords.latitude, pos.coords.longitude);
       },
       function (err) { status.innerHTML = '<span style="color:#b23b2e;">Impossible de récupérer votre position (' + err.message + ').</span>'; },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
-
   function calculerItineraire(lat, lng) {
     const status = document.getElementById('position-status');
-    if (!userLatLng) { status.innerHTML = '<span style="color:#b23b2e;"><i class="fa-solid fa-triangle-exclamation"></i> Clique d\'abord sur « Me géolocaliser ».</span>'; return; }
+
+    if (!userLatLng) {
+      status.innerHTML = '<span style="color:#b23b2e;"><i class="fa-solid fa-triangle-exclamation"></i> Clique d\'abord sur « Me géolocaliser ».</span>';
+      return;
+    }
+
     fermerPopup();
-    const url = 'https://router.project-osrm.org/route/v1/driving/' + userLatLng[1] + ',' + userLatLng[0] + ';' + lng + ',' + lat + '?overview=full&geometries=geojson';
-    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
-      if (!data.routes || !data.routes.length) { status.innerHTML = '<span style="color:#b23b2e;">Aucun itinéraire trouvé.</span>'; return; }
-      const route = data.routes[0];
-      if (coucheItineraire) map.removeLayer(coucheItineraire);
-      coucheItineraire = L.geoJSON(route.geometry, { style: { color: '#c9982e', weight: 5 } }).addTo(map);
-      map.fitBounds(coucheItineraire.getBounds(), { padding: [50, 50] });
-      document.getElementById('route-distance').textContent = (route.distance / 1000).toFixed(2) + ' km';
-      document.getElementById('route-duree').textContent = Math.round(route.duration / 60) + ' min';
-      document.getElementById('route-info').style.display = 'block';
-    }).catch(function (e) {
-      console.error('Erreur itinéraire:', e);
-      status.innerHTML = '<span style="color:#b23b2e;">Erreur lors du calcul de l\'itinéraire.</span>';
-    });
+    status.innerHTML = '<span style="color:#766c5d;"><i class="fa-solid fa-spinner fa-spin"></i> Calcul de l\'itinéraire...</span>';
+
+    const origine = userLatLng[1] + ',' + userLatLng[0];
+    const destination = lng + ',' + lat;
+
+    const urlVoiture = 'https://router.project-osrm.org/route/v1/driving/' + origine + ';' + destination + '?overview=full&geometries=geojson';
+    const urlVelo = 'https://routing.openstreetmap.de/routed-bike/route/v1/bike/' + origine + ';' + destination + '?overview=full&geometries=geojson';
+    const urlPied = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/' + origine + ';' + destination + '?overview=full&geometries=geojson';
+
+    function recupererRoute(url) {
+      return fetch(url).then(function (r) { return r.json(); }).catch(function () { return null; });
+    }
+
+    function formaterMode(distanceM, dureeS) {
+      return (distanceM / 1000).toFixed(2) + ' km - ' + Math.round(dureeS / 60) + ' min';
+    }
+
+    Promise.all([recupererRoute(urlVoiture), recupererRoute(urlVelo), recupererRoute(urlPied)])
+      .then(function (resultats) {
+        const dataVoiture = resultats[0];
+        const dataVelo = resultats[1];
+        const dataPied = resultats[2];
+
+        if (!dataVoiture || !dataVoiture.routes || !dataVoiture.routes.length) {
+          status.innerHTML = '<span style="color:#b23b2e;"><i class="fa-solid fa-triangle-exclamation"></i> Aucun itinéraire trouvé jusqu\'à cette parcelle.</span>';
+          return;
+        }
+
+        const routeVoiture = dataVoiture.routes[0];
+        if (coucheItineraire) map.removeLayer(coucheItineraire);
+        coucheItineraire = L.geoJSON(routeVoiture.geometry, {
+          style: { color: '#c9982e', weight: 5 }
+        }).addTo(map);
+        map.fitBounds(coucheItineraire.getBounds(), { padding: [50, 50] });
+
+        document.getElementById('route-voiture').textContent = formaterMode(routeVoiture.distance, routeVoiture.duration);
+
+        const vitesseMotoKmh = 38;
+        const dureeMotoS = (routeVoiture.distance / 1000 / vitesseMotoKmh) * 3600;
+        document.getElementById('route-moto').textContent = formaterMode(routeVoiture.distance, dureeMotoS);
+
+        if (dataVelo && dataVelo.routes && dataVelo.routes.length) {
+          const routeVelo = dataVelo.routes[0];
+          document.getElementById('route-velo').textContent = formaterMode(routeVelo.distance, routeVelo.duration);
+        } else {
+          document.getElementById('route-velo').textContent = 'indisponible';
+        }
+
+        if (dataPied && dataPied.routes && dataPied.routes.length) {
+          const routePied = dataPied.routes[0];
+          document.getElementById('route-pied').textContent = formaterMode(routePied.distance, routePied.duration);
+        } else {
+          document.getElementById('route-pied').textContent = 'indisponible';
+        }
+
+        document.getElementById('route-info').style.display = 'block';
+        status.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-check"></i> Itinéraire calculé.</span>';
+      })
+      .catch(function (e) {
+        console.error('Erreur itineraire:', e);
+        status.innerHTML = '<span style="color:#b23b2e;"><i class="fa-solid fa-triangle-exclamation"></i> Erreur lors du calcul de l\'itinéraire.</span>';
+      });
   }
   function effacerItineraire() {
     if (coucheItineraire) { map.removeLayer(coucheItineraire); coucheItineraire = null; }
@@ -2334,12 +2887,29 @@ document.addEventListener('DOMContentLoaded', function () {
     onEvent('toggle-voronoi', 'change', function (e) { basculerVoronoi(e.target.checked); });
     onEvent('quartier-select', 'change', function (e) { selectionnerQuartier(e.target.value); });
     onEvent('toggle-choropleth', 'change', function (e) { basculerChoropleth(e.target.checked); });
+    onEvent('btnAnalyserBati', 'click', analyserTauxBati);
+    onEvent('btnAnalyserNonBati', 'click', analyserNonBatiProches);
+    onEvent('btnAnalyserSansTitre', 'click', analyserSansTitre);
     onEvent('btnDessinPolygone', 'click', function () { demarrerDessin('polygon'); });
     onEvent('btnDessinRectangle', 'click', function () { demarrerDessin('rectangle'); });
     onEvent('btnDessinCercle', 'click', function () { demarrerDessin('circle'); });
     onEvent('btnSelectionCSV', 'click', exportSelectionCSV);
     onEvent('btnSelectionGeoJSON', 'click', exportSelectionGeoJSON);
     onEvent('btnSelectionEffacer', 'click', effacerSelection);
+    onEvent('btnSelectionItineraire', 'click', function () {
+      if (!formeSelectionActuelle) {
+        definirAideSelection('Dessinez d\'abord une zone de sélection.', '#b23b2e');
+        return;
+      }
+      if (!userLatLng) {
+        const status = document.getElementById('position-status');
+        if (status) status.innerHTML = '<span style="color:#dc3545;"><i class="fa-solid fa-triangle-exclamation"></i> Clique d\'abord sur « Me géolocaliser ».</span>';
+        return;
+      }
+      const centre = turf.centroid(formeSelectionActuelle);
+      const coords = centre.geometry.coordinates;
+      calculerItineraire(coords[1], coords[0]);
+    });
     onEvent('quartiers-voir-plus', 'click', function () { comparaisonDeployee = !comparaisonDeployee; construireBarChartQuartiers(); });
 
     try {

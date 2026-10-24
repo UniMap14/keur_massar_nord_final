@@ -174,8 +174,35 @@ def home_page(request):
 # ============================================================
 
 def carte_geoportail(request):
-    """Affiche la page publique du géoportail (aucune donnée fiscale)."""
-    return render(request, "foncier/geoportail.html")
+    """Affiche la page publique du geoportail (aucune donnee fiscale).
+    Si le visiteur est un citoyen connecte dont le compte est relie a
+    une parcelle (NICAD existant), celle-ci est transmise au template
+    pour que "Me geolocaliser" puisse indiquer sa zone et la distance
+    jusqu'a sa propre parcelle."""
+    import json
+    from .models import Parcelle
+
+    mes_parcelles_geojson = None
+    citoyen = getattr(request.user, "citoyen", None) if request.user.is_authenticated else None
+    if citoyen is not None and citoyen.numero_foncier:
+        parcelles = Parcelle.objects.filter(nicad=citoyen.numero_foncier)
+        features = []
+        for p in parcelles:
+            try:
+                geometrie = json.loads(p.geom.geojson)
+            except Exception:
+                continue
+            features.append({
+                "type": "Feature",
+                "geometry": geometrie,
+                "properties": {"nicad": p.nicad, "adresse": p.adresse_parcelle},
+            })
+        if features:
+            mes_parcelles_geojson = json.dumps({"type": "FeatureCollection", "features": features})
+
+    return render(request, "foncier/geoportail.html", {
+        "mes_parcelles_geojson": mes_parcelles_geojson,
+    })
 
 
 # ============================================================
@@ -264,6 +291,9 @@ TOLERANCE_SIMPLIFICATION_TOUTES = 0.00003  # formes reconnaissables meme pour le
 CACHE_KEY_PUBLIC = "geojson_parcelles_public"
 CACHE_KEY_ADMIN = "geojson_parcelles_admin"
 CACHE_TTL_SECONDES = 120  # invalidé de toute façon dès qu'une parcelle est modifiée
+CACHE_KEY_ZONES = "geojson_zones"
+CACHE_KEY_SECTIONS = "geojson_sections"
+CACHE_KEY_LIMITES = "geojson_limites"
 
 # La commune compte ~38 000 parcelles : les envoyer TOUTES au navigateur en un
 # seul GeoJSON (comme le faisait ce fichier avant) fait planter/bloquer la
@@ -768,51 +798,71 @@ def api_zones_geojson(request):
     Calque "Zones/Quartiers" : quartiers officiels importes dans le
     modele QuartierOfficiel (remplace l'ancienne requete SQL brute sur
     la table temporaire kmsn_quartier).
+    Mis en cache indéfiniment (invalidé par le signal
+    _invalider_cache_zones) : ces quartiers changent tres rarement, pas
+    la peine de refaire le tour de la table a chaque chargement de la
+    carte, sur les deux geoportails.
     """
-    from foncier.models import QuartierOfficiel
+    data = cache.get(CACHE_KEY_ZONES)
+    if data is None:
+        from foncier.models import QuartierOfficiel
 
-    features = [
-        {
-            "type": "Feature",
-            "geometry": json.loads(q.geom.geojson),
-            "properties": {"nom": q.nom},
-        }
-        for q in QuartierOfficiel.objects.all()
-    ]
+        features = [
+            {
+                "type": "Feature",
+                "geometry": json.loads(q.geom.geojson),
+                "properties": {"nom": q.nom},
+            }
+            for q in QuartierOfficiel.objects.all()
+        ]
+        data = json.dumps({"type": "FeatureCollection", "features": features})
+        cache.set(CACHE_KEY_ZONES, data, None)
 
-    return JsonResponse({"type": "FeatureCollection", "features": features})
+    return HttpResponse(data, content_type="application/json")
 
 
 def api_sections_geojson(request):
-    """Calque "Sections cadastrales" : sections officielles importees."""
-    from foncier.models import SectionCadastrale
+    """Calque "Sections cadastrales" : sections officielles importees.
+    Mis en cache indéfiniment (invalidé par le signal
+    _invalider_cache_sections)."""
+    data = cache.get(CACHE_KEY_SECTIONS)
+    if data is None:
+        from foncier.models import SectionCadastrale
 
-    features = [
-        {
-            "type": "Feature",
-            "geometry": json.loads(s.geom.geojson),
-            "properties": {"numero": s.numero},
-        }
-        for s in SectionCadastrale.objects.all()
-    ]
+        features = [
+            {
+                "type": "Feature",
+                "geometry": json.loads(s.geom.geojson),
+                "properties": {"numero": s.numero},
+            }
+            for s in SectionCadastrale.objects.all()
+        ]
+        data = json.dumps({"type": "FeatureCollection", "features": features})
+        cache.set(CACHE_KEY_SECTIONS, data, None)
 
-    return JsonResponse({"type": "FeatureCollection", "features": features})
+    return HttpResponse(data, content_type="application/json")
 
 
 def api_limites_geojson(request):
-    """Calque "Limites administratives" : limite(s) officielle(s) de la commune."""
-    from foncier.models import LimiteAdministrative
+    """Calque "Limites administratives" : limite(s) officielle(s) de la
+    commune. Mis en cache indéfiniment (invalidé par le signal
+    _invalider_cache_limites)."""
+    data = cache.get(CACHE_KEY_LIMITES)
+    if data is None:
+        from foncier.models import LimiteAdministrative
 
-    features = [
-        {
-            "type": "Feature",
-            "geometry": json.loads(l.geom.geojson),
-            "properties": {"nom": l.nom},
-        }
-        for l in LimiteAdministrative.objects.all()
-    ]
+        features = [
+            {
+                "type": "Feature",
+                "geometry": json.loads(l.geom.geojson),
+                "properties": {"nom": l.nom},
+            }
+            for l in LimiteAdministrative.objects.all()
+        ]
+        data = json.dumps({"type": "FeatureCollection", "features": features})
+        cache.set(CACHE_KEY_LIMITES, data, None)
 
-    return JsonResponse({"type": "FeatureCollection", "features": features})
+    return HttpResponse(data, content_type="application/json")
 
 
 # ============================================================
@@ -1062,6 +1112,7 @@ def cartotheque(request):
     # Badge thematique calcule a la volee (pas de champ en base, donc aucune
     # migration necessaire) : simple reconnaissance de mots-cles dans le titre.
     regles_theme = [
+        ('occupation du sol', 'Occupation du sol'),
         ('pente', 'Relief & pentes'),
         ('drainage', 'Hydrologie'),
         ('densité', 'Infrastructures'),
@@ -1189,6 +1240,9 @@ def signalement_suivi(request):
 
 
 def statistiques(request):
+    import json
+    from django.db.models import Avg, Case, When, Value, CharField as _CF
+
     context = {
         'population': "224 765",        # RGPH-5 (2023), ANSD
         'annee_population': 2023,
@@ -1198,6 +1252,15 @@ def statistiques(request):
         'pop_femmes_pct': "49,3",
         'nb_quartiers': 86,
         'annee_creation': 2021,
+        # Valeurs numériques "propres" (sans virgule ni espace), utilisées
+        # par l'animation des chiffres sur la page.
+        'population_val': 224765,
+        'superficie_val': 13.18,
+        'densite_val': 17058,
+        'pop_hommes_pct_val': 50.7,
+        'pop_femmes_pct_val': 49.3,
+        'nb_quartiers_val': 86,
+        'annee_creation_val': 2021,
     }
 
     # --- Données cadastrales réelles (calculées à partir des parcelles
@@ -1211,33 +1274,90 @@ def statistiques(request):
         )
         context['superficie_cadastree_ha'] = round(superficie_totale_m2 / 10000, 1)
 
-        # Répartition par occupation du sol (les 6 catégories les plus
-        # fréquentes, pour ne pas afficher une liste trop longue).
-        repartition = (
-            Parcelle.objects
-            .exclude(occupation_sol='')
-            .values('occupation_sol')
-            .annotate(total=Count('id'))
-            .order_by('-total')[:6]
+        superficie_moyenne_m2 = (
+            Parcelle.objects.aggregate(moy=Avg('superficie'))['moy'] or 0
         )
-        max_total = repartition[0]['total'] if repartition else 1
-        context['repartition_occupation'] = [
-            {
-                'label': r['occupation_sol'],
-                'total': r['total'],
-                'pourcentage': round(100 * r['total'] / nb_parcelles, 1),
-                'largeur_barre': round(100 * r['total'] / max_total, 1),
-            }
-            for r in repartition
+        context['superficie_moyenne_m2'] = round(superficie_moyenne_m2, 1)
+
+        # Nombre de parcelles par quartier (top 15, pour rester lisible
+        # sur un graphique).
+        parcelles_par_quartier = list(
+            Parcelle.objects
+            .exclude(zone__isnull=True)
+            .values('zone__nom')
+            .annotate(total=Count('id'))
+            .order_by('-total')[:15]
+        )
+        context['parcelles_par_quartier'] = parcelles_par_quartier
+        context['chart_quartiers_labels'] = json.dumps(
+            [q['zone__nom'] for q in parcelles_par_quartier]
+        )
+        context['chart_quartiers_valeurs'] = json.dumps(
+            [q['total'] for q in parcelles_par_quartier]
+        )
+
+        # Répartition des parcelles par taille (tranches de superficie).
+        tranches_ordre = [
+            '< 100 m²', '100 - 300 m²', '300 - 600 m²',
+            '600 - 1 000 m²', '1 000 - 5 000 m²', '> 5 000 m²',
         ]
+        repartition_taille_brute = (
+            Parcelle.objects
+            .exclude(superficie__isnull=True)
+            .annotate(
+                tranche=Case(
+                    When(superficie__lt=100, then=Value(tranches_ordre[0])),
+                    When(superficie__lt=300, then=Value(tranches_ordre[1])),
+                    When(superficie__lt=600, then=Value(tranches_ordre[2])),
+                    When(superficie__lt=1000, then=Value(tranches_ordre[3])),
+                    When(superficie__lt=5000, then=Value(tranches_ordre[4])),
+                    default=Value(tranches_ordre[5]),
+                    output_field=_CF(),
+                )
+            )
+            .values('tranche')
+            .annotate(total=Count('id'))
+        )
+        totaux_par_tranche = {r['tranche']: r['total'] for r in repartition_taille_brute}
+        context['chart_taille_labels'] = json.dumps(tranches_ordre)
+        context['chart_taille_valeurs'] = json.dumps(
+            [totaux_par_tranche.get(t, 0) for t in tranches_ordre]
+        )
 
     # --- Infrastructures publiques réellement recensées ---
     context['nb_infrastructures'] = Infrastructure.objects.count()
-    context['repartition_infrastructures'] = (
+    repartition_infrastructures = list(
         CategorieInfrastructure.objects
         .annotate(total=Count('infrastructures'))
         .filter(total__gt=0)
         .order_by('-total')
+    )
+    context['repartition_infrastructures'] = repartition_infrastructures
+    context['chart_infra_labels'] = json.dumps(
+        [c.label for c in repartition_infrastructures]
+    )
+    context['chart_infra_valeurs'] = json.dumps(
+        [c.total for c in repartition_infrastructures]
+    )
+    context['chart_infra_couleurs'] = json.dumps(
+        [getattr(c, 'couleur', None) or '#2f7a4f' for c in repartition_infrastructures]
+    )
+
+    # Infrastructures par quartier (top 15).
+    infra_par_quartier = list(
+        Infrastructure.objects
+        .exclude(quartier='')
+        .exclude(quartier__isnull=True)
+        .values('quartier')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:15]
+    )
+    context['infra_par_quartier'] = infra_par_quartier
+    context['chart_infra_quartier_labels'] = json.dumps(
+        [q['quartier'] for q in infra_par_quartier]
+    )
+    context['chart_infra_quartier_valeurs'] = json.dumps(
+        [q['total'] for q in infra_par_quartier]
     )
 
     return render(request, 'foncier/statistiques.html', context)
@@ -1247,24 +1367,101 @@ def statistiques(request):
 # WEBHOOKS PAIEMENT EN LIGNE (appelés par les serveurs Orange/Wave,
 # jamais par un navigateur : pas de session, pas de jeton CSRF)
 #
-# ⚠️ Les deux vues ci-dessous n'ont pas pu être testées contre de vrais
-# appels Orange Money / Wave (aucun compte marchand disponible ici).
-# La vérification de signature/authenticité du webhook — INDISPENSABLE
-# en production pour empêcher quiconque de "confirmer" un faux paiement
-# en appelant cette URL directement — doit être ajoutée en suivant la
-# documentation officielle de chaque opérateur avant la mise en ligne.
+# ⚠️ Vérification de l'authenticité des webhooks de paiement :
+#
+# - Wave documente officiellement un en-tête "Wave-Signature" (voir
+#   https://docs.wave.com/webhook) : HMAC-SHA256(secret, horodatage +
+#   corps_brut), avec rejet des requêtes trop anciennes (> 5 minutes).
+#   C'est ce que _verifier_signature_wave() implémente ci-dessous.
+#
+# - Orange Money ne fournit pas de signature cryptographique publique
+#   et documentée pour l'intégration utilisée ici. Pour ne pas inventer
+#   un mécanisme de vérification non confirmé, l'URL du webhook Orange
+#   est à la place protégée par un jeton secret inclus dans l'URL elle-
+#   même (PAIEMENT_ORANGE_WEBHOOK_TOKEN) : seule la personne qui
+#   configure l'URL de notification dans le back-office Orange connaît
+#   cette URL. Si Orange publie un jour un mécanisme de signature
+#   documenté pour ce produit, remplacer cette vérification par la
+#   leur sera simple (un seul endroit à changer : paiement_webhook_orange).
+#
+# Aucun des deux mécanismes n'a pu être testé contre de vrais appels
+# (aucun compte marchand réel disponible ici) : à vérifier en conditions
+# réelles avant la mise en production.
 # ============================================================
 
 @csrf_exempt
 @require_POST
-def paiement_webhook_orange(request):
+def paiement_webhook_orange(request, jeton_secret):
+    import hmac
+
+    jeton_attendu = getattr(settings, 'PAIEMENT_ORANGE_WEBHOOK_TOKEN', '') or ''
+    if not jeton_attendu or not hmac.compare_digest(jeton_secret, jeton_attendu):
+        # Jeton absent de la configuration, ou jeton incorrect dans l'URL
+        # appelée : on refuse plutôt que de faire confiance au corps de la
+        # requête, Orange Money ne fournissant pas de signature vérifiable
+        # pour cette intégration.
+        return HttpResponse(status=403)
     return _traiter_webhook_paiement(request, "OM-")
 
 
 @csrf_exempt
 @require_POST
 def paiement_webhook_wave(request):
+    if not _verifier_signature_wave(request):
+        return HttpResponse(status=403)
     return _traiter_webhook_paiement(request, "WAVE-")
+
+
+def _verifier_signature_wave(request):
+    """Vérifie l'en-tête Wave-Signature selon la documentation officielle
+    (https://docs.wave.com/webhook) :
+      - format "t=<horodatage>,v1=<signature hex>[,v1=<autre signature>...]"
+      - signature attendue = HMAC-SHA256(secret, horodatage + corps_brut),
+        encodée en hexadécimal
+      - requête refusée si l'horodatage a plus de 5 minutes (anti-rejeu)
+    """
+    import hmac
+    import hashlib
+    import time
+
+    secret = getattr(settings, 'PAIEMENT_WAVE_WEBHOOK_SECRET', '') or ''
+    if not secret:
+        return False
+
+    en_tete = request.META.get('HTTP_WAVE_SIGNATURE', '')
+    if not en_tete:
+        return False
+
+    horodatage = None
+    signatures_recues = []
+    for partie in en_tete.split(','):
+        partie = partie.strip()
+        if partie.startswith('t='):
+            horodatage = partie[2:]
+        elif partie.startswith('v1='):
+            signatures_recues.append(partie[3:])
+
+    if not horodatage or not signatures_recues:
+        return False
+
+    try:
+        horodatage_int = int(horodatage)
+    except ValueError:
+        return False
+
+    if abs(time.time() - horodatage_int) > 300:
+        # Horodatage de plus de 5 minutes : requête trop ancienne, on
+        # refuse par précaution contre une attaque par rejeu.
+        return False
+
+    corps_brut = request.body or b""
+    message = (horodatage + corps_brut.decode('utf-8', errors='replace')).encode('utf-8')
+    signature_calculee = hmac.new(secret.encode('utf-8'), message, hashlib.sha256).hexdigest()
+
+    for signature in signatures_recues:
+        if hmac.compare_digest(signature_calculee, signature):
+            return True
+    return False
 
 
 def _traiter_webhook_paiement(request, prefixe_attendu):
@@ -1272,9 +1469,6 @@ def _traiter_webhook_paiement(request, prefixe_attendu):
         donnees = json.loads(request.body.decode() or "{}")
     except (ValueError, UnicodeDecodeError):
         return HttpResponse(status=400)
-
-    # TODO : vérifier ici la signature/authenticité du webhook selon la
-    # documentation de l'opérateur avant de faire confiance à "donnees".
 
     reference = donnees.get("order_id") or donnees.get("client_reference") or ""
     statut_recu = str(donnees.get("status", "")).upper()
@@ -1371,6 +1565,24 @@ from django.dispatch import receiver
 def _invalider_cache_parcelles(sender, **kwargs):
     cache.delete(CACHE_KEY_PUBLIC)
     cache.delete(CACHE_KEY_ADMIN)
+
+
+from foncier.models import QuartierOfficiel, SectionCadastrale, LimiteAdministrative
+
+
+@receiver([post_save, post_delete], sender=QuartierOfficiel)
+def _invalider_cache_zones(sender, **kwargs):
+    cache.delete(CACHE_KEY_ZONES)
+
+
+@receiver([post_save, post_delete], sender=SectionCadastrale)
+def _invalider_cache_sections(sender, **kwargs):
+    cache.delete(CACHE_KEY_SECTIONS)
+
+
+@receiver([post_save, post_delete], sender=LimiteAdministrative)
+def _invalider_cache_limites(sender, **kwargs):
+    cache.delete(CACHE_KEY_LIMITES)
 
 @login_required
 def recu_pdf_view(request, pk):
@@ -1967,77 +2179,519 @@ def releve_compte_pdf_view(request):
     return response
 
 
+def _wgs84_to_utm28n(lon, lat):
+    """Convertit des coordonnees WGS84 (degres) en coordonnees UTM Zone
+    28N (metres), la projection utilisee au Senegal. Formule standard
+    de Snyder, implementee ici pour ne pas dependre de pyproj/GDAL."""
+    import math
+
+    a = 6378137.0
+    f = 1 / 298.257223563
+    e2 = f * (2 - f)
+    ep2 = e2 / (1 - e2)
+    k0 = 0.9996
+    lon0 = math.radians(-15.0)
+
+    phi = math.radians(lat)
+    lam = math.radians(lon)
+
+    n = a / math.sqrt(1 - e2 * math.sin(phi) ** 2)
+    t = math.tan(phi) ** 2
+    cc = ep2 * math.cos(phi) ** 2
+    aa = math.cos(phi) * (lam - lon0)
+
+    m = a * (
+        (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * phi
+        - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * math.sin(2 * phi)
+        + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * math.sin(4 * phi)
+        - (35 * e2 ** 3 / 3072) * math.sin(6 * phi)
+    )
+
+    x = k0 * n * (
+        aa + (1 - t + cc) * aa ** 3 / 6
+        + (5 - 18 * t + t ** 2 + 72 * cc - 58 * ep2) * aa ** 5 / 120
+    ) + 500000.0
+
+    y = k0 * (
+        m + n * math.tan(phi) * (
+            aa ** 2 / 2 + (5 - t + 9 * cc + 4 * cc ** 2) * aa ** 4 / 24
+            + (61 - 58 * t + t ** 2 + 600 * cc - 330 * ep2) * aa ** 6 / 720
+        )
+    )
+    return x, y
+
+
+def _anneau_exterieur_utm(polygone):
+    """Sommets (x, y) en UTM 28N de l'anneau exterieur d'un Polygon
+    GEOS, sans le point de fermeture duplique."""
+    coords = list(polygone.exterior_ring.coords)
+    if len(coords) > 1 and coords[0] == coords[-1]:
+        coords = coords[:-1]
+    return [_wgs84_to_utm28n(lon, lat) for lon, lat in coords]
+
+
+def _sommets_parcelle_utm(parcelle):
+    polygone = parcelle.geom[0]
+    return _anneau_exterieur_utm(polygone)
+
+
+def _voisines_parcelle(parcelle, max_resultats=30):
+    """Vraies parcelles voisines de `parcelle`, trouvees par
+    intersection spatiale reelle via PostGIS (index spatial, donc
+    rapide meme sur des dizaines de milliers de parcelles). Le rayon
+    de recherche s'adapte a la taille de la parcelle : une tres grande
+    parcelle regarde plus loin pour trouver du contexte autour d'elle."""
+    from .models import Parcelle
+
+    xmin, ymin, xmax, ymax = parcelle.geom.extent
+    x1, y1 = _wgs84_to_utm28n(xmin, ymin)
+    x2, y2 = _wgs84_to_utm28n(xmax, ymax)
+    largeur_m = abs(x2 - x1)
+    hauteur_m = abs(y2 - y1)
+    rayon_m = max(60.0, 0.55 * max(largeur_m, hauteur_m))
+    rayon_m = min(rayon_m, 350.0)
+    tampon_deg = rayon_m / 111320.0
+
+    try:
+        zone_recherche = parcelle.geom.buffer(tampon_deg)
+        voisines = list(
+            Parcelle.objects.filter(geom__intersects=zone_recherche)
+            .exclude(pk=parcelle.pk)
+            .only("id", "nicad", "numero_parcelle", "geom")[:max_resultats]
+        )
+    except Exception:
+        voisines = []
+    return voisines
+
+
+def _texte_pdf(valeur, max_longueur=60):
+    """Nettoie une valeur avant de l'ecrire dans le PDF : retire les
+    caracteres non imprimables issus de donnees importees (shapefile,
+    saisie libre) qui corrompraient l'affichage."""
+    if valeur in (None, ""):
+        return "-"
+    texte = str(valeur)
+    accents_ok = "\u00e0\u00e2\u00e4\u00e9\u00e8\u00ea\u00eb\u00ee\u00ef\u00f4\u00f6\u00f9\u00fb\u00fc\u00e7\u00c0\u00c2\u00c4\u00c9\u00c8\u00ca\u00cb\u00ce\u00cf\u00d4\u00d6\u00d9\u00db\u00dc\u00c7\u00b0\u00b2"
+    propre = []
+    for ch in texte:
+        if 32 <= ord(ch) <= 126 or ch in accents_ok:
+            propre.append(ch)
+    texte = "".join(propre).strip()
+    return texte[:max_longueur] if texte else "-"
+
+
+def _pas_grille_adapte(etendue_m):
+    for pas in (5, 10, 20, 25, 50, 100, 200, 250, 500, 1000):
+        if etendue_m / pas <= 8:
+            return pas
+    return 2000
+
+
+def _generer_image_plan_situation(parcelle, voisines, taille_px=1200):
+    """Dessine le plan de situation (parcelle + voisines + grille +
+    fleche nord) en PNG via Pillow et renvoie un buffer pret a etre
+    insere dans le PDF. Le cadrage est fixe sur la parcelle principale
+    (zoom coherent) : seules les voisines qui tombent dans ce cadrage
+    sont affichees, pour eviter qu'un groupe de parcelles eloignees
+    n'oblige a tout dezoomer."""
+    import io as io_module
+    import math
+    from PIL import Image, ImageDraw, ImageFont
+
+    sommets_principal = _sommets_parcelle_utm(parcelle)
+
+    xs_p = [p[0] for p in sommets_principal]
+    ys_p = [p[1] for p in sommets_principal]
+    largeur_principale = max(xs_p) - min(xs_p)
+    hauteur_principale = max(ys_p) - min(ys_p)
+    cx = (max(xs_p) + min(xs_p)) / 2
+    cy = (max(ys_p) + min(ys_p)) / 2
+
+    etendue = max(largeur_principale, hauteur_principale, 25.0) * 2.1 + 25.0
+    xmin, xmax = cx - etendue / 2, cx + etendue / 2
+    ymin, ymax = cy - etendue / 2, cy + etendue / 2
+
+    polygones_voisins = []
+    for voisine in voisines:
+        try:
+            pts = _anneau_exterieur_utm(voisine.geom[0])
+        except Exception:
+            continue
+        if not pts:
+            continue
+        vxmin = min(p[0] for p in pts)
+        vxmax = max(p[0] for p in pts)
+        vymin = min(p[1] for p in pts)
+        vymax = max(p[1] for p in pts)
+        chevauche = not (vxmax < xmin or vxmin > xmax or vymax < ymin or vymin > ymax)
+        if chevauche:
+            polygones_voisins.append((voisine, pts))
+
+    marge_cadre = int(taille_px * 0.075)
+    zone_dessin = taille_px - 2 * marge_cadre
+    echelle = zone_dessin / etendue
+
+    def vers_px(point_x, point_y):
+        px = marge_cadre + (point_x - xmin) * echelle
+        py = taille_px - marge_cadre - (point_y - ymin) * echelle
+        return (px, py)
+
+    img = Image.new("RGB", (taille_px, taille_px), "white")
+    draw = ImageDraw.Draw(img)
+
+    try:
+        police_grille = ImageFont.load_default(size=18)
+        police_label = ImageFont.load_default(size=22)
+        police_num = ImageFont.load_default(size=28)
+    except TypeError:
+        police_grille = police_label = police_num = ImageFont.load_default()
+
+    pas = _pas_grille_adapte(etendue)
+    valeur = math.floor(xmin / pas) * pas
+    while valeur <= xmax:
+        p1 = vers_px(valeur, ymin)
+        p2 = vers_px(valeur, ymax)
+        draw.line([p1, p2], fill=(215, 215, 215), width=1)
+        etiquette = "{:,.0f}".format(valeur).replace(",", " ")
+        draw.text((p1[0], taille_px - marge_cadre + 14), etiquette, fill=(100, 100, 100), font=police_grille, anchor="mt")
+        draw.text((p1[0], marge_cadre - 14), etiquette, fill=(100, 100, 100), font=police_grille, anchor="mb")
+        valeur += pas
+
+    valeur = math.floor(ymin / pas) * pas
+    while valeur <= ymax:
+        p1 = vers_px(xmin, valeur)
+        p2 = vers_px(xmax, valeur)
+        draw.line([p1, p2], fill=(215, 215, 215), width=1)
+        etiquette = "{:,.0f}".format(valeur).replace(",", " ")
+        draw.text((marge_cadre - 10, p1[1]), etiquette, fill=(100, 100, 100), font=police_grille, anchor="rm")
+        draw.text((taille_px - marge_cadre + 10, p1[1]), etiquette, fill=(100, 100, 100), font=police_grille, anchor="lm")
+        valeur += pas
+
+    draw.rectangle(
+        [marge_cadre, marge_cadre, taille_px - marge_cadre, taille_px - marge_cadre],
+        outline=(60, 60, 60), width=2,
+    )
+
+    for voisine, pts in polygones_voisins:
+        pts_px = [vers_px(px, py) for px, py in pts]
+        if len(pts_px) >= 2:
+            draw.polygon(pts_px, fill=(238, 218, 178), outline=(201, 138, 46), width=2)
+            centre_x = sum(p[0] for p in pts_px) / len(pts_px)
+            centre_y = sum(p[1] for p in pts_px) / len(pts_px)
+            if marge_cadre < centre_x < taille_px - marge_cadre and marge_cadre < centre_y < taille_px - marge_cadre:
+                etiquette = voisine.numero_parcelle or voisine.nicad[-4:]
+                draw.text((centre_x, centre_y), str(etiquette), fill=(90, 60, 20), font=police_label, anchor="mm")
+
+    pts_px = [vers_px(px, py) for px, py in sommets_principal]
+    if len(pts_px) >= 2:
+        draw.polygon(pts_px, fill=(250, 210, 200), outline=(195, 30, 30), width=5)
+        centre_x = sum(p[0] for p in pts_px) / len(pts_px)
+        centre_y = sum(p[1] for p in pts_px) / len(pts_px)
+        etiquette_principale = parcelle.numero_parcelle or parcelle.nicad[-4:]
+        draw.text((centre_x, centre_y), str(etiquette_principale), fill=(175, 20, 20), font=police_num, anchor="mm")
+
+    nx = taille_px - marge_cadre - 55
+    ny = marge_cadre + 90
+    draw.line([(nx, ny + 50), (nx, ny - 30)], fill=(25, 25, 25), width=4)
+    draw.polygon([(nx, ny - 48), (nx - 14, ny - 18), (nx + 14, ny - 18)], fill=(25, 25, 25))
+    draw.text((nx, ny - 62), "N", fill=(25, 25, 25), font=police_num, anchor="mm")
+
+    tampon = io_module.BytesIO()
+    img.save(tampon, format="PNG")
+    tampon.seek(0)
+    return tampon
+
+
+def _dessiner_cadre_titre(c, x, y_haut, largeur, hauteur, titre, couleur_texte, couleur_bordure, couleur_bandeau):
+    """Cadre avec bandeau de titre en haut (comme les rubriques d'un
+    extrait cadastral officiel). Renvoie le y de depart du contenu."""
+    from reportlab.lib.units import mm
+
+    bandeau = 6 * mm
+    c.setStrokeColor(couleur_bordure)
+    c.setLineWidth(0.6)
+    c.rect(x, y_haut - hauteur, largeur, hauteur, fill=False, stroke=True)
+    c.setFillColor(couleur_bandeau)
+    c.rect(x, y_haut - bandeau, largeur, bandeau, fill=True, stroke=False)
+    c.setStrokeColor(couleur_bordure)
+    c.line(x, y_haut - bandeau, x + largeur, y_haut - bandeau)
+    c.setFillColor(couleur_texte)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(x + 2 * mm, y_haut - bandeau + 1.8 * mm, titre)
+    return y_haut - bandeau - 5 * mm
+
+
 @login_required
 def extrait_cadastral_pdf_view(request, pk):
     """
-    Genere l'extrait cadastral officiel en PDF pour une demande de
-    service PRETE et payee (si payante). Reprend le meme style visuel
-    que les autres documents (quitus, attestation, releve de compte).
+    Genere l'extrait de plan foncier officiel en PDF pour une demande de
+    service PRETE et payee (si payante) : localisation, proprietaire,
+    identification du titre, plan de situation avec grille de
+    coordonnees UTM Zone 28N, tableau des sommets et legende.
     """
     from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.utils import ImageReader
     from .models import DemandeService
 
     demande = get_object_or_404(DemandeService, pk=pk, demandeur=request.user)
 
     if demande.statut != "PRETE":
-        messages.error(request, "Ce document n'est pas encore prêt.")
+        messages.error(request, "Ce document n'est pas encore pret.")
         return redirect("citoyen_demande_detail", pk=pk)
 
     if demande.type_demande.tarif and demande.type_demande.tarif > 0 and demande.statut_paiement != "CONFIRME":
         messages.error(
             request,
-            "Le paiement de cette démarche doit d'abord être validé avant de pouvoir télécharger le document."
+            "Le paiement de cette demarche doit d'abord etre valide avant de pouvoir telecharger le document."
         )
         return redirect("citoyen_demande_detail", pk=pk)
 
     parcelle = demande.parcelle
     if parcelle is None:
-        messages.error(request, "Aucune parcelle n'est associée à cette démarche.")
+        messages.error(request, "Aucune parcelle n'est associee a cette demarche.")
         return redirect("citoyen_demande_detail", pk=pk)
 
-    numero_doc = f"EC-{demande.numero_dossier}"
+    numero_doc = "EPF-{}".format(demande.numero_dossier)
     buffer, c, largeur, hauteur, marge, y, (VERT_FONCE, OR, GRIS, BORDURE) = _preparer_pdf_document(
-        "EXTRAIT CADASTRAL", numero_doc
+        "EXTRAIT DE PLAN FONCIER", numero_doc
     )
 
-    c.setFillColor(GRIS)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(marge, y, "PARCELLE")
-    y -= 6 * mm
+    largeur_contenu = largeur - 2 * marge
+    BANDEAU_CLAIR = HexColor("#f2ede1")
+
+    titre_foncier = parcelle.numero_titre_foncier or parcelle.nicad
+    section_label = parcelle.section_cadastrale or "-"
+    parcelle_label = parcelle.numero_parcelle or parcelle.nicad
+
     c.setFillColor(VERT_FONCE)
     c.setFont("Helvetica-Bold", 13)
-    c.drawString(marge, y, parcelle.nicad)
-
-    y -= 14 * mm
+    c.drawString(marge, y, "TITRE / REFERENCE : {}".format(titre_foncier))
+    c.setFont("Helvetica", 9)
+    c.drawRightString(
+        largeur - marge, y,
+        "Section : {}    Parcelle : {}".format(section_label, parcelle_label)
+    )
+    y -= 6 * mm
     c.setStrokeColor(BORDURE)
     c.line(marge, y, largeur - marge, y)
-    y -= 10 * mm
+    y -= 7 * mm
 
-    lignes = [
-        ("Section cadastrale", parcelle.section_cadastrale or "—"),
-        ("Numéro de parcelle", parcelle.numero_parcelle or "—"),
-        ("Numéro de lot", parcelle.numero_lot or "—"),
-        ("Numéro de titre foncier", parcelle.numero_titre_foncier or "—"),
-        ("Superficie", f"{parcelle.superficie:,.0f} m²".replace(",", " ") if parcelle.superficie else "—"),
-        ("Occupation du sol", parcelle.occupation_sol or "—"),
-        ("Adresse / secteur", parcelle.adresse_parcelle or "—"),
-        ("Zone", parcelle.zone.nom if parcelle.zone_id else "—"),
-        ("Type de document", parcelle.get_type_document_display() if parcelle.type_document else "—"),
-        ("Propriétaire", str(parcelle.proprietaire) if parcelle.proprietaire_id else "—"),
+    largeur_col = (largeur_contenu - 6 * mm) / 2
+    hauteur_rangee1 = 32 * mm
+    x_gauche = marge
+    x_droite = marge + largeur_col + 6 * mm
+
+    y_contenu = _dessiner_cadre_titre(
+        c, x_gauche, y, largeur_col, hauteur_rangee1,
+        "LOCALISATION DE LA PARCELLE", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
+    )
+    quartier = parcelle.adresse_parcelle or (parcelle.zone.nom if parcelle.zone_id else "-")
+    champs_localisation = [
+        ("Region", "DAKAR"),
+        ("Departement", "KEUR MASSAR"),
+        ("Commune", "KEUR MASSAR NORD"),
+        ("Quartier / Secteur", quartier),
     ]
-    for label, valeur in lignes:
+    yc = y_contenu
+    for label, valeur in champs_localisation:
         c.setFillColor(GRIS)
-        c.setFont("Helvetica", 10)
-        c.drawString(marge, y, label)
+        c.setFont("Helvetica", 8)
+        c.drawString(x_gauche + 2 * mm, yc, label)
         c.setFillColor(VERT_FONCE)
-        c.setFont("Helvetica-Bold", 10)
-        c.drawRightString(largeur - marge, y, str(valeur))
-        y -= 8 * mm
+        c.setFont("Helvetica-Bold", 8)
+        c.drawRightString(x_gauche + largeur_col - 2 * mm, yc, _texte_pdf(valeur, 40))
+        yc -= 5.2 * mm
+
+    y_contenu = _dessiner_cadre_titre(
+        c, x_droite, y, largeur_col, hauteur_rangee1,
+        "PROPRIETAIRE(S)", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
+    )
+    if parcelle.proprietaire_id:
+        nom_complet = "{} {}".format(parcelle.proprietaire.nom, parcelle.proprietaire.prenom)
+        cni = parcelle.proprietaire.ni_cni or "-"
+        domicile = parcelle.proprietaire.adresse or "-"
+    else:
+        nom_complet = "Non renseigne"
+        cni = "-"
+        domicile = "-"
+    champs_proprietaire = [
+        ("Nom et prenoms", nom_complet),
+        ("N de CNI", cni),
+        ("Domicile", domicile),
+    ]
+    yc = y_contenu
+    for label, valeur in champs_proprietaire:
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica", 8)
+        c.drawString(x_droite + 2 * mm, yc, label)
+        c.setFillColor(VERT_FONCE)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawRightString(x_droite + largeur_col - 2 * mm, yc, _texte_pdf(valeur, 36))
+        yc -= 5.2 * mm
+
+    y -= hauteur_rangee1 + 4 * mm
+
+    hauteur_rangee2 = 32 * mm
+    y_contenu = _dessiner_cadre_titre(
+        c, x_gauche, y, largeur_col, hauteur_rangee2,
+        "IDENTIFICATION DU TITRE", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
+    )
+    champs_identification = [
+        ("Titre foncier n", titre_foncier),
+        ("Section cadastrale", section_label),
+        ("N de parcelle", parcelle_label),
+        ("Contenance", "{:,.0f} m2".format(parcelle.superficie).replace(",", " ") if parcelle.superficie else "-"),
+    ]
+    yc = y_contenu
+    for label, valeur in champs_identification:
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica", 8)
+        c.drawString(x_gauche + 2 * mm, yc, label)
+        c.setFillColor(VERT_FONCE)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawRightString(x_gauche + largeur_col - 2 * mm, yc, _texte_pdf(valeur, 40))
+        yc -= 5.2 * mm
+
+    y_contenu = _dessiner_cadre_titre(
+        c, x_droite, y, largeur_col, hauteur_rangee2,
+        "NATURE DE LA PROPRIETE", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
+    )
+    champs_nature = [
+        ("Nature du document", parcelle.get_type_document_display()),
+        ("Usage / Occupation", parcelle.occupation_sol or "-"),
+        ("Statut fiscal", parcelle.get_statut_fiscal_display()),
+        ("Zone", parcelle.zone.nom if parcelle.zone_id else "-"),
+    ]
+    yc = y_contenu
+    for label, valeur in champs_nature:
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica", 8)
+        c.drawString(x_droite + 2 * mm, yc, label)
+        c.setFillColor(VERT_FONCE)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawRightString(x_droite + largeur_col - 2 * mm, yc, _texte_pdf(valeur, 36))
+        yc -= 5.2 * mm
+
+    y -= hauteur_rangee2 + 4 * mm
+
+    hauteur_plan = 95 * mm
+    largeur_plan = 100 * mm
+    largeur_colonne_droite = largeur_contenu - largeur_plan - 6 * mm
+    x_colonne_droite = marge + largeur_plan + 6 * mm
+
+    y_contenu = _dessiner_cadre_titre(
+        c, x_gauche, y, largeur_plan, hauteur_plan,
+        "PLAN DE SITUATION", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
+    )
+
+    sommets = []
+    try:
+        voisines = _voisines_parcelle(parcelle)
+        image_plan = _generer_image_plan_situation(parcelle, voisines)
+        taille_image = min(largeur_plan - 4 * mm, hauteur_plan - 9 * mm)
+        c.drawImage(
+            ImageReader(image_plan),
+            x_gauche + (largeur_plan - taille_image) / 2,
+            y - 4 * mm - taille_image,
+            width=taille_image, height=taille_image,
+            preserveAspectRatio=True, mask="auto",
+        )
+        sommets = _sommets_parcelle_utm(parcelle)
+    except Exception:
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica-Oblique", 9)
+        c.drawCentredString(x_gauche + largeur_plan / 2, y - 40 * mm, "Plan non disponible pour cette parcelle.")
+
+    c.setFillColor(GRIS)
+    c.setFont("Helvetica-Oblique", 6.5)
+    c.drawCentredString(x_gauche + largeur_plan / 2, y - hauteur_plan + 3 * mm, "Systeme : WGS 84 / UTM Zone 28N - echelle approximative")
+
+    hauteur_coord = 56 * mm
+    y_contenu = _dessiner_cadre_titre(
+        c, x_colonne_droite, y, largeur_colonne_droite, hauteur_coord,
+        "COORDONNEES (UTM 28N)", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
+    )
+    c.setFillColor(GRIS)
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(x_colonne_droite + 2 * mm, y_contenu, "Sommet")
+    c.drawRightString(x_colonne_droite + largeur_colonne_droite * 0.6, y_contenu, "X (m)")
+    c.drawRightString(x_colonne_droite + largeur_colonne_droite - 2 * mm, y_contenu, "Y (m)")
+    yc = y_contenu - 4.5 * mm
+    sommets_affiches = sommets[:8]
+    for indice, (sx, sy) in enumerate(sommets_affiches, 1):
+        c.setFillColor(VERT_FONCE)
+        c.setFont("Helvetica", 7.2)
+        c.drawString(x_colonne_droite + 2 * mm, yc, "P{}".format(indice))
+        c.drawRightString(x_colonne_droite + largeur_colonne_droite * 0.6, yc, "{:,.2f}".format(sx).replace(",", " "))
+        c.drawRightString(x_colonne_droite + largeur_colonne_droite - 2 * mm, yc, "{:,.2f}".format(sy).replace(",", " "))
+        yc -= 4.6 * mm
+    if len(sommets) > 8:
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica-Oblique", 6.5)
+        c.drawString(x_colonne_droite + 2 * mm, yc, "+ {} sommet(s) supplementaire(s)".format(len(sommets) - 8))
+
+    y_legende = y - hauteur_coord - 4 * mm
+    hauteur_legende = hauteur_plan - hauteur_coord - 4 * mm
+    y_contenu = _dessiner_cadre_titre(
+        c, x_colonne_droite, y_legende, largeur_colonne_droite, hauteur_legende,
+        "LEGENDE", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
+    )
+    yc = y_contenu
+    c.setStrokeColor(HexColor("#c31e1e"))
+    c.setLineWidth(2)
+    c.rect(x_colonne_droite + 2 * mm, yc - 2.2 * mm, 6 * mm, 3 * mm, fill=False, stroke=True)
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica", 7)
+    c.drawString(x_colonne_droite + 10 * mm, yc - 2 * mm, "Limite de la parcelle")
+    yc -= 6 * mm
+    c.setStrokeColor(HexColor("#5a5a5a"))
+    c.setLineWidth(1)
+    c.rect(x_colonne_droite + 2 * mm, yc - 2.2 * mm, 6 * mm, 3 * mm, fill=False, stroke=True)
+    c.setFillColor(VERT_FONCE)
+    c.drawString(x_colonne_droite + 10 * mm, yc - 2 * mm, "Limite de parcelle voisine")
+    yc -= 6 * mm
+    c.setFillColor(VERT_FONCE)
+    c.drawString(x_colonne_droite + 2 * mm, yc - 2 * mm, "N = orientation Nord (haut du plan)")
+
+    y -= hauteur_plan + 4 * mm
+
+    hauteur_notes = 20 * mm
+    y_contenu = _dessiner_cadre_titre(
+        c, x_gauche, y, largeur_contenu, hauteur_notes,
+        "NOTES", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
+    )
+    notes = [
+        "- Ce plan est un extrait du plan cadastral. Il ne constitue pas, a lui seul, un titre de propriete.",
+        "- Les limites de la parcelle figurant sur ce plan sont donnees a titre indicatif.",
+        "- Toute modification doit faire l'objet d'une mise a jour aupres du service du Cadastre de la commune.",
+    ]
+    yc = y_contenu
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica", 7.5)
+    for ligne in notes:
+        c.drawString(x_gauche + 2 * mm, yc, ligne)
+        yc -= 4.3 * mm
+
+    y -= hauteur_notes + 6 * mm
+
+    c.setFillColor(VERT_FONCE)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(x_gauche, y, "LE CHEF DU SERVICE DU CADASTRE")
+    c.drawString(x_droite, y, "VU ET CERTIFIE CONFORME")
+    y -= 10 * mm
+    c.setStrokeColor(BORDURE)
+    c.setFont("Helvetica", 7)
+    c.setFillColor(GRIS)
+    c.line(x_gauche, y, x_gauche + largeur_col - 10 * mm, y)
+    c.line(x_droite, y, x_droite + largeur_col - 10 * mm, y)
+    c.drawString(x_gauche, y - 4 * mm, "Nom, date et signature")
+    c.drawString(x_droite, y - 4 * mm, "Le Directeur du Cadastre")
 
     _pied_de_page_document(
         c, marge, hauteur,
-        "Extrait cadastral délivré à titre informatif. Son authenticité peut être "
-        "vérifiée auprès des services du cadastre de la commune."
+        "Extrait de plan foncier delivre a titre informatif. Son authenticite peut etre "
+        "verifiee aupres des services du cadastre de la commune de Keur Massar Nord."
     )
 
     c.showPage()
@@ -2045,5 +2699,5 @@ def extrait_cadastral_pdf_view(request, pk):
     buffer.seek(0)
 
     response = HttpResponse(buffer, content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="extrait_cadastral_{parcelle.nicad}.pdf"'
+    response["Content-Disposition"] = 'attachment; filename="extrait_plan_foncier_{}.pdf"'.format(parcelle.nicad)
     return response

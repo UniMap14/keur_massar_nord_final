@@ -110,10 +110,20 @@
   <div class="panel-body">
     <form method="post">
       {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="form-field" style="color:#c0392b; font-weight:600;">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
       <div class="form-field">
         <label for="{{ form.statut.id_for_label }}"><i class="fa-solid fa-flag"></i> Statut du dossier</label>
         {{ form.statut }}
         {{ form.statut.errors }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.statut_paiement.id_for_label }}"><i class="fa-solid fa-money-check-dollar"></i> Statut du paiement</label>
+        {{ form.statut_paiement }}
+        {{ form.statut_paiement.errors }}
       </div>
       <div class="form-field">
         <label for="{{ form.agent_traitant.id_for_label }}"><i class="fa-solid fa-user"></i> Agent assigné</label>

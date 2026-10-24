@@ -1,0 +1,106 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Recherche{% endblock %}
+{% block header_title %}Recherche globale{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{% if recherche_effectuee %}{{ total }} resultat(s) pour "{{ q }}"{% else %}Parcelles, proprietaires, contribuables{% endif %}</div>{% endblock %}
+
+{% block extra_head %}
+<style>
+    .rg-search-form { display: flex; gap: 8px; max-width: 560px; margin-bottom: 28px; }
+    .rg-search-form input[type="text"] {
+        flex: 1; border: 1.5px solid var(--border, #e4ddd0); border-radius: 999px;
+        padding: 11px 20px; font-size: 14px;
+    }
+    .rg-search-form input[type="text"]:focus { outline: none; border-color: var(--green-dark, #2f7a4f); }
+    .rg-search-form button { border-radius: 999px; padding: 11px 24px; white-space: nowrap; }
+
+    .rg-section { margin-bottom: 32px; }
+    .rg-section h2 {
+        font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
+        color: var(--ink-quiet, #6f6a5e); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .rg-section h2 .rg-count-badge {
+        background: rgba(47,122,79,0.1); color: var(--green-dark, #2f7a4f);
+        font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 100px;
+    }
+    .rg-card {
+        background: #fff; border: 1px solid var(--border, #e4ddd0); border-radius: 10px;
+        padding: 14px 18px; margin-bottom: 10px; display: flex; justify-content: space-between;
+        align-items: center; gap: 14px; text-decoration: none; color: inherit;
+        transition: box-shadow .15s ease, border-color .15s ease;
+    }
+    .rg-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.07); border-color: var(--green-dark, #2f7a4f); }
+    .rg-card .rg-main { font-weight: 700; font-size: 14px; color: var(--text, #2a2620); }
+    .rg-card .rg-sub { font-size: 12.5px; color: var(--ink-quiet, #6f6a5e); margin-top: 2px; }
+    .rg-card i.rg-chevron { color: var(--ink-quiet, #a39c8d); }
+    .rg-empty { text-align: center; padding: 50px 20px; color: var(--ink-quiet, #6f6a5e); }
+    .rg-empty i { font-size: 30px; color: var(--gold, #c9982e); display: block; margin-bottom: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="get" action="{% url 'dashboard_recherche_globale' %}" class="rg-search-form">
+    <input type="text" name="q" value="{{ q }}" placeholder="NICAD, nom, prenom, numero fiscal, CNI..." autofocus>
+    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Rechercher</button>
+</form>
+
+{% if recherche_effectuee %}
+    {% if total == 0 %}
+    <div class="rg-empty">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <p>Aucun resultat pour "{{ q }}".</p>
+    </div>
+    {% else %}
+
+        {% if peut_technique %}
+        <div class="rg-section">
+            <h2><i class="fa-solid fa-map-location-dot"></i> Parcelles {% if parcelles %}<span class="rg-count-badge">{{ parcelles|length }}</span>{% endif %}</h2>
+            {% for p in parcelles %}
+            <a href="{% url 'dashboard_parcelle_update' p.pk %}" class="rg-card">
+                <div>
+                    <div class="rg-main">{{ p.nicad }}</div>
+                    <div class="rg-sub">{{ p.adresse_parcelle|default:"Adresse non renseignee" }}{% if p.proprietaire %} &middot; {{ p.proprietaire }}{% endif %}</div>
+                </div>
+                <i class="fa-solid fa-chevron-right rg-chevron"></i>
+            </a>
+            {% empty %}
+            <p class="rg-sub">Aucune parcelle correspondante.</p>
+            {% endfor %}
+        </div>
+
+        <div class="rg-section">
+            <h2><i class="fa-solid fa-id-card"></i> Proprietaires {% if proprietaires %}<span class="rg-count-badge">{{ proprietaires|length }}</span>{% endif %}</h2>
+            {% for prop in proprietaires %}
+            <a href="{% url 'dashboard_proprietaire_update' prop.pk %}" class="rg-card">
+                <div>
+                    <div class="rg-main">{{ prop.nom }} {{ prop.prenom }}</div>
+                    <div class="rg-sub">CNI {{ prop.ni_cni }}{% if prop.telephone %} &middot; {{ prop.telephone }}{% endif %}</div>
+                </div>
+                <i class="fa-solid fa-chevron-right rg-chevron"></i>
+            </a>
+            {% empty %}
+            <p class="rg-sub">Aucun proprietaire correspondant.</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if peut_fiscal %}
+        <div class="rg-section">
+            <h2><i class="fa-solid fa-coins"></i> Contribuables {% if contribuables %}<span class="rg-count-badge">{{ contribuables|length }}</span>{% endif %}</h2>
+            {% for c in contribuables %}
+            <a href="{% url 'dashboard_contribuable_update' c.pk %}" class="rg-card">
+                <div>
+                    <div class="rg-main">{{ c.nom }} {{ c.prenom }}</div>
+                    <div class="rg-sub">N&deg; fiscal {{ c.numero_fiscal }}{% if c.quartier %} &middot; {{ c.quartier }}{% endif %}</div>
+                </div>
+                <i class="fa-solid fa-chevron-right rg-chevron"></i>
+            </a>
+            {% empty %}
+            <p class="rg-sub">Aucun contribuable correspondant.</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    {% endif %}
+{% endif %}
+{% endblock %}

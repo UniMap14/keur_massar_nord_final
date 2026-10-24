@@ -87,3 +87,22 @@ def profil_agent_connecte(request):
 
     profil, _ = ProfilAgent.objects.get_or_create(user=request.user)
     return {"mon_profil_agent": profil}
+
+def chef_service_flags(request):
+    """
+    Ajoute 'est_chef_technique' et 'est_chef_fiscal' au contexte, pour
+    afficher le lien 'Mes agents' dans la sidebar uniquement aux chefs
+    de service (Chef Cadastre / Chef Fiscalite). Base sur l'appartenance
+    EXACTE au groupe (pas a_role), pour ne jamais confondre avec un
+    compte historique sans role qui a un acces complet par
+    retrocompatibilite.
+    """
+    if not (hasattr(request, "user") and request.user.is_authenticated and request.user.is_staff):
+        return {}
+
+    from .permissions import GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL
+
+    return {
+        "est_chef_technique": request.user.groups.filter(name=GROUPE_CHEF_TECHNIQUE).exists(),
+        "est_chef_fiscal": request.user.groups.filter(name=GROUPE_CHEF_FISCAL).exists(),
+    }

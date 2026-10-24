@@ -58,6 +58,7 @@ urlpatterns = [
     path("espace/demarches/<int:pk>/", views.demande_detail_view, name="citoyen_demande_detail"),
     path("espace/demarches/<int:pk>/piece-jointe/", views.demande_piece_jointe_view, name="demande_piece_jointe"),
     path("espace/demarches/<int:pk>/payer/", views.demande_payer_view, name="citoyen_demande_payer"),
+    path("espace/mon-compte/", views.mon_compte_view, name="citoyen_mon_compte"),
     # Espace gestion (agents / administration)
     path("gestion/inscriptions/", views.gestion_inscriptions_view, name="gestion_inscriptions"),
 ]

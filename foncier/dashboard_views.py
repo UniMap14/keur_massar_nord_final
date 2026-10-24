@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # foncier/dashboard_views.py
 #
 # Vues du dashboard admin custom. Fichier séparé de views.py
@@ -204,35 +204,151 @@ class DashboardLoginView(auth_views.LoginView):
 
 
 # ------------------------------------------------------------
-# MOT DE PASSE OUBLIÉ (4 étapes)
+# MOT DE PASSE OUBLIÉ (code par email, 2 étapes)
 #
-# 1. DashboardPasswordResetView        -> saisie de l'email
-# 2. DashboardPasswordResetDoneView    -> "email envoyé"
-# 3. DashboardPasswordResetConfirmView -> saisie du nouveau mdp (lien reçu)
-# 4. DashboardPasswordResetCompleteView-> confirmation finale
+# 1. dashboard_password_reset_demande  -> saisie de l'email, envoi du code
+# 2. dashboard_password_reset_code     -> saisie du code + nouveau mdp
 #
-# Les templates vivent dans templates/registration/ et héritent
-# de registration/_auth_base.html (même charte que login.html).
+# Même principe que le code OTP de connexion des citoyens (voir
+# citoyens/views.py : _generer_otp / _envoyer_otp), mais pour les
+# comptes agents (is_staff=True) qui ont oublié leur mot de passe.
+# Le code est stocké en session (pas en base), valable 10 minutes,
+# avec un maximum de 5 tentatives avant de devoir recommencer.
 # ------------------------------------------------------------
 
-class DashboardPasswordResetView(auth_views.PasswordResetView):
-    template_name = "registration/password_reset_form.html"
-    email_template_name = "registration/password_reset_email.txt"
-    subject_template_name = "registration/password_reset_subject.txt"
-    success_url = reverse_lazy("dashboard_password_reset_done")
+def dashboard_password_reset_demande(request):
+    """Étape 1 : saisie de l'email. Si un compte agent (is_staff) a cet
+    email, génère un code à 6 chiffres et l'envoie par email."""
+    import random
+    import time
+    from django.core.mail import send_mail
+    from django.conf import settings
+
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip()
+        compte = User.objects.filter(email__iexact=email, is_staff=True).first()
+
+        if compte is not None:
+            code = str(random.randint(100000, 999999))
+            request.session["reset_user_id"] = compte.pk
+            request.session["reset_code"] = code
+            request.session["reset_expire"] = time.time() + 600
+            request.session["reset_tentatives"] = 0
+            try:
+                send_mail(
+                    subject="[KEUR MASSAR NORD] Code de réinitialisation du mot de passe",
+                    message=(
+                        "Bonjour,\n\n"
+                        f"Voici votre code de réinitialisation de mot de passe : {code}\n"
+                        "Ce code est valable 10 minutes.\n\n"
+                        "Si vous n'avez pas demandé cette réinitialisation, ignorez cet email."
+                    ),
+                    from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                    recipient_list=[compte.email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
+            return redirect("dashboard_password_reset_code")
+
+        # Email inconnu ou compte non-agent : même message, pour ne pas
+        # révéler quels emails existent (anti-énumération de comptes).
+        messages.info(
+            request,
+            "Si cet email correspond à un compte agent, un code de "
+            "réinitialisation vient d'être envoyé.",
+        )
+
+    return render(request, "registration/password_reset_form.html")
 
 
-class DashboardPasswordResetDoneView(auth_views.PasswordResetDoneView):
-    template_name = "registration/password_reset_done.html"
+def dashboard_password_reset_code(request):
+    """Étape 2 : saisie du code reçu par email + nouveau mot de passe."""
+    import time
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
+    user_id = request.session.get("reset_user_id")
+    if not user_id:
+        return redirect("dashboard_password_reset")
+
+    erreur = None
+
+    if request.method == "POST":
+        code_saisi = request.POST.get("code", "").strip()
+        mdp1 = request.POST.get("new_password1", "")
+        mdp2 = request.POST.get("new_password2", "")
+        expire = request.session.get("reset_expire", 0)
+        tentatives = request.session.get("reset_tentatives", 0)
+
+        cles_session = ["reset_user_id", "reset_code", "reset_expire", "reset_tentatives"]
+
+        if time.time() > expire:
+            erreur = "Ce code a expiré. Veuillez recommencer."
+            for cle in cles_session:
+                request.session.pop(cle, None)
+        elif tentatives >= 5:
+            erreur = "Trop de tentatives incorrectes. Veuillez recommencer."
+            for cle in cles_session:
+                request.session.pop(cle, None)
+        elif not code_saisi or code_saisi != request.session.get("reset_code"):
+            request.session["reset_tentatives"] = tentatives + 1
+            erreur = "Code incorrect."
+        elif not mdp1 or mdp1 != mdp2:
+            erreur = "Les deux mots de passe ne correspondent pas."
+        else:
+            try:
+                validate_password(mdp1)
+            except DjangoValidationError as exc:
+                erreur = " ".join(exc.messages)
+
+            if not erreur:
+                compte = User.objects.get(pk=user_id)
+                compte.set_password(mdp1)
+                compte.save(update_fields=["password"])
+                for cle in cles_session:
+                    request.session.pop(cle, None)
+                messages.success(
+                    request,
+                    "Votre mot de passe a été réinitialisé. Vous pouvez vous connecter.",
+                )
+                return redirect("dashboard_login")
+
+    return render(request, "registration/password_reset_code.html", {"erreur": erreur})
 
 
-class DashboardPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
-    template_name = "registration/password_reset_confirm.html"
-    success_url = reverse_lazy("dashboard_password_reset_complete")
+def dashboard_password_reset_renvoyer(request):
+    """Renvoie un nouveau code (invalide l'ancien)."""
+    import random
+    import time
+    from django.core.mail import send_mail
+    from django.conf import settings
 
+    user_id = request.session.get("reset_user_id")
+    if not user_id:
+        return redirect("dashboard_password_reset")
 
-class DashboardPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
-    template_name = "registration/password_reset_complete.html"
+    compte = User.objects.get(pk=user_id)
+    code = str(random.randint(100000, 999999))
+    request.session["reset_code"] = code
+    request.session["reset_expire"] = time.time() + 600
+    request.session["reset_tentatives"] = 0
+    try:
+        send_mail(
+            subject="[KEUR MASSAR NORD] Nouveau code de réinitialisation",
+            message=(
+                "Bonjour,\n\n"
+                f"Voici votre nouveau code de réinitialisation : {code}\n"
+                "Ce code est valable 10 minutes."
+            ),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[compte.email],
+            fail_silently=True,
+        )
+    except Exception:
+        pass
+    messages.info(request, "Un nouveau code vous a été envoyé.")
+    return redirect("dashboard_password_reset_code")
 
 
 # ------------------------------------------------------------
@@ -474,7 +590,66 @@ class ParcelleForm(forms.ModelForm):
 # ------------------------------------------------------------
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('technique')
+def dashboard_recherche_globale(request):
+    """Recherche intelligente dans tout le dashboard : parcelles et
+    proprietaires (service cadastre), contribuables (service fiscal).
+    Chaque section n'apparait que si l'agent connecte a le role qui y
+    donne acces -- meme cloisonnement que le reste du dashboard."""
+    from .permissions import a_role
+    from .models import Parcelle, Contribuable, Propriétaire
+
+    q = request.GET.get("q", "").strip()
+    peut_technique = a_role(request.user, "technique")
+    peut_fiscal = a_role(request.user, "fiscal")
+
+    parcelles = []
+    proprietaires = []
+    contribuables = []
+
+    if q:
+        if peut_technique:
+            parcelles = list(
+                Parcelle.objects.select_related("proprietaire", "zone")
+                .filter(
+                    Q(nicad__icontains=q)
+                    | Q(numero_parcelle__icontains=q)
+                    | Q(numero_titre_foncier__icontains=q)
+                    | Q(adresse_parcelle__icontains=q)
+                    | Q(proprietaire__nom__icontains=q)
+                    | Q(proprietaire__prenom__icontains=q)
+                )
+                .order_by("-id")[:20]
+            )
+            proprietaires = list(
+                Propriétaire.objects.filter(
+                    Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(ni_cni__icontains=q)
+                ).order_by("nom", "prenom")[:20]
+            )
+
+        if peut_fiscal:
+            contribuables = list(
+                Contribuable.objects.select_related("proprietaire")
+                .filter(
+                    Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(numero_fiscal__icontains=q)
+                ).order_by("nom", "prenom")[:20]
+            )
+
+    total = len(parcelles) + len(proprietaires) + len(contribuables)
+
+    context = {
+        "active_section": "recherche_globale",
+        "q": q,
+        "parcelles": parcelles,
+        "proprietaires": proprietaires,
+        "contribuables": contribuables,
+        "total": total,
+        "peut_technique": peut_technique,
+        "peut_fiscal": peut_fiscal,
+        "recherche_effectuee": bool(q),
+    }
+    return render(request, "dashboard/recherche_globale.html", context)
+
+
 def dashboard_parcelle_list(request):
     q = request.GET.get("q", "").strip()
     statut = request.GET.get("statut_fiscal", "").strip()
@@ -1394,6 +1569,53 @@ class TraitementDemandeForm(forms.ModelForm):
         }
 
 
+def _filtrer_demandes_service(user, queryset):
+    """Restreint un queryset de DemandeService au service (cadastre ou
+    fiscal) de l'utilisateur. Superviseur, superuser et comptes sans
+    role assigne (retrocompatibilite) voient tout."""
+    from .permissions import (
+        GROUPE_SUPERVISEUR, GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE,
+        GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL, GROUPES_ROLES,
+    )
+    if user.is_superuser:
+        return queryset
+    noms = set(user.groups.values_list("name", flat=True))
+    if GROUPE_SUPERVISEUR in noms:
+        return queryset
+    if not (noms & set(GROUPES_ROLES)):
+        return queryset
+    if noms & {GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL}:
+        return queryset.filter(type_demande__categorie="FISCALITE")
+    if noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE}:
+        return queryset.exclude(type_demande__categorie="FISCALITE")
+    return queryset
+
+
+def _verifier_acces_demande(user, demande):
+    """Leve PermissionDenied si l'utilisateur n'a pas le droit de voir/
+    traiter cette demande au vu de son service (cadastre ou fiscal)."""
+    from .permissions import (
+        GROUPE_SUPERVISEUR, GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE,
+        GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL, GROUPES_ROLES,
+    )
+    if user.is_superuser:
+        return
+    noms = set(user.groups.values_list("name", flat=True))
+    if GROUPE_SUPERVISEUR in noms:
+        return
+    if not (noms & set(GROUPES_ROLES)):
+        return
+    categorie = demande.type_demande.categorie
+    if (noms & {GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL}) and categorie != "FISCALITE":
+        raise PermissionDenied(
+            "Cette demande relève du service Cadastre, pas du service Fiscalité."
+        )
+    if (noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE}) and categorie == "FISCALITE":
+        raise PermissionDenied(
+            "Cette demande relève du service Fiscalité, pas du service Cadastre."
+        )
+
+
 @staff_member_required(login_url='dashboard_login')
 def dashboard_demande_list(request):
     filtre = request.GET.get("statut", "").strip()
@@ -1402,6 +1624,7 @@ def dashboard_demande_list(request):
     demandes = DemandeService.objects.select_related(
         "type_demande", "demandeur", "parcelle", "agent_traitant"
     ).order_by("-date_demande")
+    demandes = _filtrer_demandes_service(request.user, demandes)
 
     if filtre:
         demandes = demandes.filter(statut=filtre)
@@ -1414,10 +1637,14 @@ def dashboard_demande_list(request):
         "filtre": filtre,
         "mes_dossiers": mes_dossiers,
         "statut_choices": DemandeService.STATUT_CHOICES,
-        "nb_a_traiter": DemandeService.objects.filter(
+        "nb_a_traiter": _filtrer_demandes_service(
+            request.user, DemandeService.objects.all()
+        ).filter(
             statut__in=[DemandeService.STATUT_RECUE, DemandeService.STATUT_EN_COURS]
         ).count(),
-        "nb_mes_dossiers": DemandeService.objects.filter(
+        "nb_mes_dossiers": _filtrer_demandes_service(
+            request.user, DemandeService.objects.all()
+        ).filter(
             agent_traitant=request.user,
             statut__in=[DemandeService.STATUT_RECUE, DemandeService.STATUT_EN_COURS],
         ).count(),
@@ -1469,6 +1696,7 @@ def dashboard_demande_detail(request, pk):
         DemandeService.objects.select_related("type_demande", "demandeur", "parcelle", "agent_traitant"),
         pk=pk,
     )
+    _verifier_acces_demande(request.user, demande)
 
     if request.method == "POST":
         statut_avant = demande.statut
@@ -1702,6 +1930,12 @@ def dashboard_journal_audit_list(request):
     from .models import JournalAudit
 
     entrees = JournalAudit.objects.select_related("utilisateur").all()
+    service_filtre = _service_chef(request.user) if not _est_superviseur(request.user) else None
+    groupe_nom_filtre = None
+    if service_filtre:
+        from .permissions import GROUPE_GESTIONNAIRE_TECHNIQUE, GROUPE_GESTIONNAIRE_FISCAL
+        groupe_nom_filtre = GROUPE_GESTIONNAIRE_TECHNIQUE if service_filtre == "technique" else GROUPE_GESTIONNAIRE_FISCAL
+        entrees = entrees.filter(utilisateur__groups__name=groupe_nom_filtre)
 
     modele_filtre = request.GET.get("modele", "").strip()
     action_filtre = request.GET.get("action", "").strip()
@@ -1720,9 +1954,16 @@ def dashboard_journal_audit_list(request):
     modeles_disponibles = (
         JournalAudit.objects.values_list("modele", flat=True).distinct().order_by("modele")
     )
+    if groupe_nom_filtre:
+        modeles_disponibles = (
+            JournalAudit.objects.filter(utilisateur__groups__name=groupe_nom_filtre)
+            .values_list("modele", flat=True).distinct().order_by("modele")
+        )
     utilisateurs_disponibles = (
         User.objects.filter(actions_audit__isnull=False).distinct().order_by("username")
     )
+    if groupe_nom_filtre:
+        utilisateurs_disponibles = utilisateurs_disponibles.filter(groups__name=groupe_nom_filtre)
 
     return render(request, "dashboard/journal_audit_list.html", {
         "active_section": "journal_audit",
@@ -2826,3 +3067,142 @@ def dashboard_cartotheque_delete(request, pk):
         "list_url_name": "dashboard_cartotheque_list",
         "objet_str": str(carte),
     })
+
+# ============================================================
+# GESTION D'EQUIPE PAR LES CHEFS DE SERVICE - un Chef Cadastre peut
+# creer/gerer les comptes Gestionnaire Cadastre de son service, et un
+# Chef Fiscalite les comptes Gestionnaire Fiscalite du sien. Chaque
+# chef ne voit et ne gere QUE les agents de son propre service.
+# ============================================================
+
+def _generer_mot_de_passe_temporaire():
+    import secrets
+    import string
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(10))
+
+
+def _service_chef(user):
+    from .permissions import GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL
+    if user.groups.filter(name=GROUPE_CHEF_TECHNIQUE).exists():
+        return "technique"
+    if user.groups.filter(name=GROUPE_CHEF_FISCAL).exists():
+        return "fiscal"
+    return None
+
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_mes_agents_list(request):
+    service = _service_chef(request.user)
+    if not service:
+        raise PermissionDenied("Cette section est reservee aux chefs de service.")
+
+    from .permissions import GROUPE_GESTIONNAIRE_TECHNIQUE, GROUPE_GESTIONNAIRE_FISCAL
+    groupe_nom = GROUPE_GESTIONNAIRE_TECHNIQUE if service == "technique" else GROUPE_GESTIONNAIRE_FISCAL
+
+    agents = User.objects.filter(is_staff=True, groups__name=groupe_nom).order_by("username")
+
+    lignes = [
+        {
+            "pk": u.pk,
+            "cellules": [
+                u.username,
+                u.get_full_name() or "(profil a completer)",
+                u.email or "-",
+                "Actif" if u.is_active else "Desactive",
+            ],
+        }
+        for u in agents
+    ]
+
+    return render(request, "dashboard/mes_agents_list.html", {
+        "active_section": "mes_agents",
+        "titre": "Mes agents",
+        "service": service,
+        "objets": lignes,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_agent_create(request):
+    service = _service_chef(request.user)
+    if not service:
+        raise PermissionDenied("Cette section est reservee aux chefs de service.")
+
+    from .permissions import GROUPE_GESTIONNAIRE_TECHNIQUE, GROUPE_GESTIONNAIRE_FISCAL
+    from .models import ProfilAgent
+
+    groupe_nom = GROUPE_GESTIONNAIRE_TECHNIQUE if service == "technique" else GROUPE_GESTIONNAIRE_FISCAL
+    fonction_defaut = "Agent du Service Cadastre" if service == "technique" else "Agent du Service Fiscalite"
+
+    identifiants_generes = None
+
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        if not username:
+            messages.error(request, "Veuillez saisir un identifiant.")
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, "L'identifiant \"" + username + "\" est deja pris.")
+        else:
+            mot_de_passe = _generer_mot_de_passe_temporaire()
+            nouvel_agent = User.objects.create_user(
+                username=username,
+                password=mot_de_passe,
+                is_staff=True,
+            )
+            groupe, _ = Group.objects.get_or_create(name=groupe_nom)
+            nouvel_agent.groups.add(groupe)
+            ProfilAgent.objects.create(user=nouvel_agent, fonction=fonction_defaut)
+
+            identifiants_generes = {"username": username, "mot_de_passe": mot_de_passe}
+            messages.success(request, "Compte agent cree avec succes.")
+
+    return render(request, "dashboard/agent_create.html", {
+        "active_section": "mes_agents",
+        "service": service,
+        "identifiants_generes": identifiants_generes,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_agent_reset_password(request, pk):
+    service = _service_chef(request.user)
+    if not service:
+        raise PermissionDenied("Cette section est reservee aux chefs de service.")
+
+    from .permissions import GROUPE_GESTIONNAIRE_TECHNIQUE, GROUPE_GESTIONNAIRE_FISCAL
+    groupe_nom = GROUPE_GESTIONNAIRE_TECHNIQUE if service == "technique" else GROUPE_GESTIONNAIRE_FISCAL
+
+    agent = get_object_or_404(User, pk=pk, is_staff=True, groups__name=groupe_nom)
+
+    nouveau_mdp = None
+    if request.method == "POST":
+        nouveau_mdp = _generer_mot_de_passe_temporaire()
+        agent.set_password(nouveau_mdp)
+        agent.save()
+
+    return render(request, "dashboard/agent_reset_password.html", {
+        "active_section": "mes_agents",
+        "agent": agent,
+        "nouveau_mdp": nouveau_mdp,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_agent_toggle_actif(request, pk):
+    service = _service_chef(request.user)
+    if not service:
+        raise PermissionDenied("Cette section est reservee aux chefs de service.")
+
+    from .permissions import GROUPE_GESTIONNAIRE_TECHNIQUE, GROUPE_GESTIONNAIRE_FISCAL
+    groupe_nom = GROUPE_GESTIONNAIRE_TECHNIQUE if service == "technique" else GROUPE_GESTIONNAIRE_FISCAL
+
+    agent = get_object_or_404(User, pk=pk, is_staff=True, groups__name=groupe_nom)
+
+    if request.method == "POST":
+        agent.is_active = not agent.is_active
+        agent.save()
+        etat = "active" if agent.is_active else "desactive"
+        messages.success(request, "Compte de " + agent.username + " " + etat + ".")
+
+    return redirect("dashboard_mes_agents_list")

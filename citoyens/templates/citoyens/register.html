@@ -68,17 +68,17 @@
     <div class="form-section-label">Identifiants fiscalité &amp; foncier</div>
 
     <div class="form-field">
-      <label class="field-label" for="id_numero_fiscal">Identifiant fiscalité</label>
+      <label class="field-label" for="id_numero_fiscal">Identifiant fiscalite (optionnel)</label>
       <div class="field-input-wrap">
         <i class="fa-solid fa-file-invoice-dollar field-icon"></i>
-        <input type="text" name="numero_fiscal" id="id_numero_fiscal" placeholder="Numéro d'identifiant fiscal" required
+        <input type="text" name="numero_fiscal" id="id_numero_fiscal" placeholder="Numero d'identifiant fiscal (si vous en avez un)"
                value="{{ form.numero_fiscal.value|default:'' }}"
                aria-invalid="{% if form.numero_fiscal.errors %}true{% else %}false{% endif %}">
       </div>
       {% if form.numero_fiscal.errors %}
         <span class="field-error">{{ form.numero_fiscal.errors.0 }}</span>
       {% else %}
-        <span class="field-help">Indiqué sur votre avis d'imposition ou votre quittance.</span>
+        <span class="field-help">Laissez vide si vous ne payez pas encore l'impot foncier. Sinon, indique sur votre avis d'imposition.</span>
       {% endif %}
     </div>
 

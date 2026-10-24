@@ -1181,6 +1181,46 @@ def demande_payer_view(request, pk):
 
 
 @login_required
+def mon_compte_view(request):
+    """
+    Compte personnel du citoyen pour ses paiements de DEMARCHES
+    (extrait cadastral, etc.) : montant total verse + historique.
+    Volontairement distinct de la fiscalite (taxations/paiements du
+    contribuable, voir espace_personnel_view) — ce sont deux comptes
+    differents, l'un ne doit jamais se melanger a l'autre.
+    """
+    citoyen = getattr(request.user, "citoyen", None)
+    if citoyen is None:
+        messages.info(request, "Cette page est réservée aux citoyens inscrits.")
+        return redirect("citoyen_login")
+
+    demandes_payantes = (
+        DemandeService.objects
+        .filter(demandeur=request.user)
+        .exclude(montant_paye__isnull=True)
+        .select_related("type_demande")
+        .order_by("-date_maj")
+    )
+
+    total_paye = sum(
+        (d.montant_paye for d in demandes_payantes if d.statut_paiement == "CONFIRME"),
+        0,
+    )
+    total_en_attente = sum(
+        (d.montant_paye for d in demandes_payantes if d.statut_paiement == "EN_ATTENTE"),
+        0,
+    )
+
+    return render(request, "citoyens/espace/mon_compte.html", {
+        "citoyen": citoyen,
+        "active_section": "mon_compte",
+        "demandes_payantes": demandes_payantes,
+        "total_paye": total_paye,
+        "total_en_attente": total_en_attente,
+    })
+
+
+@login_required
 def morcellement_fusion_liste_view(request):
     """Liste des demandes de morcellement/fusion du citoyen connecte."""
     citoyen = getattr(request.user, "citoyen", None)

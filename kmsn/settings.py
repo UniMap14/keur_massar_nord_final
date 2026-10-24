@@ -163,6 +163,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 "foncier.context_processors.dashboard_counts",
                 "foncier.context_processors.profil_agent_connecte",
+                "foncier.context_processors.chef_service_flags",
             ],
         },
     },
@@ -315,6 +316,26 @@ PAIEMENT_ORANGE_MERCHANT_KEY = os.environ.get('PAIEMENT_ORANGE_MERCHANT_KEY', ''
 PAIEMENT_ORANGE_CLIENT_ID = os.environ.get('PAIEMENT_ORANGE_CLIENT_ID', '')
 PAIEMENT_ORANGE_CLIENT_SECRET = os.environ.get('PAIEMENT_ORANGE_CLIENT_SECRET', '')
 PAIEMENT_WAVE_API_KEY = os.environ.get('PAIEMENT_WAVE_API_KEY', '')
+# Secret du webhook Wave (different de la cle API ci-dessus). Genere dans
+# le Business Portal Wave > Developers > Webhooks, affiche une seule fois.
+# Sert a verifier l'en-tete "Wave-Signature" (voir docs.wave.com/webhook).
+PAIEMENT_WAVE_WEBHOOK_SECRET = os.environ.get('PAIEMENT_WAVE_WEBHOOK_SECRET', '')
+# Orange Money ne fournit pas de signature cryptographique publique et
+# documentee pour cette integration. A la place, on protege l'URL du
+# webhook par un jeton secret choisi ici : il doit etre recopie dans
+# l'URL de notification configuree cote Orange (back-office marchand),
+# sous la forme /paiements/webhook/orange/<CE_JETON>/.
+PAIEMENT_ORANGE_WEBHOOK_TOKEN = os.environ.get('PAIEMENT_ORANGE_WEBHOOK_TOKEN', '')
+# Secret du webhook Wave (different de la cle API ci-dessus). Genere dans
+# le Business Portal Wave > Developers > Webhooks, affiche une seule fois.
+# Sert a verifier l'en-tete "Wave-Signature" (voir docs.wave.com/webhook).
+PAIEMENT_WAVE_WEBHOOK_SECRET = os.environ.get('PAIEMENT_WAVE_WEBHOOK_SECRET', '')
+# Orange Money ne fournit pas de signature cryptographique publique et
+# documentee pour cette integration. A la place, on protege l'URL du
+# webhook par un jeton secret choisi ici : il doit etre recopie dans
+# l'URL de notification configuree cote Orange (back-office marchand),
+# sous la forme /paiements/webhook/orange/<CE_JETON>/.
+PAIEMENT_ORANGE_WEBHOOK_TOKEN = os.environ.get('PAIEMENT_ORANGE_WEBHOOK_TOKEN', '')
 
 
 # === SÉCURITÉ — réglages activés uniquement en production (DEBUG=False) ===

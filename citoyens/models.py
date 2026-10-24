@@ -18,7 +18,9 @@ class Citoyen(models.Model):
     )
     telephone = models.CharField("Téléphone", max_length=20, blank=True)
     numero_fiscal = models.CharField(
-        "Identifiant fiscalité", max_length=50, unique=True
+        "Identifiant fiscalite", max_length=50, unique=True,
+        blank=True, null=True,
+        help_text="Laisser vide si vous n'avez pas encore d'identifiant fiscal."
     )
     numero_foncier = models.CharField(
         "Identifiant foncier (NICAD)", max_length=50, unique=True

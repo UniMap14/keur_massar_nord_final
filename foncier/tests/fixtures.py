@@ -91,8 +91,8 @@ def creer_agent(username="agent_test", role=None, is_superuser=False):
         username=username, password="motdepasse123", is_staff=True, is_superuser=is_superuser,
     )
     if role:
-        noms = {"fiscal": "Agent fiscal", "technique": "Agent technique", "superviseur": "Superviseur"}
-        groupe, _ = Group.objects.get_or_create(name=noms[role])
+        from foncier.permissions import ROLE_VERS_GROUPE
+        groupe, _ = Group.objects.get_or_create(name=ROLE_VERS_GROUPE[role])
         user.groups.add(groupe)
     return user
 

@@ -1,0 +1,63 @@
+﻿{% extends "dashboard/base.html" %}
+
+{% block page_title %}Creer un agent{% endblock %}
+{% block header_title %}Creer un agent{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <a href="{% url 'dashboard_mes_agents_list' %}"><i class="fa-solid fa-user-group"></i> Mes agents</a>
+  <span class="sep">/</span>
+  Nouveau
+</div>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-body">
+
+    {% if identifiants_generes %}
+    <div class="role-info" style="border-color: rgba(47,122,79,0.4); background: rgba(47,122,79,0.08);">
+      <i class="fa-solid fa-circle-check"></i>
+      <div>
+        <strong>Compte cree avec succes.</strong> Notez ces identifiants maintenant,
+        ils ne seront plus jamais affiches :
+        <br><br>
+        Identifiant : <strong>{{ identifiants_generes.username }}</strong><br>
+        Mot de passe temporaire : <strong>{{ identifiants_generes.mot_de_passe }}</strong>
+        <br><br>
+        L'agent devra se connecter avec ce mot de passe puis le changer,
+        et completer son profil (nom, prenom, telephone, photo) depuis
+        "Mon Profil".
+      </div>
+    </div>
+    <a href="{% url 'dashboard_mes_agents_list' %}" class="btn btn-primary">
+      <i class="fa-solid fa-arrow-left"></i> Retour a la liste
+    </a>
+    {% else %}
+
+    <div class="role-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>
+        Un mot de passe temporaire sera genere automatiquement. Le nouvel
+        agent sera rattache a votre service
+        ({% if service == "technique" %}Gestionnaire Cadastre{% else %}Gestionnaire Fiscalite{% endif %}).
+      </div>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="form-field">
+        <label for="username">Identifiant</label>
+        <input type="text" name="username" id="username" class="input-search" style="width:100%;" required>
+      </div>
+      <div class="form-actions">
+        <a href="{% url 'dashboard_mes_agents_list' %}" class="btn btn-outline"><i class="fa-solid fa-xmark"></i> Annuler</a>
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Creer le compte</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

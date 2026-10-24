@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -467,6 +467,18 @@
     </ul>
     {% endif %}
 
+    {% if est_chef_technique or est_chef_fiscal %}
+    <div class="sidebar-section-label">Mon equipe</div>
+    <ul class="sidebar-nav">
+      <li><a href="{% url 'dashboard_mes_agents_list' %}" class="sidebar-link {% if active_section == 'mes_agents' %}active{% endif %}">
+        <i class="fa-solid fa-user-group nav-icon"></i> Mes agents
+      </a></li>
+      <li><a href="{% url 'dashboard_journal_audit_list' %}" class="sidebar-link {% if active_section == 'journal_audit' %}active{% endif %}">
+        <i class="fa-solid fa-clock-rotate-left nav-icon"></i> Activite de mes agents
+      </a></li>
+    </ul>
+    {% endif %}
+
     {% if est_superviseur %}
     <div class="sidebar-section-label">Administration</div>
     <ul class="sidebar-nav">
@@ -524,11 +536,10 @@
       </div>
       {% block topbar_extra %}{% endblock %}
 
-      {% if peut_technique %}
-      <form method="get" action="{% url 'dashboard_parcelle_list' %}" class="topbar-search">
-        <input type="text" name="q" placeholder="Rechercher une parcelle, un proprietaire...">
+      <form method="get" action="{% url 'dashboard_recherche_globale' %}" class="topbar-search">
+        <input type="text" name="q" placeholder="Rechercher parcelle, proprietaire, contribuable...">
+        <button type="submit" aria-label="Rechercher"><i class="fa-solid fa-magnifying-glass"></i></button>
       </form>
-      {% endif %}
 
       <div class="topbar-actions">
         <button type="button" class="topbar-icon-btn" id="topbarNotifBtn" aria-label="Notifications">

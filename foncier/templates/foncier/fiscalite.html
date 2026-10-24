@@ -1,4 +1,4 @@
-{% extends 'foncier/base.html' %}{% load static %}
+﻿{% extends 'foncier/base.html' %}{% load static %}
 {% block title %}Fiscalité - KEUR MASSAR NORD Foncier{% endblock %}
 
 {% block extra_head %}
@@ -119,12 +119,15 @@
     <button class="tab-btn" data-tab="simulateur" role="tab" id="tab-simulateur" aria-selected="false" aria-controls="panel-simulateur">
       <i class="fa-solid fa-calculator"></i> Simulateur
     </button>
-    <a href="{% url 'citoyen_espace' %}" class="tab-btn" style="text-decoration:none;">
-      <i class="fa-solid fa-house-user"></i> Mon espace communal
-    </a>
+    <button class="tab-btn" data-tab="communal" role="tab" id="tab-communal" aria-selected="false" aria-controls="panel-communal">
+      <i class="fa-solid fa-city"></i> Mon espace communal
+    </button>
     <button class="tab-btn" data-tab="faq" role="tab" id="tab-faq" aria-selected="false" aria-controls="panel-faq">
       <i class="fa-solid fa-circle-question"></i> FAQ
     </button>
+    <a href="{% url 'citoyen_espace' %}" class="tab-btn" style="text-decoration:none;">
+      <i class="fa-solid fa-house-user"></i> Mon espace citoyen
+    </a>
   </div>
 </div>
 
@@ -159,7 +162,15 @@
       .fo-legal-item i{ color:#d9a52b; font-size:15px; margin-top:3px; flex-shrink:0; }
       .fo-legal-item h5{ font-size:13px; font-weight:700; color:#2b1b14; margin:0 0 4px; }
       .fo-legal-item p{ font-size:12px; line-height:1.6; color:#5a3d2c; margin:0; }
+      .fo-demarche-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin:28px 0 40px; }
+      .fo-demarche-card{ display:flex; gap:14px; align-items:flex-start; background:#fff; border:1px solid #e3d7bc; border-radius:16px; padding:20px; text-decoration:none; transition:box-shadow .2s ease, transform .2s ease; }
+      .fo-demarche-card:hover{ box-shadow:0 8px 24px rgba(43,27,20,.12); transform:translateY(-3px); }
+      .fo-demarche-icon{ width:42px; height:42px; border-radius:12px; flex-shrink:0; background:#f1e9d8; color:#b98520; display:flex; align-items:center; justify-content:center; font-size:17px; }
+      .fo-demarche-text h4{ font-size:13.5px; font-weight:700; color:#2b1b14; margin:0 0 5px; }
+      .fo-demarche-text p{ font-size:12px; line-height:1.55; color:#5a3d2c; margin:0 0 7px; }
+      .fo-demarche-link{ font-size:11.5px; font-weight:700; color:#b98520; }
       @media (max-width: 860px){ .fo-doc-grid{ grid-template-columns:repeat(2,1fr); } }
+      @media (max-width: 860px){ .fo-demarche-grid{ grid-template-columns:1fr; } }
     </style>
 
     <h2 class="section-title">Le foncier à Keur Massar Nord</h2>
@@ -191,6 +202,76 @@
         <h4>Attestation de cession</h4>
         <p>Document attestant le transfert d'un droit d'usage entre particuliers, reconnu par la commune.</p>
       </div>
+    </div>
+
+    <h2 class="section-title">Démarches foncières</h2>
+    <p class="section-sub">Les principales démarches foncières que vous pouvez engager auprès de la mairie, en ligne.</p>
+
+    <div class="fo-demarche-grid">
+      <a href="{% url 'immatriculation_demande' %}" class="fo-demarche-card">
+        <div class="fo-demarche-icon"><i class="fa-solid fa-user-plus"></i></div>
+        <div class="fo-demarche-text">
+          <h4>Première immatriculation</h4>
+          <p>Pour les personnes jamais recensées comme contribuables fonciers sur la commune.</p>
+          <span class="fo-demarche-link">Faire ma demande &rarr;</span>
+        </div>
+      </a>
+      <a href="{% url 'mutation_demande' %}" class="fo-demarche-card">
+        <div class="fo-demarche-icon"><i class="fa-solid fa-right-left"></i></div>
+        <div class="fo-demarche-text">
+          <h4>Mutation foncière</h4>
+          <p>Pour transférer un dossier fiscal à un nouvel acquéreur suite à une vente.</p>
+          <span class="fo-demarche-link">Faire ma demande &rarr;</span>
+        </div>
+      </a>
+      <a href="{% url 'recherche_cadastrale' %}" class="fo-demarche-card">
+        <div class="fo-demarche-icon"><i class="fa-solid fa-magnifying-glass-location"></i></div>
+        <div class="fo-demarche-text">
+          <h4>Recherche cadastrale</h4>
+          <p>Consultez les informations publiques d'une parcelle à partir de son NICAD ou de son adresse.</p>
+          <span class="fo-demarche-link">Rechercher &rarr;</span>
+        </div>
+      </a>
+      <a href="{% url 'signalement' %}" class="fo-demarche-card">
+        <div class="fo-demarche-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="fo-demarche-text">
+          <h4>Signaler un litige ou une anomalie</h4>
+          <p>Occupation irrégulière, empiètement ou erreur sur une parcelle : signalez-le à la mairie.</p>
+          <span class="fo-demarche-link">Signaler &rarr;</span>
+        </div>
+      </a>
+      <a href="{% url 'citoyen_recours_liste' %}" class="fo-demarche-card">
+        <div class="fo-demarche-icon"><i class="fa-solid fa-gavel"></i></div>
+        <div class="fo-demarche-text">
+          <h4>Recours fiscal</h4>
+          <p>Contestez un montant de taxe foncière ou un redressement depuis votre espace citoyen.</p>
+          <span class="fo-demarche-link">Accéder &rarr;</span>
+        </div>
+      </a>
+      <a href="{% url 'citoyen_exoneration_liste' %}" class="fo-demarche-card">
+        <div class="fo-demarche-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+        <div class="fo-demarche-text">
+          <h4>Demande d'exonération</h4>
+          <p>Demandez une exonération fiscale pour une parcelle, si vous remplissez les conditions prévues.</p>
+          <span class="fo-demarche-link">Accéder &rarr;</span>
+        </div>
+      </a>
+      <a href="{% url 'citoyen_plan_paiement_liste' %}" class="fo-demarche-card">
+        <div class="fo-demarche-icon"><i class="fa-solid fa-calendar-check"></i></div>
+        <div class="fo-demarche-text">
+          <h4>Plan de paiement échelonné</h4>
+          <p>Étalez le règlement d'une taxe foncière sur plusieurs échéances depuis votre espace citoyen.</p>
+          <span class="fo-demarche-link">Accéder &rarr;</span>
+        </div>
+      </a>
+      <a href="{% url 'citoyen_morcellement_fusion_liste' %}" class="fo-demarche-card">
+        <div class="fo-demarche-icon"><i class="fa-solid fa-draw-polygon"></i></div>
+        <div class="fo-demarche-text">
+          <h4>Morcellement / fusion de parcelles</h4>
+          <p>Demandez la division ou le regroupement de parcelles dont vous êtes propriétaire.</p>
+          <span class="fo-demarche-link">Accéder &rarr;</span>
+        </div>
+      </a>
     </div>
 
     <h2 class="section-title">Le cadre légal</h2>

@@ -13,7 +13,7 @@ class CitoyenRegistrationForm(AntiSpamFormMixin, UserCreationForm):
     last_name = forms.CharField(label="Nom", max_length=150)
     email = forms.EmailField(label="Email")
     telephone = forms.CharField(label="Téléphone", max_length=20, required=False)
-    numero_fiscal = forms.CharField(label="Identifiant fiscalité")
+    numero_fiscal = forms.CharField(label="Identifiant fiscalite", required=False)
     numero_foncier = forms.CharField(label="Identifiant foncier (NICAD)")
 
     class Meta:
@@ -27,9 +27,11 @@ class CitoyenRegistrationForm(AntiSpamFormMixin, UserCreationForm):
         return email
 
     def clean_numero_fiscal(self):
-        valeur = self.cleaned_data["numero_fiscal"].strip()
+        valeur = (self.cleaned_data.get("numero_fiscal") or "").strip()
+        if not valeur:
+            return None
         if Citoyen.objects.filter(numero_fiscal__iexact=valeur).exists():
-            raise forms.ValidationError("Cet identifiant fiscalité est déjà associé à un compte.")
+            raise forms.ValidationError("Cet identifiant fiscal est deja associe a un compte.")
         return valeur
 
     def clean_numero_foncier(self):
@@ -52,7 +54,7 @@ class CitoyenRegistrationForm(AntiSpamFormMixin, UserCreationForm):
             Citoyen.objects.create(
                 user=user,
                 telephone=self.cleaned_data.get("telephone", ""),
-                numero_fiscal=self.cleaned_data["numero_fiscal"],
+                numero_fiscal=self.cleaned_data.get("numero_fiscal") or None,
                 numero_foncier=self.cleaned_data["numero_foncier"],
             )
         return user

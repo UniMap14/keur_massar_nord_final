@@ -116,7 +116,9 @@ class OrangeMoneyBackend:
             retour_url = request.build_absolute_uri(
                 reverse("citoyen_paiement_retour", args=[paiement.pk])
             )
-            notif_url = request.build_absolute_uri(reverse("paiement_webhook_orange"))
+            notif_url = request.build_absolute_uri(
+                reverse("paiement_webhook_orange", args=[settings.PAIEMENT_ORANGE_WEBHOOK_TOKEN])
+            )
 
             corps = json.dumps({
                 "merchant_key": self.merchant_key,

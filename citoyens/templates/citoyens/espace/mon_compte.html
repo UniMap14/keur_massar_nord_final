@@ -1,0 +1,66 @@
+{% extends "citoyens/base_citoyen.html" %}
+
+{% block page_title %}Mon compte{% endblock %}
+{% block header_title %}Mon compte{% endblock %}
+{% block header_subtitle %}Paiements de vos démarches (extrait cadastral, etc.) — distinct de votre fiscalité.{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <h2><i class="fa-solid fa-wallet"></i> Solde de mon compte</h2>
+  <div style="display:flex; gap:30px; flex-wrap:wrap;">
+    <div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); font-weight:700; margin-bottom:6px;">Total payé et confirmé</div>
+      <div style="font-size:28px; font-weight:800; color:var(--ok);">{{ total_paye|floatformat:0 }} FCFA</div>
+    </div>
+    {% if total_en_attente %}
+    <div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); font-weight:700; margin-bottom:6px;">En attente de validation</div>
+      <div style="font-size:28px; font-weight:800; color:#b9740b;">{{ total_en_attente|floatformat:0 }} FCFA</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2><i class="fa-solid fa-clock-rotate-left"></i> Historique de mes paiements</h2>
+  {% if demandes_payantes %}
+    <table style="width:100%; border-collapse:collapse; font-size:13.5px;">
+      <thead>
+        <tr style="text-align:left; border-bottom:2px solid var(--border);">
+          <th style="padding:8px 6px;">Démarche</th>
+          <th style="padding:8px 6px;">Montant</th>
+          <th style="padding:8px 6px;">Référence</th>
+          <th style="padding:8px 6px;">Statut</th>
+          <th style="padding:8px 6px;">Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in demandes_payantes %}
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px 6px;">
+            <a href="{% url 'citoyen_demande_detail' d.pk %}">{{ d.type_demande.libelle }}</a>
+            <div style="font-size:11px; color:var(--text-muted);">{{ d.numero_dossier }}</div>
+          </td>
+          <td style="padding:8px 6px; font-weight:700;">{{ d.montant_paye|floatformat:0 }} FCFA</td>
+          <td style="padding:8px 6px; font-size:12px; color:var(--text-muted);">{{ d.reference_paiement|default:"—" }}</td>
+          <td style="padding:8px 6px;">
+            {% if d.statut_paiement == 'CONFIRME' %}
+              <span style="color:var(--ok); font-weight:700;">Confirmé</span>
+            {% elif d.statut_paiement == 'EN_ATTENTE' %}
+              <span style="color:#b9740b; font-weight:700;">En attente</span>
+            {% else %}
+              {{ d.get_statut_paiement_display }}
+            {% endif %}
+          </td>
+          <td style="padding:8px 6px; color:var(--text-muted);">{{ d.date_maj|date:"d/m/Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color:var(--text-muted);">Vous n'avez pas encore effectué de paiement de démarche.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

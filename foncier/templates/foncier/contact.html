@@ -13,19 +13,19 @@
     /* ---- BANNIÈRE AVEC IMAGE DE FOND ---- */
     .page-banner {
         position: relative;
-        background-image: url('{% static "foncier\img\gallery\kms.png" %}'); /* <-- remplacez par le chemin de votre photo */
+        background-image: url('{% static "foncier/img/gallery/kms.png" %}');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
         overflow: hidden;
         z-index: 1;
-        min-height: 600px;
+        min-height: 150px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
-        padding: 60px 20px;
+        padding: 24px 20px;
     }
 
     .page-banner::before {
@@ -290,18 +290,8 @@
 
 <!-- BANNIÈRE DE PAGE -->
 <section class="page-banner">
-    <div class="banner-breadcrumb">
-        <a href="{% url 'home' %}">Accueil</a>
-        <i class="fa-solid fa-chevron-right" style="font-size:10px;"></i>
-        <span>Contact</span>
-    </div>
-    <span class="banner-badge">
-        <span class="badge-dot"></span> Portail d'assistance Plateforme centralisée de la commune de Keur Massar Nord.
-    </span>
-    <h1>Une administration à votre écoute</h1>
-    <p><strong><h2>Pour toute demande d'information,Notre équipe est à votre disposition pour répondre à vos questions sur le foncier, le cadastre et la fiscalité locale. Contactez-nous, nous vous répondrons rapidement.
-</h2></strong>
-</p>
+    <h1 style="color:#fff; margin:0; font-size:clamp(22px,3vw,32px);">Contactez-nous</h1>
+    <p style="color:#f0e6d2; margin:6px 0 0; font-size:14px;">Notre équipe vous répond sur le foncier, le cadastre et la fiscalité locale.</p>
 </section>
 
 <!-- CORPS DE PAGE -->

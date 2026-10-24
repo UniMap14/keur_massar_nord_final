@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # foncier/dashboard_urls.py
 #
 # À inclure dans kmsn/urls.py (racine du projet) avec :
@@ -18,29 +18,25 @@ urlpatterns = [
     path("login/", views.DashboardLoginView.as_view(), name="dashboard_login"),
     path("logout/", LogoutView.as_view(next_page="dashboard_login"), name="dashboard_logout"),
 
-    # --- Mot de passe oublié (4 étapes) ---
+    # --- Mot de passe oublié (code par email, 2 étapes) ---
     path(
         "mot-de-passe-oublie/",
-        views.DashboardPasswordResetView.as_view(),
+        views.dashboard_password_reset_demande,
         name="dashboard_password_reset",
     ),
     path(
-        "mot-de-passe-oublie/envoye/",
-        views.DashboardPasswordResetDoneView.as_view(),
-        name="dashboard_password_reset_done",
+        "mot-de-passe-oublie/code/",
+        views.dashboard_password_reset_code,
+        name="dashboard_password_reset_code",
     ),
     path(
-        "reinitialiser/<uidb64>/<token>/",
-        views.DashboardPasswordResetConfirmView.as_view(),
-        name="dashboard_password_reset_confirm",
-    ),
-    path(
-        "reinitialiser/termine/",
-        views.DashboardPasswordResetCompleteView.as_view(),
-        name="dashboard_password_reset_complete",
+        "mot-de-passe-oublie/renvoyer/",
+        views.dashboard_password_reset_renvoyer,
+        name="dashboard_password_reset_renvoyer",
     ),
 
     path("", views.dashboard_home, name="dashboard_home"),
+    path("recherche/", views.dashboard_recherche_globale, name="dashboard_recherche_globale"),
 
     # --- Parcelles (CRUD complet) ---
     path("parcelles/", views.dashboard_parcelle_list, name="dashboard_parcelle_list"),
@@ -165,4 +161,10 @@ urlpatterns = [
     path("cartotheque/nouvelle/", views.dashboard_cartotheque_create, name="dashboard_cartotheque_create"),
     path("cartotheque/<int:pk>/modifier/", views.dashboard_cartotheque_update, name="dashboard_cartotheque_update"),
     path("cartotheque/<int:pk>/supprimer/", views.dashboard_cartotheque_delete, name="dashboard_cartotheque_delete"),
+
+    # --- Mes agents (gestion d'equipe par les chefs de service) ---
+    path("mes-agents/", views.dashboard_mes_agents_list, name="dashboard_mes_agents_list"),
+    path("mes-agents/creer/", views.dashboard_agent_create, name="dashboard_agent_create"),
+    path("mes-agents/<int:pk>/reinitialiser-mot-de-passe/", views.dashboard_agent_reset_password, name="dashboard_agent_reset_password"),
+    path("mes-agents/<int:pk>/activer-desactiver/", views.dashboard_agent_toggle_actif, name="dashboard_agent_toggle_actif"),
 ]

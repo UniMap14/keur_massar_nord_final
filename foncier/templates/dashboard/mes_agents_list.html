@@ -1,0 +1,61 @@
+﻿{% extends "dashboard/base.html" %}
+
+{% block page_title %}Mes agents{% endblock %}
+{% block header_title %}Mes agents{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ objets|length }} agent(s) dans votre service</div>{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <h2><i class="fa-solid fa-user-group"></i> Mes agents</h2>
+    <a href="{% url 'dashboard_agent_create' %}" class="btn btn-primary btn-sm">
+      <i class="fa-solid fa-plus"></i> Creer un agent
+    </a>
+  </div>
+
+  <div class="panel-body flush">
+    {% if objets %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Identifiant</th>
+          <th>Nom complet</th>
+          <th>Email</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ligne in objets %}
+        <tr>
+          {% for valeur in ligne.cellules %}
+            <td>{{ valeur }}</td>
+          {% endfor %}
+          <td>
+            <div class="row-actions">
+              <a href="{% url 'dashboard_agent_reset_password' ligne.pk %}" class="btn btn-outline btn-sm" title="Reinitialiser le mot de passe">
+                <i class="fa-solid fa-key"></i>
+              </a>
+              <form method="post" action="{% url 'dashboard_agent_toggle_actif' ligne.pk %}" style="display:inline;" onsubmit="return confirm('Confirmer ce changement de statut ?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline btn-sm" title="Activer / desactiver">
+                  <i class="fa-solid fa-power-off"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="icon"><i class="fa-solid fa-user-group"></i></div>
+      Aucun agent pour le moment. Cliquez sur "Creer un agent" pour commencer.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
