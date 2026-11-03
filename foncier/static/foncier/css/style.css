@@ -9,6 +9,8 @@
   --green-light : #8a624a;
   --gold        : #c9982e;
   --gold-dark   : #a67c1f;
+  --gold-soft   : #d8bd84;
+  --brown-soft  : #a9845f;
   --white       : #ffffff;
   --off-white   : #f5efe2;
   --text        : #2b211a;
@@ -836,8 +838,9 @@ nav ul li a.active {
 ========================================= */
 
 footer {
-  background : var(--green-dark);
-  color      : white;
+  background : linear-gradient(135deg, var(--gold-soft) 0%, var(--brown-soft) 100%);
+  color      : #000000;
+  font-weight: 700;
   padding    : 44px 60px 0;
 }
 
@@ -846,12 +849,13 @@ footer {
   grid-template-columns : 1.6fr repeat(3, 1fr);
   gap                   : 40px;
   padding-bottom        : 32px;
-  border-bottom         : 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom         : 1px solid rgba(0, 0, 0, 0.18);
 }
 
 .footer-brand-desc {
   font-size   : 14px;
-  color       : rgba(255, 255, 255, 0.52);
+  color       : #000000;
+  font-weight : 700;
   line-height : 1.6;
   margin      : 12px 0;
   max-width   : 260px;
@@ -866,19 +870,19 @@ footer {
   width           : 36px;
   height          : 36px;
   border-radius   : 8px;
-  background      : rgba(255, 255, 255, 0.14);
-  border          : 1px solid rgba(255, 255, 255, 0.18);
+  background      : rgba(0, 0, 0, 0.12);
+  border          : 1px solid rgba(0, 0, 0, 0.22);
   display         : flex;
   align-items     : center;
   justify-content : center;
-  color           : rgba(255, 255, 255, 0.9);
+  color           : #000000;
   font-size       : 15px;
   transition      : all 0.25s;
 }
 
 .soc-btn:hover {
-  background : var(--gold);
-  color      : var(--green-dark);
+  background : #000000;
+  color      : var(--gold);
 }
 
 .footer-col h4 {
@@ -886,7 +890,7 @@ footer {
   font-weight    : 700;
   text-transform : uppercase;
   letter-spacing : 1.8px;
-  color          : var(--gold);
+  color          : #000000;
   margin-bottom  : 14px;
 }
 
@@ -899,7 +903,8 @@ footer {
 }
 
 .footer-col ul li a {
-  color       : rgba(255, 255, 255, 0.52);
+  color       : #000000;
+  font-weight : 700;
   font-size   : 14px;
   transition  : color 0.2s;
   display     : flex;
@@ -908,11 +913,11 @@ footer {
 }
 
 .footer-col ul li a:hover {
-  color: white;
+  color: var(--gold-dark);
 }
 
 .footer-icon {
-  color      : var(--gold);
+  color      : #000000;
   font-size  : 13px;
   flex-shrink: 0;
 }
@@ -923,8 +928,9 @@ footer {
 }
 
 .footer-bottom p {
-  font-size : 13px;
-  color     : rgba(255, 255, 255, 0.3);
+  font-size   : 13px;
+  font-weight : 700;
+  color       : #000000;
 }
 
 /* =========================================

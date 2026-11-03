@@ -1,6 +1,7 @@
 from django.contrib.gis import admin
 from .models import GuideFiscal
-from django.db.models import Sum
+from django import forms
+from django.db.models import Q, Sum
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline  # Style moderne de Django Unfold
 from unfold.sites import UnfoldAdminSite
@@ -200,10 +201,31 @@ class TypeTaxeAdmin(ModelAdmin):
     list_display = ("code", "libelle")
     search_fields = ("code", "libelle")
 
+    def get_queryset(self, request):
+        codes_actifs = [code for code, _label in TypeTaxe.CODES]
+        return super().get_queryset(request).filter(code__in=codes_actifs)
+
 
 # --- TAXATIONS ---
+class TaxationAdminForm(forms.ModelForm):
+    class Meta:
+        model = Taxation
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        codes_actifs = [code for code, _label in TypeTaxe.CODES]
+        queryset = TypeTaxe.objects.filter(code__in=codes_actifs)
+        if self.instance.pk and self.instance.type_taxe_id:
+            queryset = TypeTaxe.objects.filter(
+                Q(code__in=codes_actifs) | Q(pk=self.instance.type_taxe_id)
+            )
+        self.fields["type_taxe"].queryset = queryset
+
+
 @admin.register(Taxation)
 class TaxationAdmin(ModelAdmin):
+    form = TaxationAdminForm
     list_display = (
         "contribuable",
         "type_taxe",

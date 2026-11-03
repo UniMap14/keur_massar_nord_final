@@ -161,6 +161,40 @@ class MorcellementFusionListRoleTests(BasePermissionsTestCase):
         self.assertEqual(response.status_code, 403)
 
 
+class ChefCadastreCreateContentRoleTests(BasePermissionsTestCase):
+    """Le chef et le gestionnaire du cadastre peuvent créer les contenus
+    techniques disponibles dans leur espace."""
+
+    URL_NAMES = (
+        "dashboard_categorie_create",
+        "dashboard_actualite_create",
+        "dashboard_cartotheque_create",
+        "dashboard_galerie_create",
+        "dashboard_infrastructure_create",
+    )
+
+    def test_chef_cadastre_peut_ouvrir_les_formulaires_de_creation(self):
+        self.client.force_login(self.chef_technique)
+        for url_name in self.URL_NAMES:
+            with self.subTest(url_name=url_name):
+                response = self.client.get(reverse(url_name))
+                self.assertEqual(response.status_code, 200)
+
+    def test_gestionnaire_cadastre_conserve_l_acces_aux_formulaires(self):
+        self.client.force_login(self.gestionnaire_technique)
+        for url_name in self.URL_NAMES:
+            with self.subTest(url_name=url_name):
+                response = self.client.get(reverse(url_name))
+                self.assertEqual(response.status_code, 200)
+
+    def test_service_fiscal_ne_peut_pas_creer_les_contenus_cadastraux(self):
+        self.client.force_login(self.chef_fiscal)
+        for url_name in self.URL_NAMES:
+            with self.subTest(url_name=url_name):
+                response = self.client.get(reverse(url_name))
+                self.assertEqual(response.status_code, 403)
+
+
 class DashboardHomeRoleContextTests(BasePermissionsTestCase):
     """Priorite 3 : peut_fiscal / peut_technique correctement calcules
     selon le role de l\'utilisateur connecte."""

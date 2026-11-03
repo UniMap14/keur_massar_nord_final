@@ -736,6 +736,14 @@
     <div class="delta">Citoyens dans la base SIG</div>
   </div>
 
+  <div class="kpi-card tone-green">
+    <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+    <span class="kpi-corner-icon"><i class="fa-solid fa-sack-dollar"></i></span>
+    <div class="label">Montant encaissé (démarches)</div>
+    <div class="value">{{ total_recouvre_demandes_fmt }}</div>
+    <div class="delta">Extraits cadastraux et autres démarches payées</div>
+  </div>
+
 {% endif %}
 {% if peut_fiscal %}
   <a href="{% url 'dashboard_contribuable_list' %}" class="kpi-card tone-purple" style="text-decoration:none; color:inherit; display:block;">

@@ -182,6 +182,11 @@ class DeclarationFiscaleForm(forms.ModelForm):
     def __init__(self, *args, parcelles_qs=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["parcelle"].empty_label = "— Choisir une parcelle —"
+        from foncier.models import TypeTaxe
+        codes_declaration_fonciere = ("CFPB", "CFPNB")
+        self.fields["type_taxe"].queryset = TypeTaxe.objects.filter(
+            code__in=codes_declaration_fonciere
+        )
         if parcelles_qs is not None:
             self.fields["parcelle"].queryset = parcelles_qs
         else:

@@ -40,6 +40,8 @@
     }
     .form-actions .btn { display: inline-flex; align-items: center; gap: 8px; }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 {% endblock %}
 
 {% block breadcrumbs %}
@@ -81,6 +83,18 @@
           {{ form.statut.errors }}
         </div>
 
+        <div class="form-field full">
+          <label><i class="fa-solid fa-map-location-dot"></i> Localisation sur la carte</label>
+          <div class="leaflet-map-wrap" style="position:relative;">
+            <div id="infra-position-map" style="height:320px; border-radius:8px;"></div>
+          </div>
+          <div class="hint">
+            <i class="fa-solid fa-circle-info"></i>
+            Cliquez sur la carte pour placer ou déplacer le repère — les champs Latitude / Longitude ci-dessous
+            se remplissent automatiquement. Vous pouvez aussi saisir les coordonnées directement à la main.
+          </div>
+        </div>
+
         <div class="form-field">
           <label for="{{ form.latitude.id_for_label }}"><i class="fa-solid fa-location-dot"></i> Latitude</label>
           {{ form.latitude }}
@@ -93,6 +107,93 @@
           {{ form.longitude }}
           {{ form.longitude.errors }}
         </div>
+
+        <script>
+        (function () {
+          function initInfraPositionMap() {
+            var mapEl = document.getElementById("infra-position-map");
+            var latInput = document.getElementById("{{ form.latitude.id_for_label }}");
+            var lonInput = document.getElementById("{{ form.longitude.id_for_label }}");
+            if (!mapEl || !latInput || !lonInput || mapEl._leafletInitDone) {
+              return;
+            }
+            mapEl._leafletInitDone = true;
+
+            var defautLat = 14.7900;
+            var defautLon = -17.3100;
+            var defautZoom = 14;
+
+            var latDepart = parseFloat(latInput.value);
+            var lonDepart = parseFloat(lonInput.value);
+            var aUnePosition = !isNaN(latDepart) && !isNaN(lonDepart);
+
+            var map = L.map("infra-position-map").setView(
+              aUnePosition ? [latDepart, lonDepart] : [defautLat, defautLon],
+              aUnePosition ? 16 : defautZoom
+            );
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              maxZoom: 19,
+              subdomains: "abc"
+            }).addTo(map);
+
+            var marker = null;
+
+            function placerRepere(lat, lon) {
+              if (marker) {
+                marker.setLatLng([lat, lon]);
+              } else {
+                marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+                marker.on("dragend", function () {
+                  var pos = marker.getLatLng();
+                  latInput.value = pos.lat.toFixed(6);
+                  lonInput.value = pos.lng.toFixed(6);
+                });
+              }
+            }
+
+            if (aUnePosition) {
+              placerRepere(latDepart, lonDepart);
+            }
+
+            map.on("click", function (e) {
+              placerRepere(e.latlng.lat, e.latlng.lng);
+              latInput.value = e.latlng.lat.toFixed(6);
+              lonInput.value = e.latlng.lng.toFixed(6);
+            });
+
+            function syncDepuisChamps() {
+              var lat = parseFloat(latInput.value);
+              var lon = parseFloat(lonInput.value);
+              if (!isNaN(lat) && !isNaN(lon)) {
+                placerRepere(lat, lon);
+                map.panTo([lat, lon]);
+              }
+            }
+            latInput.addEventListener("change", syncDepuisChamps);
+            lonInput.addEventListener("change", syncDepuisChamps);
+
+            setTimeout(function () { map.invalidateSize(); }, 200);
+          }
+
+          if (typeof L === "undefined") {
+            var tentatives = 0;
+            var attendreLeaflet = setInterval(function () {
+              tentatives += 1;
+              if (typeof L !== "undefined") {
+                clearInterval(attendreLeaflet);
+                initInfraPositionMap();
+              } else if (tentatives > 100) {
+                clearInterval(attendreLeaflet);
+                console.error("Leaflet n'a pas pu etre charge.");
+              }
+            }, 100);
+          } else {
+            initInfraPositionMap();
+          }
+        })();
+        </script>
 
         <div class="form-field full">
           <label for="{{ form.notes.id_for_label }}"><i class="fa-solid fa-note-sticky"></i> Notes</label>

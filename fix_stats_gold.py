@@ -1,0 +1,510 @@
+# -*- coding: utf-8 -*-
+import io
+
+# ============================================================
+# 1) foncier/views.py : ajouter les valeurs numeriques "propres"
+#    (pour l'animation des compteurs) et retirer les donnees du
+#    graphique population (plus affiche).
+# ============================================================
+chemin_views = "foncier/views.py"
+with io.open(chemin_views, "r", encoding="utf-8") as f:
+    contenu_views = f.read()
+
+ancienne_fonction = """def statistiques(request):
+    import json
+
+    context = {
+        'population': "224 765",        # RGPH-5 (2023), ANSD
+        'annee_population': 2023,
+        'superficie': "13,18",
+        'densite': "17 058",
+        'pop_hommes_pct': "50,7",
+        'pop_femmes_pct': "49,3",
+        'nb_quartiers': 86,
+        'annee_creation': 2021,
+    }
+
+    # Valeurs numériques utilisées par les graphiques (les chaînes
+    # ci-dessus, avec virgule, restent pour l'affichage textuel).
+    context['chart_population_labels'] = json.dumps(['Hommes', 'Femmes'])
+    context['chart_population_valeurs'] = json.dumps([50.7, 49.3])
+
+    # --- Données cadastrales réelles (calculées à partir des parcelles
+    # effectivement importées en base, pas de chiffres inventés) ---
+    nb_parcelles = Parcelle.objects.count()
+    context['nb_parcelles'] = nb_parcelles
+
+    if nb_parcelles:
+        superficie_totale_m2 = (
+            Parcelle.objects.aggregate(total=Sum('superficie'))['total'] or 0
+        )
+        context['superficie_cadastree_ha'] = round(superficie_totale_m2 / 10000, 1)
+
+        # Nombre de parcelles par quartier (top 15, pour rester lisible
+        # sur un graphique).
+        parcelles_par_quartier = list(
+            Parcelle.objects
+            .exclude(zone__isnull=True)
+            .values('zone__nom')
+            .annotate(total=Count('id'))
+            .order_by('-total')[:15]
+        )
+        context['parcelles_par_quartier'] = parcelles_par_quartier
+        context['chart_quartiers_labels'] = json.dumps(
+            [q['zone__nom'] for q in parcelles_par_quartier]
+        )
+        context['chart_quartiers_valeurs'] = json.dumps(
+            [q['total'] for q in parcelles_par_quartier]
+        )
+
+    # --- Infrastructures publiques réellement recensées ---
+    context['nb_infrastructures'] = Infrastructure.objects.count()
+    repartition_infrastructures = list(
+        CategorieInfrastructure.objects
+        .annotate(total=Count('infrastructures'))
+        .filter(total__gt=0)
+        .order_by('-total')
+    )
+    context['repartition_infrastructures'] = repartition_infrastructures
+    context['chart_infra_labels'] = json.dumps(
+        [c.label for c in repartition_infrastructures]
+    )
+    context['chart_infra_valeurs'] = json.dumps(
+        [c.total for c in repartition_infrastructures]
+    )
+    context['chart_infra_couleurs'] = json.dumps(
+        [getattr(c, 'couleur', None) or '#2f7a4f' for c in repartition_infrastructures]
+    )
+
+    return render(request, 'foncier/statistiques.html', context)
+"""
+
+nouvelle_fonction = """def statistiques(request):
+    import json
+
+    context = {
+        'population': "224 765",        # RGPH-5 (2023), ANSD
+        'annee_population': 2023,
+        'superficie': "13,18",
+        'densite': "17 058",
+        'pop_hommes_pct': "50,7",
+        'pop_femmes_pct': "49,3",
+        'nb_quartiers': 86,
+        'annee_creation': 2021,
+        # Valeurs numériques "propres" (sans virgule ni espace), utilisées
+        # par l'animation des chiffres sur la page.
+        'population_val': 224765,
+        'superficie_val': 13.18,
+        'densite_val': 17058,
+        'pop_hommes_pct_val': 50.7,
+        'pop_femmes_pct_val': 49.3,
+        'nb_quartiers_val': 86,
+        'annee_creation_val': 2021,
+    }
+
+    # --- Données cadastrales réelles (calculées à partir des parcelles
+    # effectivement importées en base, pas de chiffres inventés) ---
+    nb_parcelles = Parcelle.objects.count()
+    context['nb_parcelles'] = nb_parcelles
+
+    if nb_parcelles:
+        superficie_totale_m2 = (
+            Parcelle.objects.aggregate(total=Sum('superficie'))['total'] or 0
+        )
+        context['superficie_cadastree_ha'] = round(superficie_totale_m2 / 10000, 1)
+
+        # Nombre de parcelles par quartier (top 15, pour rester lisible
+        # sur un graphique).
+        parcelles_par_quartier = list(
+            Parcelle.objects
+            .exclude(zone__isnull=True)
+            .values('zone__nom')
+            .annotate(total=Count('id'))
+            .order_by('-total')[:15]
+        )
+        context['parcelles_par_quartier'] = parcelles_par_quartier
+        context['chart_quartiers_labels'] = json.dumps(
+            [q['zone__nom'] for q in parcelles_par_quartier]
+        )
+        context['chart_quartiers_valeurs'] = json.dumps(
+            [q['total'] for q in parcelles_par_quartier]
+        )
+
+    # --- Infrastructures publiques réellement recensées ---
+    context['nb_infrastructures'] = Infrastructure.objects.count()
+    repartition_infrastructures = list(
+        CategorieInfrastructure.objects
+        .annotate(total=Count('infrastructures'))
+        .filter(total__gt=0)
+        .order_by('-total')
+    )
+    context['repartition_infrastructures'] = repartition_infrastructures
+    context['chart_infra_labels'] = json.dumps(
+        [c.label for c in repartition_infrastructures]
+    )
+    context['chart_infra_valeurs'] = json.dumps(
+        [c.total for c in repartition_infrastructures]
+    )
+    context['chart_infra_couleurs'] = json.dumps(
+        [getattr(c, 'couleur', None) or '#2f7a4f' for c in repartition_infrastructures]
+    )
+
+    return render(request, 'foncier/statistiques.html', context)
+"""
+
+nb = contenu_views.count(ancienne_fonction)
+if nb != 1:
+    raise SystemExit(
+        f"ARRET : ancre de statistiques() trouvee {nb} fois (attendu 1) dans views.py. "
+        f"Rien n'a ete modifie."
+    )
+contenu_views = contenu_views.replace(ancienne_fonction, nouvelle_fonction)
+
+with io.open(chemin_views, "w", encoding="utf-8", newline="\n") as f:
+    f.write(contenu_views)
+
+# ============================================================
+# 2) foncier/templates/foncier/statistiques.html : reecriture
+#    complete (panneau demographique dore/marron + compteurs
+#    animes, suppression du graphique population).
+# ============================================================
+nouveau_html = '''{% extends 'foncier/base.html' %}
+{% load static %}
+{% block title %}Statistiques - Keur Massar Nord{% endblock %}
+
+{% block extra_head %}
+<style>
+  .stats-panel-demo{
+    position:relative; overflow:hidden;
+    background:linear-gradient(135deg, #241509 0%, #4a2f1a 55%, #6b4423 100%);
+    border-radius:22px; padding:52px 40px; margin-top:36px;
+    box-shadow:0 14px 44px rgba(45,27,10,.35);
+  }
+  .stats-panel-demo::before{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(circle at 12% 18%, rgba(233,195,110,.22), transparent 55%),
+               radial-gradient(circle at 90% 85%, rgba(233,195,110,.12), transparent 50%);
+  }
+  .stats-panel-demo-head{ position:relative; z-index:1; margin-bottom:34px; text-align:center; }
+  .stats-panel-demo-head h3{
+    font-family:'Playfair Display', serif; font-size:21px; color:#f1dba6;
+    margin:0 0 6px; letter-spacing:.3px;
+  }
+  .stats-panel-demo-head p{ margin:0; font-size:13px; color:#cdb892; }
+
+  .stats-kpi-row{
+    position:relative; z-index:1;
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+    gap:8px 18px;
+  }
+  .stats-kpi{
+    text-align:center; padding:14px 8px;
+    opacity:0; transform:translateY(10px); animation:statFadeIn .5s ease forwards;
+  }
+  .stats-kpi:nth-child(1){ animation-delay:.03s; }
+  .stats-kpi:nth-child(2){ animation-delay:.08s; }
+  .stats-kpi:nth-child(3){ animation-delay:.13s; }
+  .stats-kpi:nth-child(4){ animation-delay:.18s; }
+  .stats-kpi:nth-child(5){ animation-delay:.23s; }
+  .stats-kpi:nth-child(6){ animation-delay:.28s; }
+  .stats-kpi:nth-child(7){ animation-delay:.33s; }
+  .stats-kpi:nth-child(8){ animation-delay:.38s; }
+  .stats-kpi:nth-child(9){ animation-delay:.43s; }
+  .stats-kpi:nth-child(10){ animation-delay:.48s; }
+  @keyframes statFadeIn{ to{ opacity:1; transform:translateY(0); } }
+
+  .stats-kpi strong{
+    display:block; font-family:'Playfair Display', serif; font-size:34px;
+    font-weight:700; color:#f1cd74;
+    text-shadow:0 2px 16px rgba(241,205,116,.35);
+    line-height:1.15; font-variant-numeric:tabular-nums;
+  }
+  .stats-kpi span{
+    font-size:11.5px; color:#d8c3a0; text-transform:uppercase;
+    letter-spacing:.6px; display:block; margin-top:8px;
+  }
+
+  .stat-source-note{
+    display:flex; align-items:center; gap:10px;
+    margin-top:24px; padding:14px 18px;
+    background:color-mix(in srgb, var(--green-dark) 6%, transparent);
+    border:1px solid var(--border); border-radius:var(--radius);
+    font-size:13px; color:var(--text-muted);
+  }
+  .stat-source-note i{ color:var(--green-dark); font-size:15px; flex-shrink:0; }
+
+  .stats-section{ margin-top:60px; }
+  .stats-section-head{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    flex-wrap:wrap; gap:14px; margin-bottom:22px;
+  }
+  .stats-section-head h2{
+    font-family:'Playfair Display', serif; font-size:23px; margin:0; color:#2c2620;
+  }
+  .stats-section-head p{ margin:4px 0 0; font-size:13.5px; color:var(--text-muted); }
+
+  .chart-toggle{
+    display:inline-flex; background:#f3f1ec; border-radius:999px; padding:4px; gap:2px;
+  }
+  .chart-toggle button{
+    border:none; background:transparent; padding:8px 16px; border-radius:999px;
+    font-size:12.5px; font-weight:600; color:var(--text-muted); cursor:pointer;
+    transition:background .2s ease, color .2s ease; white-space:nowrap;
+  }
+  .chart-toggle button.active{ background:var(--green-dark); color:#fff; }
+  .chart-toggle button:hover:not(.active){ background:rgba(0,0,0,0.05); }
+
+  .chart-card{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    padding:32px; box-shadow:0 4px 22px rgba(0,0,0,.05);
+  }
+  .chart-card canvas{ max-height:420px; }
+
+  @media (max-width: 640px){
+    .stats-panel-demo{ padding:36px 20px; }
+    .chart-card{ padding:20px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="main-section">
+  <span class="section-label">Statistiques</span>
+  <h2 class="section-title">Les chiffres clés de la commune</h2>
+  <p class="section-sub">Aperçu démographique, territorial et cadastral de Keur Massar Nord.</p>
+
+  <div class="stats-panel-demo">
+    <div class="stats-panel-demo-head">
+      <h3>Keur Massar Nord en chiffres</h3>
+      <p>Démographie, territoire et cadastre — mis à jour en continu</p>
+    </div>
+    <div class="stats-kpi-row">
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ population_val|default:224765 }}" data-decimals="0" data-suffix="">0</strong>
+        <span>Population{% if annee_population %} (est. {{ annee_population }}){% endif %}</span>
+      </div>
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ superficie_val|default:13.18 }}" data-decimals="2" data-suffix=" km&sup2;">0</strong>
+        <span>Superficie</span>
+      </div>
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ densite_val|default:17058 }}" data-decimals="0" data-suffix="">0</strong>
+        <span>Habitants / km&sup2;</span>
+      </div>
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ pop_hommes_pct_val|default:50.7 }}" data-decimals="1" data-suffix="%">0</strong>
+        <span>Hommes</span>
+      </div>
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ pop_femmes_pct_val|default:49.3 }}" data-decimals="1" data-suffix="%">0</strong>
+        <span>Femmes</span>
+      </div>
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ nb_quartiers_val|default:86 }}" data-decimals="0" data-suffix="">0</strong>
+        <span>Quartiers &amp; villages</span>
+      </div>
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ annee_creation_val|default:2021 }}" data-decimals="0" data-suffix="">0</strong>
+        <span>Création de la commune</span>
+      </div>
+      {% if nb_parcelles %}
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ nb_parcelles }}" data-decimals="0" data-suffix="">0</strong>
+        <span>Parcelles cadastrées</span>
+      </div>
+      {% endif %}
+      {% if superficie_cadastree_ha %}
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ superficie_cadastree_ha }}" data-decimals="0" data-suffix=" ha">0</strong>
+        <span>Superficie cadastrée</span>
+      </div>
+      {% endif %}
+      {% if nb_infrastructures %}
+      <div class="stats-kpi">
+        <strong class="stats-counter" data-value="{{ nb_infrastructures }}" data-decimals="0" data-suffix="">0</strong>
+        <span>Infrastructures</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stat-source-note">
+    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+    <span>Données de population : RGPH-5 (2023), ANSD{% if annee_population %} — {{ annee_population }}{% endif %}. Pour des chiffres officiels, contactez la mairie de Keur Massar Nord.</span>
+  </div>
+
+  {% if repartition_infrastructures %}
+  <div class="stats-section">
+    <div class="stats-section-head">
+      <div>
+        <h2>Infrastructures par catégorie</h2>
+        <p>{{ nb_infrastructures|floatformat:0 }} infrastructures recensées sur le territoire</p>
+      </div>
+      <div class="chart-toggle" data-target="infra">
+        <button data-type="bar-h" class="active">Barres</button>
+        <button data-type="bar-v">Colonnes</button>
+        <button data-type="doughnut">Circulaire</button>
+        <button data-type="polarArea">Polaire</button>
+      </div>
+    </div>
+    <div class="chart-card">
+      <canvas id="chartInfra"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if parcelles_par_quartier %}
+  <div class="stats-section">
+    <div class="stats-section-head">
+      <div>
+        <h2>Nombre de parcelles par quartier</h2>
+        <p>Les 15 quartiers comptant le plus de parcelles cadastrées</p>
+      </div>
+      <div class="chart-toggle" data-target="quartiers">
+        <button data-type="bar-v" class="active">Colonnes</button>
+        <button data-type="bar-h">Barres</button>
+        <button data-type="doughnut">Circulaire</button>
+      </div>
+    </div>
+    <div class="chart-card">
+      <canvas id="chartQuartiers"></canvas>
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  // --- Compteurs animes (chiffres qui comptent de 0/1 jusqu'a la
+  // valeur reelle, en boucle toutes les 5 secondes) ---
+  function animerCompteur(el) {
+    var valeurFinale = parseFloat(el.getAttribute('data-value')) || 0;
+    var decimales = parseInt(el.getAttribute('data-decimals') || '0', 10);
+    var suffixe = el.getAttribute('data-suffix') || '';
+    var duree = 1600;
+
+    function formater(n) {
+      var fixe = n.toFixed(decimales);
+      var parties = fixe.split('.');
+      parties[0] = parties[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, ' ');
+      return (decimales > 0 ? parties.join(',') : parties[0]) + suffixe;
+    }
+
+    function lancer() {
+      var depart = valeurFinale >= 20 ? 1 : 0;
+      var t0 = null;
+      function etape(horodatage) {
+        if (!t0) { t0 = horodatage; }
+        var progres = Math.min((horodatage - t0) / duree, 1);
+        var attenuee = 1 - Math.pow(1 - progres, 3);
+        var valeurActuelle = depart + (valeurFinale - depart) * attenuee;
+        el.textContent = formater(valeurActuelle);
+        if (progres < 1) { requestAnimationFrame(etape); }
+        else { el.textContent = formater(valeurFinale); }
+      }
+      requestAnimationFrame(etape);
+    }
+
+    lancer();
+    setInterval(lancer, 5000);
+  }
+
+  document.querySelectorAll('.stats-counter').forEach(animerCompteur);
+
+  // --- Graphiques Chart.js ---
+  if (typeof Chart === 'undefined') { return; }
+
+  var PALETTE = ['#2f7a4f', '#c9982e', '#3a7d44', '#b3261e', '#6f6a5e', '#8a8276', '#a3791f', '#7a7266'];
+  Chart.defaults.color = '#6f6a5e';
+
+  function couleurs(n) {
+    var out = [];
+    for (var i = 0; i < n; i++) { out.push(PALETTE[i % PALETTE.length]); }
+    return out;
+  }
+
+  var instances = {};
+
+  function construireConfig(mode, labels, data, couleursDataset) {
+    var palette = (couleursDataset && couleursDataset.length) ? couleursDataset : couleurs(labels.length);
+
+    if (mode === 'bar-h' || mode === 'bar-v') {
+      return {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: palette, borderRadius: 6 }] },
+        options: {
+          indexAxis: mode === 'bar-h' ? 'y' : 'x',
+          plugins: { legend: { display: false } },
+          scales: mode === 'bar-h'
+            ? { x: { beginAtZero: true, ticks: { precision: 0 } } }
+            : {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+                x: { ticks: { autoSkip: false, maxRotation: 60, minRotation: 30 } }
+              }
+        }
+      };
+    }
+    if (mode === 'doughnut') {
+      return {
+        type: 'doughnut',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: palette, borderWidth: 0 }] },
+        options: { plugins: { legend: { position: 'bottom' } } }
+      };
+    }
+    if (mode === 'polarArea') {
+      return {
+        type: 'polarArea',
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: palette }] },
+        options: { plugins: { legend: { position: 'bottom' } } }
+      };
+    }
+  }
+
+  function afficher(canvasId, mode, labels, data, couleursDataset) {
+    var el = document.getElementById(canvasId);
+    if (!el) { return; }
+    if (instances[canvasId]) { instances[canvasId].destroy(); }
+    instances[canvasId] = new Chart(el, construireConfig(mode, labels, data, couleursDataset));
+  }
+
+  function initialiserToggle(target, canvasId, labels, data, couleursDataset, modeDefaut) {
+    afficher(canvasId, modeDefaut, labels, data, couleursDataset);
+    var groupe = document.querySelector('.chart-toggle[data-target="' + target + '"]');
+    if (!groupe) { return; }
+    groupe.querySelectorAll('button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        groupe.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        afficher(canvasId, btn.getAttribute('data-type'), labels, data, couleursDataset);
+      });
+    });
+  }
+
+  initialiserToggle(
+    'infra', 'chartInfra',
+    {{ chart_infra_labels|default:"[]"|safe }},
+    {{ chart_infra_valeurs|default:"[]"|safe }},
+    {{ chart_infra_couleurs|default:"[]"|safe }},
+    'bar-h'
+  );
+
+  initialiserToggle(
+    'quartiers', 'chartQuartiers',
+    {{ chart_quartiers_labels|default:"[]"|safe }},
+    {{ chart_quartiers_valeurs|default:"[]"|safe }},
+    null,
+    'bar-v'
+  );
+})();
+</script>
+{% endblock %}
+'''
+
+chemin_html = "foncier/templates/foncier/statistiques.html"
+with io.open(chemin_html, "w", encoding="utf-8", newline="\n") as f:
+    f.write(nouveau_html)
+
+print("OK : foncier/views.py et foncier/templates/foncier/statistiques.html ont ete mis a jour.")

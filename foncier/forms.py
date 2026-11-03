@@ -119,32 +119,17 @@ class ContactForm(AntiSpamFormMixin, forms.ModelForm):
             }),
         }
 # -*- coding: utf-8 -*-
-"""
-Formulaire du simulateur fiscal — à intégrer dans forms.py de l'app 'foncier'.
-
-Les choix et bornes ci-dessous reflètent les règles réelles du Code Général
-des Impôts (CGI) du Sénégal (voir commentaires dans views.py pour les sources).
-"""
+"""Formulaire du simulateur des impositions foncières."""
 
 
 
 class SimulateurFiscalForm(forms.Form):
 
     TYPE_CHOICES = [
-        ("ir", "Impôt sur le Revenu (IR) — Particulier"),
-        ("is", "Impôt sur les Sociétés (IS) — Entreprise"),
-        ("tva", "TVA — 18 %"),
-        ("cgu", "Contribution Globale Unique (CGU) — Petite entreprise"),
-    ]
-
-    SITUATION_CHOICES = [
-        ("celibataire", "Célibataire / divorcé(e) / veuf(ve)"),
-        ("marie", "Marié(e)"),
-    ]
-
-    SECTEUR_CHOICES = [
-        ("bien", "Vente / livraison de biens (commerce)"),
-        ("service", "Prestation de services"),
+        ("cfpb", "Contribution Foncière des Propriétés Bâties (CFPB)"),
+        ("cfpnb", "Contribution Foncière des Propriétés Non Bâties (CFPNB)"),
+        ("irf", "Impôt sur le Revenu Foncier (IRF)"),
+        ("teom", "Taxe d'enlèvement des ordures ménagères (TEOM)"),
     ]
 
     type_simulation = forms.ChoiceField(
@@ -152,57 +137,69 @@ class SimulateurFiscalForm(forms.Form):
         label="Type d'impôt",
     )
 
-    # Pour IR : revenu net imposable annuel (après IPRES/CSS/abattement 30 %)
-    # Pour IS : bénéfice imposable annuel
-    # Pour TVA : chiffre d'affaires HT annuel
-    # Pour CGU : chiffre d'affaires TTC annuel
     revenu = forms.DecimalField(
         min_value=0,
         max_digits=14,
         decimal_places=0,
-        label="Revenu net imposable / Chiffre d'affaires annuel (FCFA)",
+        label="Montant annuel de référence (FCFA)",
     )
 
-    # Utilisé pour l'IS : chiffre d'affaires HT servant de base au calcul de l'IMF
-    # (impôt minimum forfaitaire = 0,5 % du CA HT, plancher 500 000, plafond 5 000 000)
-    chiffre_affaires_is = forms.DecimalField(
+    CFPB_SECTEUR_CHOICES = [
+        ("standard", "Immeuble / bâtiment standard (5 %)"),
+        ("usine", "Usine / établissement industriel (7,5 %)"),
+    ]
+    cfpb_secteur = forms.ChoiceField(
+        choices=CFPB_SECTEUR_CHOICES,
+        required=False,
+        initial="standard",
+        label="Type de bâtiment (CFPB)",
+    )
+    cfpb_residence_principale = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="C'est ma résidence principale (abattement 500 000 FCFA)",
+    )
+
+    CFPNB_NATURE_CHOICES = [
+        ("terrain_nu", "Terrain nu (5 % + surtaxe existante de 2 %)"),
+        ("zone_culture", "Zone de culture (5 %)"),
+    ]
+    cfpnb_nature = forms.ChoiceField(
+        choices=CFPNB_NATURE_CHOICES,
+        required=False,
+        initial="terrain_nu",
+        label="Nature du terrain (CFPNB)",
+    )
+
+    taux_irf = forms.DecimalField(
         min_value=0,
-        max_digits=14,
-        decimal_places=0,
+        max_value=100,
+        max_digits=5,
+        decimal_places=2,
         required=False,
-        label="Chiffre d'affaires HT (pour le calcul de l'IMF, si IS)",
+        label="Taux IRF à appliquer (%)",
     )
-
-    situation_familiale = forms.ChoiceField(
-        choices=SITUATION_CHOICES,
-        required=False,
-        initial="celibataire",
-        label="Situation familiale (IR)",
-    )
-
-    nombre_enfants = forms.IntegerField(
+    taux_teom = forms.DecimalField(
         min_value=0,
-        max_value=12,
+        max_value=100,
+        max_digits=5,
+        decimal_places=2,
         required=False,
-        initial=0,
-        label="Nombre d'enfants à charge (IR)",
-    )
-
-    secteur_activite = forms.ChoiceField(
-        choices=SECTEUR_CHOICES,
-        required=False,
-        initial="bien",
-        label="Secteur d'activité (CGU)",
+        label="Taux TEOM à appliquer (%)",
     )
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("nombre_enfants") is None:
-            cleaned["nombre_enfants"] = 0
-        if not cleaned.get("situation_familiale"):
-            cleaned["situation_familiale"] = "celibataire"
-        if not cleaned.get("secteur_activite"):
-            cleaned["secteur_activite"] = "bien"
+        if not cleaned.get("cfpb_secteur"):
+            cleaned["cfpb_secteur"] = "standard"
+        cleaned["cfpb_residence_principale"] = bool(cleaned.get("cfpb_residence_principale"))
+        if not cleaned.get("cfpnb_nature"):
+            cleaned["cfpnb_nature"] = "terrain_nu"
+        type_simulation = cleaned.get("type_simulation")
+        if type_simulation == "irf" and cleaned.get("taux_irf") is None:
+            self.add_error("taux_irf", "Indiquez le taux IRF à appliquer.")
+        if type_simulation == "teom" and cleaned.get("taux_teom") is None:
+            self.add_error("taux_teom", "Indiquez le taux TEOM à appliquer.")
         return cleaned
 # ============================================================
 # À COPIER DANS : foncier/forms.py (crée le fichier s'il n'existe pas encore)

@@ -380,8 +380,8 @@ def api_parcelles_toutes_geojson(request):
     _invalider_cache_parcelles plus bas) : sans ce cache, recalculer la
     simplification de ~40 000 géométries à chaque requête serait trop lent.
     """
-    data = cache.get(CACHE_KEY_PUBLIC)
-    if data is None:
+    data_json = cache.get(CACHE_KEY_PUBLIC)
+    if data_json is None:
         qs = (
             Parcelle.objects
             .exclude(geom__isnull=True)
@@ -445,9 +445,13 @@ def api_parcelles_toutes_geojson(request):
         ]
 
         data = {"type": "FeatureCollection", "features": features, "infrastructures_hors_parcelle": infra_sans_parcelle}
-        cache.set(CACHE_KEY_PUBLIC, data, None)  # pas d'expiration : invalidé par le signal
+        # On met en cache le JSON deja serialise (une chaine), pas le dict
+        # Python : avec ~40000 features, (de)serialiser l'objet complet a
+        # chaque lecture du cache coutait ~25s a elle seule, meme "a chaud".
+        data_json = json.dumps(data)
+        cache.set(CACHE_KEY_PUBLIC, data_json, None)  # pas d'expiration : invalidé par le signal
 
-    return JsonResponse(data)
+    return HttpResponse(data_json, content_type="application/json")
 
 
 # ============================================================
@@ -525,8 +529,8 @@ def api_parcelles_toutes_geojson_admin(request):
     parcelles, géométrie fortement simplifiée, avec les infos fiscales en
     plus (pour la coloration par statut sur la vue d'ensemble). Mis en
     cache séparément (CACHE_KEY_ADMIN)."""
-    data = cache.get(CACHE_KEY_ADMIN)
-    if data is None:
+    data_json = cache.get(CACHE_KEY_ADMIN)
+    if data_json is None:
         qs = (
             Parcelle.objects
             .exclude(geom__isnull=True)
@@ -603,9 +607,10 @@ def api_parcelles_toutes_geojson_admin(request):
         ]
 
         data = {"type": "FeatureCollection", "features": features, "infrastructures_hors_parcelle": infra_sans_parcelle_admin}
-        cache.set(CACHE_KEY_ADMIN, data, None)
+        data_json = json.dumps(data)
+        cache.set(CACHE_KEY_ADMIN, data_json, None)
 
-    return JsonResponse(data)
+    return HttpResponse(data_json, content_type="application/json")
 
 
 @login_required
@@ -959,47 +964,8 @@ def contact(request):
     return render(request, "foncier/contact.html", {"form": form})
 
 
-BAREME_IR = [
-    (Decimal("0"),        Decimal("630000"),    Decimal("0.00")),
-    (Decimal("630000"),   Decimal("1500000"),   Decimal("0.20")),
-    (Decimal("1500000"),  Decimal("4000000"),   Decimal("0.30")),
-    (Decimal("4000000"),  Decimal("8000000"),   Decimal("0.35")),
-    (Decimal("8000000"),  Decimal("13500000"),  Decimal("0.37")),
-    (Decimal("13500000"), Decimal("50000000"),  Decimal("0.40")),
-    (Decimal("50000000"), None,                 Decimal("0.43")),
-]
-
-
 def _arrondi(valeur):
     return int(valeur.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-
-
-def _calcul_ir_bareme(quotient):
-    """Applique le barème progressif à un quotient (RNI / nombre de parts)."""
-    impot = Decimal("0")
-    detail = []
-    for bas, haut, taux in BAREME_IR:
-        if quotient <= bas:
-            break
-        plafond = haut if haut is not None else quotient
-        fraction = min(quotient, plafond) - bas
-        if fraction > 0:
-            montant = fraction * taux
-            impot += montant
-            detail.append({
-                "tranche": f"{int(bas):,} – {int(plafond):,} FCFA".replace(",", " "),
-                "taux": float(taux) * 100,
-                "montant": _arrondi(montant),
-            })
-    return impot, detail
-
-
-def _calculer_parts(situation, nb_enfants):
-    """Quotient familial CGI : 1 part (célibataire) ou 1,5 (marié) + 0,5/enfant,
-    plafonné à 5 parts."""
-    parts = Decimal("1.5") if situation == "marie" else Decimal("1")
-    parts += Decimal("0.5") * min(int(nb_enfants or 0), 12)
-    return min(parts, Decimal("5"))
 
 
 @require_POST
@@ -1014,85 +980,81 @@ def simuler_fiscalite(request):
 
     resultat = {"ok": True, "type": type_sim}
 
-    if type_sim == "ir":
-        parts = _calculer_parts(data["situation_familiale"], data["nombre_enfants"])
-        quotient = revenu / parts
-        impot_quotient, detail = _calcul_ir_bareme(quotient)
-        impot_brut = impot_quotient * parts
+    if type_sim == "cfpb":
+        secteur_cfpb = data["cfpb_secteur"]
+        est_usine = secteur_cfpb == "usine"
+        taux = Decimal("0.075") if est_usine else Decimal("0.05")
+        valeur_locative = revenu
+        residence_principale = bool(data.get("cfpb_residence_principale"))
+        abattement = Decimal("500000") if (residence_principale and not est_usine) else Decimal("0")
+        abattement = min(abattement, valeur_locative)
+        base_imposable = valeur_locative - abattement
+        cfpb = base_imposable * taux
+        libelle_bien = "usine / établissement industriel" if est_usine else "immeuble standard"
+
+        detail_cfpb = []
+        if abattement > 0:
+            detail_cfpb.append({"tranche": "Abattement résidence principale", "taux": 0, "montant": -_arrondi(abattement)})
+        detail_cfpb.append({"tranche": f"Base imposable x {float(taux) * 100:.1f} %", "taux": float(taux) * 100, "montant": _arrondi(cfpb)})
 
         resultat.update({
-            "revenu_net_imposable": _arrondi(revenu),
-            "parts": float(parts),
-            "quotient_par_part": _arrondi(quotient),
-            "impot": _arrondi(impot_brut),
-            "detail_tranches": detail,
-            "taux_effectif": round(float(impot_brut / revenu * 100), 2) if revenu else 0,
-            "net_apres_impot": _arrondi(revenu - impot_brut),
-            "reference": "Barème progressif Art. 173 CGI (7 tranches, 0 % à 43 %) "
-                         "+ quotient familial (1 à 5 parts). Simulation indicative — "
-                         "hors TRIMF et déductions spécifiques (pensions, assurance-vie, "
-                         "intérêts d'emprunt immobilier).",
-        })
-
-    elif type_sim == "is":
-        benefice = revenu
-        ca_ht = data.get("chiffre_affaires_is") or benefice
-
-        is_calcule = benefice * Decimal("0.30") if benefice > 0 else Decimal("0")
-
-        imf = ca_ht * Decimal("0.005")
-        imf = max(Decimal("500000"), min(imf, Decimal("5000000")))
-
-        deficitaire = benefice <= 0
-        imf_applicable = deficitaire or is_calcule < imf
-        impot_final = imf if imf_applicable else is_calcule
-
-        resultat.update({
-            "benefice_imposable": _arrondi(benefice),
-            "chiffre_affaires_ht": _arrondi(ca_ht),
-            "is_calcule": _arrondi(is_calcule),
-            "imf_calcule": _arrondi(imf),
-            "regime_applique": "IMF" if imf_applicable else "IS",
-            "impot": _arrondi(impot_final),
-            "reference": "IS = 30 % du bénéfice imposable. Impôt Minimum Forfaitaire "
-                         "(IMF) = 0,5 % du CA HT si déficit ou si IS < IMF "
-                         "(plancher 500 000 FCFA, plafond 5 000 000 FCFA).",
-        })
-
-    elif type_sim == "tva":
-        tva = revenu * Decimal("0.18")
-        resultat.update({
-            "chiffre_affaires_ht": _arrondi(revenu),
-            "impot": _arrondi(tva),
-            "reference": "TVA au taux normal de 18 % (Livre II du CGI, "
-                         "Directive UEMOA n°02/98/CM). Taux réduit de 10 % pour "
-                         "l'hôtellerie/tourisme non couvert par cette simulation.",
-        })
-
-    elif type_sim == "cgu":
-        secteur = data["secteur_activite"]
-        est_bien = secteur == "bien"
-        taux = Decimal("0.02") if est_bien else Decimal("0.05")
-        plancher = Decimal("25000") if est_bien else Decimal("30000")
-        seuil = Decimal("50000000") if est_bien else Decimal("25000000")
-
-        cgu = max(revenu * taux, plancher)
-        depasse_seuil = revenu > seuil
-
-        resultat.update({
-            "chiffre_affaires_ttc": _arrondi(revenu),
+            "valeur_locative": _arrondi(valeur_locative),
+            "abattement": _arrondi(abattement),
+            "base_imposable": _arrondi(base_imposable),
             "taux_applique": float(taux) * 100,
-            "impot": _arrondi(cgu),
-            "depasse_seuil_cgu": depasse_seuil,
-            "seuil_cgu": _arrondi(seuil),
-            "reference": f"CGU = {float(taux) * 100:.0f} % du CA TTC "
-                         f"({'biens' if est_bien else 'services'}), plancher "
-                         f"{int(plancher):,} FCFA. Régime réservé aux CA ≤ "
-                         f"{int(seuil):,} FCFA.".replace(",", " "),
+            "impot": _arrondi(cfpb),
+            "detail_tranches": detail_cfpb,
+            "reference": f"Contribution Foncière des Propriétés Bâties (CFPB) = "
+                         f"{float(taux) * 100:.1f} % de la valeur locative ({libelle_bien}), "
+                         f"abattement de 500 000 FCFA si résidence principale du propriétaire "
+                         f"(Art. 329-334 CGI). Constructions neuves exonérées jusqu'à la 6e année.",
+        })
+
+    elif type_sim == "cfpnb":
+        est_terrain_nu = data["cfpnb_nature"] == "terrain_nu"
+        taux = Decimal("0.07") if est_terrain_nu else Decimal("0.05")
+        valeur_venale = revenu
+        impot = valeur_venale * taux
+        nature_terrain = "terrain nu" if est_terrain_nu else "zone de culture"
+        libelle_taux = "5 % + surtaxe de 2 %" if est_terrain_nu else "5 %"
+
+        resultat.update({
+            "valeur_venale": _arrondi(valeur_venale),
+            "taux_applique": float(taux * 100),
+            "impot": _arrondi(impot),
+            "detail_tranches": [{
+                "tranche": f"Valeur vénale x {libelle_taux}",
+                "taux": float(taux * 100),
+                "montant": _arrondi(impot),
+            }],
+            "reference": f"Estimation CFPNB sur la valeur vénale déclarée ({nature_terrain}), "
+                         f"selon la formule de simulation foncière déjà utilisée dans le projet : "
+                         f"{libelle_taux}.",
+        })
+
+    elif type_sim in ("irf", "teom"):
+        taux = data["taux_irf"] if type_sim == "irf" else data["taux_teom"]
+        impot = revenu * taux / Decimal("100")
+        is_irf = type_sim == "irf"
+        libelle = "IRF" if is_irf else "TEOM"
+        base_label = "Revenu foncier annuel déclaré" if is_irf else "Valeur locative annuelle déclarée"
+
+        resultat.update({
+            "base_imposable": _arrondi(revenu),
+            "taux_applique": float(taux),
+            "impot": _arrondi(impot),
+            "detail_tranches": [{
+                "tranche": f"Base déclarée x {taux} %",
+                "taux": float(taux),
+                "montant": _arrondi(impot),
+            }],
+            "libelle_base": base_label,
+            "reference": f"Estimation {libelle} calculée avec le taux saisi par l'utilisateur. "
+                         "Ce taux doit être confirmé auprès de l'administration fiscale locale.",
         })
 
     else:
-        return JsonResponse({"ok": False, "errors": "Type d'impôt inconnu."}, status=400)
+        return JsonResponse({"ok": False, "errors": "Type d'imposition inconnu."}, status=400)
 
     return JsonResponse(resultat)
 
@@ -2248,15 +2210,24 @@ def _voisines_parcelle(parcelle, max_resultats=30):
     x2, y2 = _wgs84_to_utm28n(xmax, ymax)
     largeur_m = abs(x2 - x1)
     hauteur_m = abs(y2 - y1)
-    rayon_m = max(60.0, 0.55 * max(largeur_m, hauteur_m))
-    rayon_m = min(rayon_m, 350.0)
+    rayon_m = max(140.0, 0.9 * max(largeur_m, hauteur_m))
+    rayon_m = min(rayon_m, 500.0)
     tampon_deg = rayon_m / 111320.0
 
     try:
-        zone_recherche = parcelle.geom.buffer(tampon_deg)
+        from django.contrib.gis.db.models.functions import Distance as _DistanceVoisines
+        from django.contrib.gis.geos import Polygon as _PolygonVoisines
+        _xmin, _ymin, _xmax, _ymax = parcelle.geom.extent
+        zone_recherche = _PolygonVoisines.from_bbox((
+            _xmin - tampon_deg, _ymin - tampon_deg,
+            _xmax + tampon_deg, _ymax + tampon_deg,
+        ))
+        zone_recherche.srid = parcelle.geom.srid
         voisines = list(
             Parcelle.objects.filter(geom__intersects=zone_recherche)
             .exclude(pk=parcelle.pk)
+            .annotate(_distance_voisine=_DistanceVoisines("geom", parcelle.geom))
+            .order_by("_distance_voisine")
             .only("id", "nicad", "numero_parcelle", "geom")[:max_resultats]
         )
     except Exception:
@@ -2280,36 +2251,32 @@ def _texte_pdf(valeur, max_longueur=60):
     return texte[:max_longueur] if texte else "-"
 
 
-def _pas_grille_adapte(etendue_m):
-    for pas in (5, 10, 20, 25, 50, 100, 200, 250, 500, 1000):
-        if etendue_m / pas <= 8:
-            return pas
-    return 2000
+def _format_superficie_are_ca(superficie_m2):
+    """Formate une superficie en m2 au format cadastral senegalais
+    "Xa YYca" (1 are = 100 m2, 1 centiare = 1 m2), ex: 162 m2 -> "1a 62ca"."""
+    if not superficie_m2:
+        return "-"
+    total_ca = int(round(float(superficie_m2)))
+    ares = total_ca // 100
+    centiares = total_ca % 100
+    return "{}a {:02d}ca".format(ares, centiares)
 
 
-def _generer_image_plan_situation(parcelle, voisines, taille_px=1200):
-    """Dessine le plan de situation (parcelle + voisines + grille +
-    fleche nord) en PNG via Pillow et renvoie un buffer pret a etre
-    insere dans le PDF. Le cadrage est fixe sur la parcelle principale
-    (zoom coherent) : seules les voisines qui tombent dans ce cadrage
-    sont affichees, pour eviter qu'un groupe de parcelles eloignees
-    n'oblige a tout dezoomer."""
+def _generer_image_plan_type_officiel(parcelle, voisines, taille_px_cible=1700):
+    """Dessine le plan de situation sur le modele d'un extrait de plan
+    cadastral officiel : parcelles voisines en trait fin avec leur
+    numero, parcelle principale en rouge avec cotes (longueur de chaque
+    cote) et reperes B1..Bn a chaque sommet, fleche du Nord -- sans
+    grille de coordonnees (absente du modele officiel). Le cadre du
+    dessin epouse la vraie forme (largeur/hauteur) du nuage de
+    parcelles trouvees, sans etre force a un carre, pour ne jamais
+    laisser de grandes zones blanches inutiles. Renvoie
+    (buffer_png, texte_echelle, largeur_px, hauteur_px)."""
     import io as io_module
     import math
     from PIL import Image, ImageDraw, ImageFont
 
     sommets_principal = _sommets_parcelle_utm(parcelle)
-
-    xs_p = [p[0] for p in sommets_principal]
-    ys_p = [p[1] for p in sommets_principal]
-    largeur_principale = max(xs_p) - min(xs_p)
-    hauteur_principale = max(ys_p) - min(ys_p)
-    cx = (max(xs_p) + min(xs_p)) / 2
-    cy = (max(ys_p) + min(ys_p)) / 2
-
-    etendue = max(largeur_principale, hauteur_principale, 25.0) * 2.1 + 25.0
-    xmin, xmax = cx - etendue / 2, cx + etendue / 2
-    ymin, ymax = cy - etendue / 2, cy + etendue / 2
 
     polygones_voisins = []
     for voisine in voisines:
@@ -2317,121 +2284,186 @@ def _generer_image_plan_situation(parcelle, voisines, taille_px=1200):
             pts = _anneau_exterieur_utm(voisine.geom[0])
         except Exception:
             continue
-        if not pts:
-            continue
-        vxmin = min(p[0] for p in pts)
-        vxmax = max(p[0] for p in pts)
-        vymin = min(p[1] for p in pts)
-        vymax = max(p[1] for p in pts)
-        chevauche = not (vxmax < xmin or vxmin > xmax or vymax < ymin or vymin > ymax)
-        if chevauche:
+        if pts:
             polygones_voisins.append((voisine, pts))
 
-    marge_cadre = int(taille_px * 0.075)
-    zone_dessin = taille_px - 2 * marge_cadre
-    echelle = zone_dessin / etendue
+    tous_points = list(sommets_principal)
+    for _, pts in polygones_voisins:
+        tous_points.extend(pts)
+
+    xs = [p[0] for p in tous_points]
+    ys = [p[1] for p in tous_points]
+    xmin, xmax = min(xs), max(xs)
+    ymin, ymax = min(ys), max(ys)
+
+    # Emprise reelle des donnees : chaque axe garde sa propre etendue
+    # (pas de carre impose), avec une marge de securite minime -- le
+    # cadre du dessin epouse ainsi la vraie forme du nuage de parcelles.
+    etendue_brute_x = max(xmax - xmin, 10.0)
+    etendue_brute_y = max(ymax - ymin, 10.0)
+    marge_m_x = etendue_brute_x * 0.025 + 1
+    marge_m_y = etendue_brute_y * 0.025 + 1
+    cx = (xmin + xmax) / 2
+    cy = (ymin + ymax) / 2
+    etendue_x = etendue_brute_x + 2 * marge_m_x
+    etendue_y = etendue_brute_y + 2 * marge_m_y
+    xmin, xmax = cx - etendue_x / 2, cx + etendue_x / 2
+    ymin, ymax = cy - etendue_y / 2, cy + etendue_y / 2
+
+    echelle_px_par_m = taille_px_cible / max(etendue_x, etendue_y)
+    taille_px_x = max(220, int(etendue_x * echelle_px_par_m))
+    taille_px_y = max(220, int(etendue_y * echelle_px_par_m))
 
     def vers_px(point_x, point_y):
-        px = marge_cadre + (point_x - xmin) * echelle
-        py = taille_px - marge_cadre - (point_y - ymin) * echelle
+        px = (point_x - xmin) * echelle_px_par_m
+        py = taille_px_y - (point_y - ymin) * echelle_px_par_m
         return (px, py)
 
-    img = Image.new("RGB", (taille_px, taille_px), "white")
+    img = Image.new("RGB", (taille_px_x, taille_px_y), "white")
     draw = ImageDraw.Draw(img)
 
     try:
-        police_grille = ImageFont.load_default(size=18)
-        police_label = ImageFont.load_default(size=22)
-        police_num = ImageFont.load_default(size=28)
+        police_num = ImageFont.load_default(size=26)
+        police_label = ImageFont.load_default(size=20)
+        police_cote = ImageFont.load_default(size=18)
+        police_nord = ImageFont.load_default(size=24)
     except TypeError:
-        police_grille = police_label = police_num = ImageFont.load_default()
+        police_num = police_label = police_cote = police_nord = ImageFont.load_default()
 
-    pas = _pas_grille_adapte(etendue)
-    valeur = math.floor(xmin / pas) * pas
-    while valeur <= xmax:
-        p1 = vers_px(valeur, ymin)
-        p2 = vers_px(valeur, ymax)
-        draw.line([p1, p2], fill=(215, 215, 215), width=1)
-        etiquette = "{:,.0f}".format(valeur).replace(",", " ")
-        draw.text((p1[0], taille_px - marge_cadre + 14), etiquette, fill=(100, 100, 100), font=police_grille, anchor="mt")
-        draw.text((p1[0], marge_cadre - 14), etiquette, fill=(100, 100, 100), font=police_grille, anchor="mb")
-        valeur += pas
+    # Parcelles voisines : trait fin noir + numero au centre, avec une
+    # taille de police adaptee a la taille reelle de chaque parcelle a
+    # l'ecran (pour ne jamais deborder), et pas de numero du tout si la
+    # parcelle est trop petite pour l'accueillir proprement.
+    cache_polices = {}
 
-    valeur = math.floor(ymin / pas) * pas
-    while valeur <= ymax:
-        p1 = vers_px(xmin, valeur)
-        p2 = vers_px(xmax, valeur)
-        draw.line([p1, p2], fill=(215, 215, 215), width=1)
-        etiquette = "{:,.0f}".format(valeur).replace(",", " ")
-        draw.text((marge_cadre - 10, p1[1]), etiquette, fill=(100, 100, 100), font=police_grille, anchor="rm")
-        draw.text((taille_px - marge_cadre + 10, p1[1]), etiquette, fill=(100, 100, 100), font=police_grille, anchor="lm")
-        valeur += pas
+    def _police_adaptee(taille_cible):
+        taille_cible = max(6, min(26, int(taille_cible)))
+        if taille_cible not in cache_polices:
+            try:
+                cache_polices[taille_cible] = ImageFont.load_default(size=taille_cible)
+            except TypeError:
+                cache_polices[taille_cible] = ImageFont.load_default()
+        return cache_polices[taille_cible]
 
-    draw.rectangle(
-        [marge_cadre, marge_cadre, taille_px - marge_cadre, taille_px - marge_cadre],
-        outline=(60, 60, 60), width=2,
-    )
+    def _ajuster_texte_dans_boite(texte, largeur_max, hauteur_max, taille_min=7, taille_max=26):
+        """Cherche la plus grande taille de police (mesuree reellement,
+        pas estimee) qui fait tenir `texte` dans une boite de
+        largeur_max x hauteur_max px, avec une petite marge de securite.
+        Renvoie None si meme la plus petite taille deborde encore."""
+        largeur_cible = largeur_max * 0.86
+        hauteur_cible = hauteur_max * 0.86
+        for taille in range(taille_max, taille_min - 1, -1):
+            police = _police_adaptee(taille)
+            boite = draw.textbbox((0, 0), texte, font=police)
+            larg = boite[2] - boite[0]
+            haut = boite[3] - boite[1]
+            if larg <= largeur_cible and haut <= hauteur_cible:
+                return police
+        return None
 
     for voisine, pts in polygones_voisins:
         pts_px = [vers_px(px, py) for px, py in pts]
         if len(pts_px) >= 2:
-            draw.polygon(pts_px, fill=(238, 218, 178), outline=(201, 138, 46), width=2)
-            centre_x = sum(p[0] for p in pts_px) / len(pts_px)
-            centre_y = sum(p[1] for p in pts_px) / len(pts_px)
-            if marge_cadre < centre_x < taille_px - marge_cadre and marge_cadre < centre_y < taille_px - marge_cadre:
-                etiquette = voisine.numero_parcelle or voisine.nicad[-4:]
-                draw.text((centre_x, centre_y), str(etiquette), fill=(90, 60, 20), font=police_label, anchor="mm")
+            draw.polygon(pts_px, outline=(40, 40, 40), width=2)
+            xs_v = [p[0] for p in pts_px]
+            ys_v = [p[1] for p in pts_px]
+            largeur_bbox = max(xs_v) - min(xs_v)
+            hauteur_bbox = max(ys_v) - min(ys_v)
+            centre_x = sum(xs_v) / len(pts_px)
+            centre_y = sum(ys_v) / len(pts_px)
+            etiquette = voisine.numero_parcelle or (voisine.nicad[-4:] if voisine.nicad else "?")
+            police_voisine = _ajuster_texte_dans_boite(str(etiquette), largeur_bbox, hauteur_bbox)
+            if police_voisine is not None:
+                draw.text(
+                    (centre_x, centre_y), str(etiquette), fill=(30, 30, 30),
+                    font=police_voisine, anchor="mm",
+                )
 
+    # Parcelle principale : contour rouge epais, cotes et reperes B1..Bn.
     pts_px = [vers_px(px, py) for px, py in sommets_principal]
     if len(pts_px) >= 2:
-        draw.polygon(pts_px, fill=(250, 210, 200), outline=(195, 30, 30), width=5)
+        draw.polygon(pts_px, outline=(192, 20, 20), width=6)
+
         centre_x = sum(p[0] for p in pts_px) / len(pts_px)
         centre_y = sum(p[1] for p in pts_px) / len(pts_px)
-        etiquette_principale = parcelle.numero_parcelle or parcelle.nicad[-4:]
-        draw.text((centre_x, centre_y), str(etiquette_principale), fill=(175, 20, 20), font=police_num, anchor="mm")
 
-    nx = taille_px - marge_cadre - 55
-    ny = marge_cadre + 90
-    draw.line([(nx, ny + 50), (nx, ny - 30)], fill=(25, 25, 25), width=4)
-    draw.polygon([(nx, ny - 48), (nx - 14, ny - 18), (nx + 14, ny - 18)], fill=(25, 25, 25))
-    draw.text((nx, ny - 62), "N", fill=(25, 25, 25), font=police_num, anchor="mm")
+        n = len(pts_px)
+        for i in range(n):
+            x1, y1 = pts_px[i]
+            x2, y2 = pts_px[(i + 1) % n]
+
+            ux1, uy1 = sommets_principal[i]
+            ux2, uy2 = sommets_principal[(i + 1) % n]
+            longueur = math.hypot(ux2 - ux1, uy2 - uy1)
+
+            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+            dx, dy = x2 - x1, y2 - y1
+            norm = math.hypot(dx, dy) or 1
+            nvx, nvy = -dy / norm, dx / norm
+            vers_centre_x, vers_centre_y = centre_x - mx, centre_y - my
+            if nvx * vers_centre_x + nvy * vers_centre_y > 0:
+                nvx, nvy = -nvx, -nvy
+            decalage = 26
+            draw.text(
+                (mx + nvx * decalage, my + nvy * decalage),
+                "{:.2f}".format(longueur),
+                fill=(140, 10, 10), font=police_cote, anchor="mm",
+            )
+
+            draw.ellipse([x1 - 4, y1 - 4, x1 + 4, y1 + 4], fill=(192, 20, 20))
+            bx, by = x1 + nvx * 18 - (dx / norm) * 18, y1 + nvy * 18 - (dy / norm) * 18
+            draw.text((bx, by), "B{}".format(i + 1), fill=(192, 20, 20), font=police_label, anchor="mm")
+
+        xs_p = [p[0] for p in pts_px]
+        ys_p = [p[1] for p in pts_px]
+        etiquette_principale = parcelle.numero_parcelle or (parcelle.nicad[-4:] if parcelle.nicad else "?")
+        police_principale = _ajuster_texte_dans_boite(
+            str(etiquette_principale), max(xs_p) - min(xs_p), max(ys_p) - min(ys_p),
+            taille_min=8, taille_max=28,
+        ) or _police_adaptee(8)
+        draw.text(
+            (centre_x, centre_y), str(etiquette_principale), fill=(150, 15, 15),
+            font=police_principale, anchor="mm",
+        )
+
+    # Fleche du Nord (coin haut droit).
+    nx0 = taille_px_x - 70
+    ny0 = 90
+    draw.line([(nx0, ny0 + 46), (nx0, ny0 - 26)], fill=(20, 20, 20), width=4)
+    draw.polygon([(nx0, ny0 - 42), (nx0 - 13, ny0 - 16), (nx0 + 13, ny0 - 16)], fill=(20, 20, 20))
+    draw.text((nx0, ny0 - 56), "N", fill=(20, 20, 20), font=police_nord, anchor="mm")
 
     tampon = io_module.BytesIO()
     img.save(tampon, format="PNG")
     tampon.seek(0)
-    return tampon
 
+    denominateurs_usuels = [100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000]
+    denominateur_brut = (max(etendue_x, etendue_y) * 1000) / 180
+    echelle_texte = "1 / {}e".format(next(
+        (d for d in denominateurs_usuels if d >= denominateur_brut), denominateurs_usuels[-1]
+    ))
 
-def _dessiner_cadre_titre(c, x, y_haut, largeur, hauteur, titre, couleur_texte, couleur_bordure, couleur_bandeau):
-    """Cadre avec bandeau de titre en haut (comme les rubriques d'un
-    extrait cadastral officiel). Renvoie le y de depart du contenu."""
-    from reportlab.lib.units import mm
-
-    bandeau = 6 * mm
-    c.setStrokeColor(couleur_bordure)
-    c.setLineWidth(0.6)
-    c.rect(x, y_haut - hauteur, largeur, hauteur, fill=False, stroke=True)
-    c.setFillColor(couleur_bandeau)
-    c.rect(x, y_haut - bandeau, largeur, bandeau, fill=True, stroke=False)
-    c.setStrokeColor(couleur_bordure)
-    c.line(x, y_haut - bandeau, x + largeur, y_haut - bandeau)
-    c.setFillColor(couleur_texte)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(x + 2 * mm, y_haut - bandeau + 1.8 * mm, titre)
-    return y_haut - bandeau - 5 * mm
+    return tampon, echelle_texte, taille_px_x, taille_px_y
 
 
 @login_required
 def extrait_cadastral_pdf_view(request, pk):
     """
-    Genere l'extrait de plan foncier officiel en PDF pour une demande de
-    service PRETE et payee (si payante) : localisation, proprietaire,
-    identification du titre, plan de situation avec grille de
-    coordonnees UTM Zone 28N, tableau des sommets et legende.
+    Genere l'extrait de plan foncier (PLAN POUR AUTORISATION DE CONSTRUIRE)
+    en PDF, calque sur le modele exact d'un extrait de plan cadastral
+    officiel delivre par le Bureau du Cadastre : en-tete administratif
+    complet (Republique du Senegal, Ministere, DGID, Centre des Services
+    Fiscaux, Bureau du Cadastre), encadre Region/Departement/Commune,
+    cartouche NICAD/titre/lot/superficie, plan de situation avec cotes
+    et reperes B1..Bn, et bande de certification en bas de page.
     """
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas as pdf_canvas
     from reportlab.lib.colors import HexColor
     from reportlab.lib.utils import ImageReader
+    from django.utils import timezone
     from .models import DemandeService
 
     demande = get_object_or_404(DemandeService, pk=pk, demandeur=request.user)
@@ -2453,240 +2485,173 @@ def extrait_cadastral_pdf_view(request, pk):
         return redirect("citoyen_demande_detail", pk=pk)
 
     numero_doc = "EPF-{}".format(demande.numero_dossier)
-    buffer, c, largeur, hauteur, marge, y, (VERT_FONCE, OR, GRIS, BORDURE) = _preparer_pdf_document(
-        "EXTRAIT DE PLAN FONCIER", numero_doc
-    )
 
-    largeur_contenu = largeur - 2 * marge
-    BANDEAU_CLAIR = HexColor("#f2ede1")
+    buffer = BytesIO()
+    c = pdf_canvas.Canvas(buffer, pagesize=A4)
+    largeur, hauteur = A4
+    marge = 16 * mm
+    NOIR = HexColor("#111111")
+    GRIS = HexColor("#444444")
 
-    titre_foncier = parcelle.numero_titre_foncier or parcelle.nicad
-    section_label = parcelle.section_cadastrale or "-"
-    parcelle_label = parcelle.numero_parcelle or parcelle.nicad
+    y = hauteur - 14 * mm
 
-    c.setFillColor(VERT_FONCE)
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(marge, y, "TITRE / REFERENCE : {}".format(titre_foncier))
-    c.setFont("Helvetica", 9)
-    c.drawRightString(
-        largeur - marge, y,
-        "Section : {}    Parcelle : {}".format(section_label, parcelle_label)
-    )
-    y -= 6 * mm
-    c.setStrokeColor(BORDURE)
-    c.line(marge, y, largeur - marge, y)
-    y -= 7 * mm
-
-    largeur_col = (largeur_contenu - 6 * mm) / 2
-    hauteur_rangee1 = 32 * mm
-    x_gauche = marge
-    x_droite = marge + largeur_col + 6 * mm
-
-    y_contenu = _dessiner_cadre_titre(
-        c, x_gauche, y, largeur_col, hauteur_rangee1,
-        "LOCALISATION DE LA PARCELLE", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
-    )
-    quartier = parcelle.adresse_parcelle or (parcelle.zone.nom if parcelle.zone_id else "-")
-    champs_localisation = [
-        ("Region", "DAKAR"),
-        ("Departement", "KEUR MASSAR"),
-        ("Commune", "KEUR MASSAR NORD"),
-        ("Quartier / Secteur", quartier),
-    ]
-    yc = y_contenu
-    for label, valeur in champs_localisation:
-        c.setFillColor(GRIS)
-        c.setFont("Helvetica", 8)
-        c.drawString(x_gauche + 2 * mm, yc, label)
-        c.setFillColor(VERT_FONCE)
-        c.setFont("Helvetica-Bold", 8)
-        c.drawRightString(x_gauche + largeur_col - 2 * mm, yc, _texte_pdf(valeur, 40))
-        yc -= 5.2 * mm
-
-    y_contenu = _dessiner_cadre_titre(
-        c, x_droite, y, largeur_col, hauteur_rangee1,
-        "PROPRIETAIRE(S)", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
-    )
-    if parcelle.proprietaire_id:
-        nom_complet = "{} {}".format(parcelle.proprietaire.nom, parcelle.proprietaire.prenom)
-        cni = parcelle.proprietaire.ni_cni or "-"
-        domicile = parcelle.proprietaire.adresse or "-"
-    else:
-        nom_complet = "Non renseigne"
-        cni = "-"
-        domicile = "-"
-    champs_proprietaire = [
-        ("Nom et prenoms", nom_complet),
-        ("N de CNI", cni),
-        ("Domicile", domicile),
-    ]
-    yc = y_contenu
-    for label, valeur in champs_proprietaire:
-        c.setFillColor(GRIS)
-        c.setFont("Helvetica", 8)
-        c.drawString(x_droite + 2 * mm, yc, label)
-        c.setFillColor(VERT_FONCE)
-        c.setFont("Helvetica-Bold", 8)
-        c.drawRightString(x_droite + largeur_col - 2 * mm, yc, _texte_pdf(valeur, 36))
-        yc -= 5.2 * mm
-
-    y -= hauteur_rangee1 + 4 * mm
-
-    hauteur_rangee2 = 32 * mm
-    y_contenu = _dessiner_cadre_titre(
-        c, x_gauche, y, largeur_col, hauteur_rangee2,
-        "IDENTIFICATION DU TITRE", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
-    )
-    champs_identification = [
-        ("Titre foncier n", titre_foncier),
-        ("Section cadastrale", section_label),
-        ("N de parcelle", parcelle_label),
-        ("Contenance", "{:,.0f} m2".format(parcelle.superficie).replace(",", " ") if parcelle.superficie else "-"),
-    ]
-    yc = y_contenu
-    for label, valeur in champs_identification:
-        c.setFillColor(GRIS)
-        c.setFont("Helvetica", 8)
-        c.drawString(x_gauche + 2 * mm, yc, label)
-        c.setFillColor(VERT_FONCE)
-        c.setFont("Helvetica-Bold", 8)
-        c.drawRightString(x_gauche + largeur_col - 2 * mm, yc, _texte_pdf(valeur, 40))
-        yc -= 5.2 * mm
-
-    y_contenu = _dessiner_cadre_titre(
-        c, x_droite, y, largeur_col, hauteur_rangee2,
-        "NATURE DE LA PROPRIETE", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
-    )
-    champs_nature = [
-        ("Nature du document", parcelle.get_type_document_display()),
-        ("Usage / Occupation", parcelle.occupation_sol or "-"),
-        ("Statut fiscal", parcelle.get_statut_fiscal_display()),
-        ("Zone", parcelle.zone.nom if parcelle.zone_id else "-"),
-    ]
-    yc = y_contenu
-    for label, valeur in champs_nature:
-        c.setFillColor(GRIS)
-        c.setFont("Helvetica", 8)
-        c.drawString(x_droite + 2 * mm, yc, label)
-        c.setFillColor(VERT_FONCE)
-        c.setFont("Helvetica-Bold", 8)
-        c.drawRightString(x_droite + largeur_col - 2 * mm, yc, _texte_pdf(valeur, 36))
-        yc -= 5.2 * mm
-
-    y -= hauteur_rangee2 + 4 * mm
-
-    hauteur_plan = 95 * mm
-    largeur_plan = 100 * mm
-    largeur_colonne_droite = largeur_contenu - largeur_plan - 6 * mm
-    x_colonne_droite = marge + largeur_plan + 6 * mm
-
-    y_contenu = _dessiner_cadre_titre(
-        c, x_gauche, y, largeur_plan, hauteur_plan,
-        "PLAN DE SITUATION", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
-    )
-
-    sommets = []
+    # ----- En-tete administratif, sur le modele du document officiel -----
+    c.setFillColor(NOIR)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(marge, y, "REPUBLIQUE DU SENEGAL")
+    c.setFont("Helvetica-Oblique", 7.5)
+    c.drawString(marge, y - 4 * mm, "Un Peuple - Un But - Une Foi")
+    c.setFont("Helvetica-Bold", 7.5)
+    c.drawString(marge, y - 9 * mm, "MINISTERE DE L'ECONOMIE, DES FINANCES ET DU PLAN")
+    # Le logo contient deja le texte "Direction Generale des Impots et
+    # des Domaines" -- pas besoin de le redessiner a cote.
+    taille_logo = 11 * mm
+    x_logo = marge
+    y_logo_haut = y - 10.5 * mm
     try:
-        voisines = _voisines_parcelle(parcelle)
-        image_plan = _generer_image_plan_situation(parcelle, voisines)
-        taille_image = min(largeur_plan - 4 * mm, hauteur_plan - 9 * mm)
+        from django.contrib.staticfiles import finders
+        chemin_logo = finders.find("foncier/img/logo-dgid.png")
+        if chemin_logo:
+            logo_img = ImageReader(chemin_logo)
+            largeur_logo_native, hauteur_logo_native = logo_img.getSize()
+            largeur_logo = taille_logo * (largeur_logo_native / hauteur_logo_native)
+            c.drawImage(
+                logo_img, x_logo, y_logo_haut - taille_logo,
+                width=largeur_logo, height=taille_logo,
+                preserveAspectRatio=True, mask="auto",
+            )
+    except Exception:
+        pass
+    c.setFillColor(GRIS)
+    c.setFont("Helvetica", 7)
+    c.drawString(marge, y - 24 * mm, "Centre des Services Fiscaux de Keur Massar")
+    c.drawString(marge, y - 28 * mm, "Bureau du Cadastre")
+
+    largeur_boite = 55 * mm
+    hauteur_boite = 20 * mm
+    x_boite = largeur - marge - largeur_boite
+    y_boite = y + 2 * mm
+    c.setStrokeColor(NOIR)
+    c.setLineWidth(0.6)
+    c.rect(x_boite, y_boite - hauteur_boite, largeur_boite, hauteur_boite, fill=False, stroke=True)
+    lignes_boite = [
+        ("Region", "Dakar"),
+        ("Departement", "Keur Massar"),
+        ("Commune", "Keur Massar Nord"),
+    ]
+    yc = y_boite - 5 * mm
+    c.setFont("Helvetica", 7.5)
+    for label, valeur in lignes_boite:
+        c.setFillColor(GRIS)
+        c.drawString(x_boite + 2 * mm, yc, "{} :".format(label))
+        c.setFillColor(NOIR)
+        c.drawString(x_boite + 22 * mm, yc, valeur)
+        yc -= 5.5 * mm
+
+    y -= 34 * mm
+
+    c.setStrokeColor(NOIR)
+    c.setLineWidth(1.2)
+    cx_nord = largeur / 2
+    c.line(cx_nord, y, cx_nord, y - 5 * mm)
+    c.line(cx_nord, y, cx_nord - 1.8 * mm, y - 2.2 * mm)
+    c.line(cx_nord, y, cx_nord + 1.8 * mm, y - 2.2 * mm)
+    c.setFont("Helvetica-Bold", 7)
+    c.setFillColor(NOIR)
+    c.drawCentredString(cx_nord, y + 1.5 * mm, "N")
+    y -= 9 * mm
+
+    titre_foncier = parcelle.numero_titre_foncier or "-"
+    parcelle_label = parcelle.numero_parcelle or parcelle.nicad
+    zone_label = parcelle.zone.nom if parcelle.zone_id else ""
+    reference_arrete = (getattr(parcelle, "reference_arrete", "") or "").strip()
+
+    TITRES_PAR_MOTIF = {
+        "Extrait de plan — Autorisation de construire": "PLAN POUR AUTORISATION DE CONSTRUIRE",
+        "Extrait de plan — Demande de régularisation": "PLAN POUR REGULARISATION",
+        "Extrait de plan — Situation": "PLAN DE SITUATION",
+        "Extrait de plan — Délimitation": "PLAN DE DELIMITATION",
+        "Extrait de plan — Autres": "EXTRAIT DE PLAN",
+    }
+    motif_libelle = demande.type_demande.libelle if demande.type_demande_id else ""
+    est_regularisation = motif_libelle == "Extrait de plan — Demande de régularisation"
+    titre_document_plan = TITRES_PAR_MOTIF.get(motif_libelle, "EXTRAIT DE PLAN FONCIER")
+
+    c.setFont("Helvetica-Bold", 13)
+    c.drawCentredString(largeur / 2, y, titre_document_plan)
+    y -= 6 * mm
+    c.setFont("Helvetica", 9)
+    if parcelle.numero_titre_foncier:
+        c.drawCentredString(largeur / 2, y, "Mt du Titre Foncier {}/DP".format(titre_foncier))
+        y -= 5 * mm
+    libelle_lot = "Lot n° {}".format(parcelle_label)
+    if est_regularisation and reference_arrete:
+        libelle_lot += " (Arrêté n° {})".format(reference_arrete)
+    elif zone_label:
+        libelle_lot += " ({})".format(zone_label)
+    c.drawCentredString(largeur / 2, y, libelle_lot)
+    y -= 5 * mm
+    c.drawCentredString(largeur / 2, y, "Superficie = {}".format(_format_superficie_are_ca(parcelle.superficie)))
+    y -= 8 * mm
+    c.setFont("Helvetica-Bold", 15)
+    c.drawCentredString(largeur / 2, y, "NICAD : {}".format(parcelle.nicad))
+    y -= 8 * mm
+
+    c.setStrokeColor(GRIS)
+    c.setLineWidth(0.4)
+    c.line(marge, y, largeur - marge, y)
+    y -= 6 * mm
+
+    dispo_largeur = largeur - 2 * marge
+    dispo_hauteur = max(70 * mm, y - 47 * mm)
+    echelle_texte = "-"
+    hauteur_plan_reelle = dispo_hauteur
+    try:
+        voisines = _voisines_parcelle(parcelle, max_resultats=110)
+        image_plan, echelle_texte, largeur_px, hauteur_px = _generer_image_plan_type_officiel(parcelle, voisines)
+        ratio_image = hauteur_px / largeur_px
+        if dispo_largeur * ratio_image <= dispo_hauteur:
+            largeur_plan_reelle = dispo_largeur
+            hauteur_plan_reelle = dispo_largeur * ratio_image
+        else:
+            hauteur_plan_reelle = dispo_hauteur
+            largeur_plan_reelle = dispo_hauteur / ratio_image
+        x_plan = marge + (dispo_largeur - largeur_plan_reelle) / 2
         c.drawImage(
-            ImageReader(image_plan),
-            x_gauche + (largeur_plan - taille_image) / 2,
-            y - 4 * mm - taille_image,
-            width=taille_image, height=taille_image,
+            ImageReader(image_plan), x_plan, y - hauteur_plan_reelle,
+            width=largeur_plan_reelle, height=hauteur_plan_reelle,
             preserveAspectRatio=True, mask="auto",
         )
-        sommets = _sommets_parcelle_utm(parcelle)
     except Exception:
         c.setFillColor(GRIS)
         c.setFont("Helvetica-Oblique", 9)
-        c.drawCentredString(x_gauche + largeur_plan / 2, y - 40 * mm, "Plan non disponible pour cette parcelle.")
+        c.drawCentredString(largeur / 2, y - dispo_hauteur / 2, "Plan non disponible pour cette parcelle.")
 
+    y -= hauteur_plan_reelle + 8 * mm
+
+    c.setFont("Helvetica", 8.5)
+    c.setFillColor(NOIR)
+    c.drawString(marge, y, "A Keur Massar Nord, le {}".format(timezone.now().strftime("%d/%m/%Y")))
+    y -= 5 * mm
+    c.drawString(marge, y, "Numéro : {}/{}".format(numero_doc, timezone.now().strftime("%d-%m-%Y")))
+
+    c.setFont("Helvetica", 8.5)
+    c.drawRightString(largeur - marge, y + 5 * mm, "Echelle = {}".format(echelle_texte))
+
+    c.setFont("Helvetica-Bold", 9)
+    c.drawRightString(largeur - marge, y, "Le Chef du Bureau du Cadastre")
+    y -= 14 * mm
+    c.setStrokeColor(GRIS)
+    c.setLineWidth(0.4)
+    c.line(largeur - marge - 55 * mm, y, largeur - marge, y)
+    c.setFont("Helvetica-Oblique", 7)
     c.setFillColor(GRIS)
-    c.setFont("Helvetica-Oblique", 6.5)
-    c.drawCentredString(x_gauche + largeur_plan / 2, y - hauteur_plan + 3 * mm, "Systeme : WGS 84 / UTM Zone 28N - echelle approximative")
+    c.drawRightString(largeur - marge, y - 4 * mm, "Cachet et signature")
 
-    hauteur_coord = 56 * mm
-    y_contenu = _dessiner_cadre_titre(
-        c, x_colonne_droite, y, largeur_colonne_droite, hauteur_coord,
-        "COORDONNEES (UTM 28N)", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
-    )
-    c.setFillColor(GRIS)
-    c.setFont("Helvetica-Bold", 7)
-    c.drawString(x_colonne_droite + 2 * mm, y_contenu, "Sommet")
-    c.drawRightString(x_colonne_droite + largeur_colonne_droite * 0.6, y_contenu, "X (m)")
-    c.drawRightString(x_colonne_droite + largeur_colonne_droite - 2 * mm, y_contenu, "Y (m)")
-    yc = y_contenu - 4.5 * mm
-    sommets_affiches = sommets[:8]
-    for indice, (sx, sy) in enumerate(sommets_affiches, 1):
-        c.setFillColor(VERT_FONCE)
-        c.setFont("Helvetica", 7.2)
-        c.drawString(x_colonne_droite + 2 * mm, yc, "P{}".format(indice))
-        c.drawRightString(x_colonne_droite + largeur_colonne_droite * 0.6, yc, "{:,.2f}".format(sx).replace(",", " "))
-        c.drawRightString(x_colonne_droite + largeur_colonne_droite - 2 * mm, yc, "{:,.2f}".format(sy).replace(",", " "))
-        yc -= 4.6 * mm
-    if len(sommets) > 8:
-        c.setFillColor(GRIS)
-        c.setFont("Helvetica-Oblique", 6.5)
-        c.drawString(x_colonne_droite + 2 * mm, yc, "+ {} sommet(s) supplementaire(s)".format(len(sommets) - 8))
-
-    y_legende = y - hauteur_coord - 4 * mm
-    hauteur_legende = hauteur_plan - hauteur_coord - 4 * mm
-    y_contenu = _dessiner_cadre_titre(
-        c, x_colonne_droite, y_legende, largeur_colonne_droite, hauteur_legende,
-        "LEGENDE", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
-    )
-    yc = y_contenu
-    c.setStrokeColor(HexColor("#c31e1e"))
-    c.setLineWidth(2)
-    c.rect(x_colonne_droite + 2 * mm, yc - 2.2 * mm, 6 * mm, 3 * mm, fill=False, stroke=True)
-    c.setFillColor(VERT_FONCE)
-    c.setFont("Helvetica", 7)
-    c.drawString(x_colonne_droite + 10 * mm, yc - 2 * mm, "Limite de la parcelle")
-    yc -= 6 * mm
-    c.setStrokeColor(HexColor("#5a5a5a"))
-    c.setLineWidth(1)
-    c.rect(x_colonne_droite + 2 * mm, yc - 2.2 * mm, 6 * mm, 3 * mm, fill=False, stroke=True)
-    c.setFillColor(VERT_FONCE)
-    c.drawString(x_colonne_droite + 10 * mm, yc - 2 * mm, "Limite de parcelle voisine")
-    yc -= 6 * mm
-    c.setFillColor(VERT_FONCE)
-    c.drawString(x_colonne_droite + 2 * mm, yc - 2 * mm, "N = orientation Nord (haut du plan)")
-
-    y -= hauteur_plan + 4 * mm
-
-    hauteur_notes = 20 * mm
-    y_contenu = _dessiner_cadre_titre(
-        c, x_gauche, y, largeur_contenu, hauteur_notes,
-        "NOTES", VERT_FONCE, BORDURE, BANDEAU_CLAIR,
-    )
-    notes = [
-        "- Ce plan est un extrait du plan cadastral. Il ne constitue pas, a lui seul, un titre de propriete.",
-        "- Les limites de la parcelle figurant sur ce plan sont donnees a titre indicatif.",
-        "- Toute modification doit faire l'objet d'une mise a jour aupres du service du Cadastre de la commune.",
-    ]
-    yc = y_contenu
-    c.setFillColor(VERT_FONCE)
-    c.setFont("Helvetica", 7.5)
-    for ligne in notes:
-        c.drawString(x_gauche + 2 * mm, yc, ligne)
-        yc -= 4.3 * mm
-
-    y -= hauteur_notes + 6 * mm
-
-    c.setFillColor(VERT_FONCE)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(x_gauche, y, "LE CHEF DU SERVICE DU CADASTRE")
-    c.drawString(x_droite, y, "VU ET CERTIFIE CONFORME")
-    y -= 10 * mm
-    c.setStrokeColor(BORDURE)
-    c.setFont("Helvetica", 7)
-    c.setFillColor(GRIS)
-    c.line(x_gauche, y, x_gauche + largeur_col - 10 * mm, y)
-    c.line(x_droite, y, x_droite + largeur_col - 10 * mm, y)
-    c.drawString(x_gauche, y - 4 * mm, "Nom, date et signature")
-    c.drawString(x_droite, y - 4 * mm, "Le Directeur du Cadastre")
+    y -= 12 * mm
+    c.setFont("Helvetica-Bold", 9)
+    c.setFillColor(NOIR)
+    c.drawCentredString(largeur / 2, y, "Ce plan ne constitue pas un titre de propriété")
 
     _pied_de_page_document(
         c, marge, hauteur,

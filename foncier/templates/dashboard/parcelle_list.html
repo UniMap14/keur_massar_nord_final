@@ -2,7 +2,7 @@
 
 {% block page_title %}Parcelles{% endblock %}
 {% block header_title %}Parcelles{% endblock %}
-{% block header_subtitle %}<div class="topbar-subtitle">{{ parcelles.count }} parcelle(s) enregistrée(s)</div>{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ nb_parcelles }} parcelle(s) enregistrée(s)</div>{% endblock %}
 
 {% block topbar_extra %}
 <a href="{% url 'dashboard_parcelle_create' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Nouvelle parcelle</a>
@@ -234,6 +234,21 @@
         {% endfor %}
       </tbody>
     </table>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-bar" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:18px 10px 4px;">
+      {% if page_obj.has_previous %}
+        <a class="btn btn-outline btn-sm" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if statut %}&statut_fiscal={{ statut }}{% endif %}"><i class="fa-solid fa-chevron-left"></i></a>
+      {% endif %}
+      <span style="font-size:13px; color:var(--ink-quiet,#6f6a5e); padding:0 10px;">
+        Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+      </span>
+      {% if page_obj.has_next %}
+        <a class="btn btn-outline btn-sm" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if statut %}&statut_fiscal={{ statut }}{% endif %}"><i class="fa-solid fa-chevron-right"></i></a>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% else %}
     <div class="empty-state">
       <div class="icon"><i class="fa-solid fa-magnifying-glass"></i></div>

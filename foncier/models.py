@@ -199,14 +199,12 @@ class Contribuable(models.Model):
 
 
 class TypeTaxe(models.Model):
-    """Les taxes propres à la commune (distinctes des impôts nationaux DGID)."""
+    """Les quatre impositions foncières gérées par le service fiscal."""
     CODES = [
-        ('FONCIERE', 'Taxe foncière communale'),
-        ('PATENTE', 'Patente locale'),
-        ('OCCUPATION', "Taxe d'occupation"),
-        ('MARCHE', 'Taxe sur les marchés'),
-        ('ASSAINISSEMENT', "Redevance d'assainissement"),
-        ('PUBLICITE', 'Taxe sur la publicité'),
+        ('CFPB', 'Contribution foncière des propriétés bâties (CFPB)'),
+        ('CFPNB', 'Contribution foncière des propriétés non bâties (CFPNB)'),
+        ('IRF', 'Impôt sur le revenu foncier (IRF)'),
+        ('TEOM', "Taxe d'enlèvement des ordures ménagères (TEOM)"),
     ]
     MOIS_CHOICES = [
         (1, 'Janvier'), (2, 'Février'), (3, 'Mars'), (4, 'Avril'),

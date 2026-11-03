@@ -33,7 +33,14 @@ def dashboard_counts(request):
         nb_messages_non_traites = 0
 
     try:
-        nb_demandes_a_traiter = DemandeService.objects.filter(
+        # Cloisonnement par service : un Chef/Gestionnaire Fiscal ne doit
+        # voir dans ce badge que ses propres demandes (categorie FISCALITE),
+        # un Chef/Gestionnaire Technique (Cadastre) que les siennes -- meme
+        # regle que la page "Demarches en ligne" elle-meme.
+        from .dashboard_views import _filtrer_demandes_service
+        nb_demandes_a_traiter = _filtrer_demandes_service(
+            request.user, DemandeService.objects.all()
+        ).filter(
             statut__in=[DemandeService.STATUT_RECUE, DemandeService.STATUT_EN_COURS]
         ).count()
     except Exception:

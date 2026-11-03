@@ -1371,6 +1371,51 @@ let modeChoixDestination = false;
     calculerRayonAutour(L.latLng(lat, lng), rayon);
   }
 
+  // ===== Index spatial des infrastructures (recherche rapide du plus
+  //       proche voisin), utilise par l'analyse "zones sous-desservies" =====
+  function construireIndexInfra(infras, tailleCelluleDeg) {
+    const index = new Map();
+    infras.forEach(function (infra, i) {
+      const cx = Math.floor(infra.longitude / tailleCelluleDeg);
+      const cy = Math.floor(infra.latitude / tailleCelluleDeg);
+      const cle = cx + ',' + cy;
+      if (!index.has(cle)) index.set(cle, []);
+      index.get(cle).push(i);
+    });
+    return index;
+  }
+
+  function distanceMinIndexee(lat, lng, infras, index, tailleCelluleDeg) {
+    const cx = Math.floor(lng / tailleCelluleDeg);
+    const cy = Math.floor(lat / tailleCelluleDeg);
+    const point = L.latLng(lat, lng);
+    for (let rayon = 1; rayon <= 6; rayon++) {
+      let distMin = Infinity;
+      let candidats = 0;
+      for (let dx = -rayon; dx <= rayon; dx++) {
+        for (let dy = -rayon; dy <= rayon; dy++) {
+          const voisins = index.get((cx + dx) + ',' + (cy + dy));
+          if (!voisins) continue;
+          for (let k = 0; k < voisins.length; k++) {
+            candidats++;
+            const infra = infras[voisins[k]];
+            const d = point.distanceTo(L.latLng(infra.latitude, infra.longitude));
+            if (d < distMin) distMin = d;
+          }
+        }
+      }
+      if (candidats > 0) return distMin;
+    }
+    // Repli de securite (secteur tres peu dense autour de ce point) :
+    // recherche exhaustive, pour garantir un resultat correct dans tous les cas.
+    let distMin = Infinity;
+    for (let i = 0; i < infras.length; i++) {
+      const d = point.distanceTo(L.latLng(infras[i].latitude, infras[i].longitude));
+      if (d < distMin) distMin = d;
+    }
+    return distMin;
+  }
+
   // ===== Zones sous-desservies =====
   let coucheSousDesservis = null;
   function analyserZonesSousDesservies() {
@@ -1398,16 +1443,16 @@ let modeChoixDestination = false;
       let totalCellules = 0;
       const comptesParZone = {};
 
+      // Index spatial des infrastructures : chaque cellule/parcelle ne
+      // compare plus qu'aux infrastructures proches, au lieu de toutes.
+      const tailleCelluleIndex = Math.max(seuil, 50) / 111320;
+      const indexInfra = construireIndexInfra(infras, tailleCelluleIndex);
+
       for (let lat = bounds.getSouth(); lat <= bounds.getNorth(); lat += pas) {
         for (let lng = bounds.getWest(); lng <= bounds.getEast(); lng += pas) {
           if (!celluleDansLaCommune(lat, lng)) continue;
           totalCellules++;
-          const point = L.latLng(lat, lng);
-          let distMin = Infinity;
-          for (let i = 0; i < infras.length; i++) {
-            const d = point.distanceTo(L.latLng(infras[i].latitude, infras[i].longitude));
-            if (d < distMin) distMin = d;
-          }
+          const distMin = distanceMinIndexee(lat, lng, infras, indexInfra, tailleCelluleIndex);
           if (distMin > seuil) {
             cellulesSousDesservies++;
             L.rectangle(
@@ -1439,12 +1484,7 @@ let modeChoixDestination = false;
         if (!f.geometry) return;
         let centre;
         try { centre = turf.centroid(f).geometry.coordinates; } catch (e) { return; }
-        const point = L.latLng(centre[1], centre[0]);
-        let distMin = Infinity;
-        for (let i = 0; i < infras.length; i++) {
-          const d = point.distanceTo(L.latLng(infras[i].latitude, infras[i].longitude));
-          if (d < distMin) distMin = d;
-        }
+        const distMin = distanceMinIndexee(centre[1], centre[0], infras, indexInfra, tailleCelluleIndex);
         if (distMin > seuil) parcellesConcernees++;
       });
 

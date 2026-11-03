@@ -360,6 +360,14 @@ def dashboard_home(request):
     total_recouvre = Paiement.objects.aggregate(Sum("montant"))["montant__sum"] or 0
     total_du = Taxation.objects.aggregate(Sum("montant_du"))["montant_du__sum"] or 0
     parcelles_en_retard = Parcelle.objects.filter(statut_fiscal="EN_RETARD").count()
+
+    # Montant encaisse via les demarches en ligne (ex : extrait cadastral),
+    # hors fiscalite -- ce que le Chef/Gestionnaire Cadastre doit voir.
+    total_recouvre_demandes = DemandeService.objects.exclude(
+        type_demande__categorie="FISCALITE"
+    ).filter(
+        statut_paiement=DemandeService.STATUT_PAIEMENT_CONFIRME
+    ).aggregate(t=Sum("montant_paye"))["t"] or 0
     total_proprios = Propriétaire.objects.count()
 
     derniers_paiements = (
@@ -417,7 +425,7 @@ def dashboard_home(request):
         if du_zone > 0:
             zones_stats.append({
                 "nom": zone.nom,
-                "taux": round((paye_zone / du_zone) * 100, 1),
+                "taux": round((float(paye_zone) / float(du_zone)) * 100, 1),
             })
     zones_stats.sort(key=lambda z: z["taux"])
     zones_stats = zones_stats[:10]
@@ -526,6 +534,7 @@ def dashboard_home(request):
         "taux_recouvrement": taux_recouvrement,
         "parcelles_en_retard": parcelles_en_retard,
         "total_proprios": total_proprios,
+        "total_recouvre_demandes_fmt": _fcfa(total_recouvre_demandes),
         "derniers_paiements": derniers_paiements,
         "top_retardaires": top_retardaires,
         "dernieres_demandes": dernieres_demandes,
@@ -667,10 +676,19 @@ def dashboard_parcelle_list(request):
     if statut:
         parcelles = parcelles.filter(statut_fiscal=statut)
 
+    # Pagination : la liste complete (40000+ parcelles) rendait la page
+    # tres lente a charger et a afficher. On ne charge/rend plus que
+    # 50 parcelles a la fois.
+    from django.core.paginator import Paginator
+    paginator = Paginator(parcelles, 50)
+    page_courante = paginator.get_page(request.GET.get("page"))
+
     context = {
         "active_section": "parcelles",
         "nb_parcelles": Parcelle.objects.count(),
-        "parcelles": parcelles,
+        "parcelles": page_courante,
+        "page_obj": page_courante,
+        "paginator": paginator,
         "q": q,
         "statut": statut,
     }
@@ -1074,7 +1092,8 @@ def dashboard_paiement_list(request):
 @role_requis('fiscal')
 def dashboard_typetaxe_list(request):
     q = request.GET.get("q", "").strip()
-    types_taxe = TypeTaxe.objects.order_by("libelle")
+    codes_actifs = [code for code, _label in TypeTaxe.CODES]
+    types_taxe = TypeTaxe.objects.filter(code__in=codes_actifs).order_by("libelle")
 
     if q:
         types_taxe = types_taxe.filter(libelle__icontains=q)
@@ -1160,6 +1179,16 @@ class TaxationForm(forms.ModelForm):
     class Meta:
         model = Taxation
         fields = ["contribuable", "type_taxe", "parcelle", "annee_fiscale", "montant_du"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        codes_actifs = [code for code, _label in TypeTaxe.CODES]
+        types_actifs = TypeTaxe.objects.filter(code__in=codes_actifs)
+        if self.instance.pk and self.instance.type_taxe_id:
+            types_actifs = TypeTaxe.objects.filter(
+                Q(code__in=codes_actifs) | Q(pk=self.instance.type_taxe_id)
+            )
+        self.fields["type_taxe"].queryset = types_actifs
 
 
 class PaiementForm(forms.ModelForm):
@@ -1326,7 +1355,7 @@ def dashboard_categorie_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('gestionnaire_technique')
+@role_requis('technique')
 def dashboard_categorie_create(request):
     if request.method == "POST":
         form = CategorieInfrastructureForm(request.POST)
@@ -1411,7 +1440,7 @@ def dashboard_infrastructure_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('gestionnaire_technique')
+@role_requis('technique')
 def dashboard_infrastructure_create(request):
     if request.method == "POST":
         form = InfrastructureForm(request.POST)
@@ -1492,7 +1521,7 @@ def dashboard_actualite_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('gestionnaire_technique')
+@role_requis('technique')
 def dashboard_actualite_create(request):
     if request.method == "POST":
         form = ActualiteForm(request.POST, request.FILES)
@@ -2926,7 +2955,7 @@ def dashboard_galerie_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('gestionnaire_technique')
+@role_requis('technique')
 def dashboard_galerie_create(request):
     if request.method == "POST":
         form = PhotoGalerieForm(request.POST, request.FILES)
@@ -3011,7 +3040,7 @@ def dashboard_cartotheque_list(request):
 
 
 @staff_member_required(login_url='dashboard_login')
-@role_requis('gestionnaire_technique')
+@role_requis('technique')
 def dashboard_cartotheque_create(request):
     if request.method == "POST":
         form = CarteThematiqueForm(request.POST, request.FILES)

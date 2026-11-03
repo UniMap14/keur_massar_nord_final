@@ -444,3 +444,19 @@ UNFOLD = {
         ],
     },
 }
+
+
+# ============================================================
+# Cache sur disque (et non en memoire) : le geoportail met en cache
+# ~40000 parcelles (calcul a froid ~1 minute). Avec le cache par defaut
+# de Django (LocMemCache, en memoire du process), ce cache est perdu a
+# CHAQUE redemarrage du serveur de developpement. En passant sur disque,
+# il survit aux redemarrages -- le calcul lourd ne se refait que quand
+# les donnees changent reellement (voir les signaux dans foncier/views.py).
+# ============================================================
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": BASE_DIR / "django_cache",
+    }
+}

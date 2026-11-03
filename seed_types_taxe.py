@@ -1,7 +1,7 @@
 # ============================================================
 # seed_types_taxe.py
 #
-# Crée les 6 types de taxe communale de base, si absents. Nécessaire
+# Crée les 4 types d'imposition foncière, si absents. Nécessaire
 # au bon fonctionnement de la page publique Fiscalité (calendrier des
 # échéances) et du dashboard admin (Types de taxe, Taxations).
 #
@@ -20,45 +20,31 @@ from foncier.models import TypeTaxe
 
 TYPES = [
     {
-        "code": "FONCIERE",
-        "libelle": "Taxe foncière communale",
+        "code": "CFPB",
+        "libelle": "Contribution foncière des propriétés bâties (CFPB)",
         "mois_echeance": 3,
         "jour_echeance": 31,
         "penalite_retard": 10,
     },
     {
-        "code": "PATENTE",
-        "libelle": "Patente locale",
-        "mois_echeance": 2,
-        "jour_echeance": 28,
-        "penalite_retard": 10,
-    },
-    {
-        "code": "OCCUPATION",
-        "libelle": "Taxe d'occupation du domaine public",
-        "mois_echeance": 1,
+        "code": "CFPNB",
+        "libelle": "Contribution foncière des propriétés non bâties (CFPNB)",
+        "mois_echeance": 3,
         "jour_echeance": 31,
         "penalite_retard": 10,
     },
     {
-        "code": "MARCHE",
-        "libelle": "Taxe sur les marchés",
-        "mois_echeance": 12,
-        "jour_echeance": 31,
-        "penalite_retard": 5,
-    },
-    {
-        "code": "ASSAINISSEMENT",
-        "libelle": "Redevance d'assainissement",
-        "mois_echeance": 6,
-        "jour_echeance": 30,
-        "penalite_retard": 5,
-    },
-    {
-        "code": "PUBLICITE",
-        "libelle": "Taxe sur la publicité",
+        "code": "IRF",
+        "libelle": "Impôt sur le revenu foncier (IRF)",
         "mois_echeance": 4,
         "jour_echeance": 30,
+        "penalite_retard": 10,
+    },
+    {
+        "code": "TEOM",
+        "libelle": "Taxe d'enlèvement des ordures ménagères (TEOM)",
+        "mois_echeance": 3,
+        "jour_echeance": 31,
         "penalite_retard": 10,
     },
 ]

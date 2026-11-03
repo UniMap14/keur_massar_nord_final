@@ -1,0 +1,61 @@
+﻿
+> foncier\models.py:68:class Propriétaire(models.Model):
+  foncier\models.py:69:    nom = models.CharField(max_length=100)
+  foncier\models.py:70:    prenom = models.CharField(max_length=100)
+  foncier\models.py:71:    ni_cni = models.CharField(max_length=20, unique=True, verbose_name="Numéro 
+CNI")
+  foncier\models.py:72:    telephone = models.CharField(max_length=20, blank=True, null=True)
+  foncier\models.py:73:    adresse = models.TextField(blank=True, null=True)
+  foncier\models.py:74:
+  foncier\models.py:75:    def __str__(self):
+  foncier\models.py:76:        return f"{self.prenom} {self.nom}"
+  foncier\models.py:77:
+> foncier\models.py:78:class Parcelle(models.Model):
+  foncier\models.py:79:    TYPES_DOCUMENT = [
+  foncier\models.py:80:        ('TF', 'Titre Foncier'),
+  foncier\models.py:81:        ('BAIL', 'Bail'),
+  foncier\models.py:82:        ('DELIB', 'Délibération Municipale'),
+  foncier\models.py:83:        ('ATTES', 'Attestation de cession'),
+  foncier\models.py:84:    ]
+  foncier\models.py:85:
+  foncier\models.py:86:    STATUTS_FISCAUX = [
+  foncier\models.py:87:        ('A_JOUR', 'À Jour'),
+  foncier\models.py:88:        ('EN_RETARD', 'En Retard de Paiement'),
+  foncier\models.py:89:        ('EXONERE', 'Exonéré'),
+  foncier\models.py:90:    ]
+  foncier\models.py:91:
+  foncier\models.py:92:    nicad = models.CharField(max_length=50, verbose_name="Numéro NICAD / Lot")
+  foncier\models.py:93:    id_shp = models.CharField(
+  foncier\models.py:94:        max_length=20, unique=True, blank=True, null=True,
+  foncier\models.py:95:        verbose_name="ID unique (import shapefile)",
+  foncier\models.py:96:        help_text="Identifiant du polygone source (ex: KMN-000001), pour éviter 
+les doublons lors d'un ré-import.",
+  foncier\models.py:97:    )
+  foncier\models.py:98:    proprietaire = models.ForeignKey(Propriétaire, on_delete=models.SET_NULL, 
+null=True, related_name="parcelles")
+  foncier\models.py:99:    zone = models.ForeignKey(Zone, on_delete=models.SET_NULL, null=True, 
+blank=True, related_name="parcelles", verbose_name="Zone/Quartier")
+  foncier\models.py:100:    superficie = models.FloatField(help_text="Superficie en mètres carrés")
+  foncier\models.py:101:    type_document = models.CharField(max_length=10, choices=TYPES_DOCUMENT, 
+default='DELIB')
+  foncier\models.py:102:    adresse_parcelle = models.CharField(max_length=255, blank=True, 
+help_text="Quartier ou secteur à Keur Massar Nord")
+  foncier\models.py:103:
+  foncier\models.py:104:    # --- Ajoutés pour l'import du shapefile arrete_kms_008_003_014_final ---
+  foncier\models.py:105:    reference_arrete = models.CharField(max_length=100, blank=True, 
+verbose_name="Référence de l'arrêté")
+  foncier\models.py:106:    section_cadastrale = models.CharField(max_length=10, blank=True, 
+verbose_name="Section cadastrale")
+  foncier\models.py:107:    numero_parcelle = models.CharField(max_length=50, blank=True, 
+verbose_name="Numéro de parcelle")
+  foncier\models.py:108:    numero_lot = models.CharField(max_length=50, blank=True, 
+verbose_name="Numéro de lot")
+  foncier\models.py:109:    numero_titre_foncier = models.CharField(max_length=100, blank=True, 
+verbose_name="Numéro du titre foncier")
+  foncier\models.py:110:    simulation_fiscale = models.BooleanField(
+  foncier\models.py:111:        default=False, verbose_name="Montant fiscal simulé",
+  foncier\models.py:112:        help_text=(
+  foncier\models.py:113:            "Coché si le montant de taxe/valeur locative provient d'une 
+simulation "
+
+
