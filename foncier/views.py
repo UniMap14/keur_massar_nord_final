@@ -38,7 +38,7 @@ from django.conf import settings
 import json
 from decimal import Decimal, ROUND_HALF_UP
 
-from .permissions import a_role
+from .permissions import a_role, role_requis
 from .models import Signalement
 from .forms import SignalementForm
 
@@ -211,6 +211,7 @@ def carte_geoportail(request):
 
 @login_required
 @user_passes_test(_est_agent)
+@role_requis("technique")
 def carte_geoportail_admin(request):
     """
     Affiche la carte du géoportail réservée aux agents (is_staff) : statut
@@ -289,7 +290,8 @@ TOLERANCE_SIMPLIFICATION = 0.00002
 TOLERANCE_SIMPLIFICATION_TOUTES = 0.00003  # formes reconnaissables meme pour les petites parcelles
 
 CACHE_KEY_PUBLIC = "geojson_parcelles_public"
-CACHE_KEY_ADMIN = "geojson_parcelles_admin"
+CACHE_KEY_ADMIN = "geojson_parcelles_admin_fiscal_v3"
+CACHE_KEY_ADMIN_CADASTRE = "geojson_parcelles_admin_cadastre_v3"
 CACHE_TTL_SECONDES = 120  # invalidé de toute façon dès qu'une parcelle est modifiée
 CACHE_KEY_ZONES = "geojson_zones"
 CACHE_KEY_SECTIONS = "geojson_sections"
@@ -455,20 +457,20 @@ def api_parcelles_toutes_geojson(request):
 
 
 # ============================================================
-# API GEOJSON PARCELLES — VERSION ADMIN
-# Inclut statut fiscal, montants, valeur locative, propriétaire.
-# Réservée aux agents (is_staff). Ne jamais exposer publiquement.
+# API GEOJSON PARCELLES — VERSION AGENT
+# Réservée au service Cadastre. Les données fiscales ne sont incluses
+# que pour un superviseur autorisé aux deux services.
 # ============================================================
 
 @login_required
 @user_passes_test(_est_agent)
+@role_requis("technique")
 def api_parcelles_geojson_admin(request):
     """
-    GeoJSON ADMIN des parcelles : inclut le statut fiscal, les montants de
-    taxe, la valeur locative, le type de document et le propriétaire.
-    Réservé aux agents (is_staff). Limité à la zone visible (bbox) et
-    plafonné à PARCELLES_MAX_PAR_REQUETE — voir api_parcelles_geojson.
+    GeoJSON réservé au Cadastre. Les données fiscales ne sont présentes
+    que pour un superviseur autorisé aux deux services.
     """
+    peut_fiscal = a_role(request.user, "fiscal")
     bbox_poly = _bbox_depuis_requete(request)
     if bbox_poly is None:
         return JsonResponse({"type": "FeatureCollection", "features": []})
@@ -485,38 +487,45 @@ def api_parcelles_geojson_admin(request):
             "id", "nicad", "superficie", "adresse_parcelle",
             "montant_taxe_annuelle", "valeur_locative", "statut_fiscal",
             "type_document", "reference_arrete", "section_cadastrale", "numero_parcelle", "numero_lot", "numero_titre_foncier", "occupation_sol", "simulation_fiscale",
-            "zone__nom", "proprietaire__nom", "proprietaire__prenom",
+            "zone__nom", "proprietaire__nom", "proprietaire__prenom", "proprietaire__ni_cni",
         )
         .order_by("id")[:PARCELLES_MAX_PAR_REQUETE]
     )
 
     for parcelle in qs.iterator():
-        features.append({
-            "type": "Feature",
-            "geometry": json.loads(parcelle.geojson_geom),
-            "properties": {
-                "id": parcelle.id,
-                "nicad": parcelle.nicad,
-                "num_lot": parcelle.nicad,
-                "superficie": parcelle.superficie,
-                "adresse_parcelle": parcelle.adresse_parcelle,
+        proprietes = {
+            "id": parcelle.id,
+            "nicad": parcelle.nicad,
+            "num_lot": parcelle.nicad,
+            "superficie": parcelle.superficie,
+            "adresse_parcelle": parcelle.adresse_parcelle,
+            "type_document": parcelle.type_document,
+            "reference_arrete": parcelle.reference_arrete,
+            "section_cadastrale": parcelle.section_cadastrale,
+            "numero_parcelle": parcelle.numero_parcelle,
+            "numero_lot": parcelle.numero_lot,
+            "numero_titre_foncier": parcelle.numero_titre_foncier,
+            "occupation_sol": parcelle.occupation_sol,
+            "zone_nom": parcelle.zone.nom if parcelle.zone_id else None,
+            "proprietaire": (
+                f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
+                if parcelle.proprietaire_id else None
+            ),
+            "proprietaire_nom": parcelle.proprietaire.nom if parcelle.proprietaire_id else None,
+            "proprietaire_prenom": parcelle.proprietaire.prenom if parcelle.proprietaire_id else None,
+            "proprietaire_cni": parcelle.proprietaire.ni_cni if parcelle.proprietaire_id else None,
+        }
+        if peut_fiscal:
+            proprietes.update({
                 "montant_taxe_annuelle": float(parcelle.montant_taxe_annuelle),
                 "valeur_locative": float(parcelle.valeur_locative),
                 "statut_fiscal": parcelle.statut_fiscal,
-                "type_document": parcelle.type_document,
-                "reference_arrete": parcelle.reference_arrete,
-                "section_cadastrale": parcelle.section_cadastrale,
-                "numero_parcelle": parcelle.numero_parcelle,
-                "numero_lot": parcelle.numero_lot,
-                "numero_titre_foncier": parcelle.numero_titre_foncier,
-                "occupation_sol": parcelle.occupation_sol,
                 "simulation_fiscale": parcelle.simulation_fiscale,
-                "zone_nom": parcelle.zone.nom if parcelle.zone_id else None,
-                "proprietaire": (
-                    f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
-                    if parcelle.proprietaire_id else None
-                ),
-            },
+            })
+        features.append({
+            "type": "Feature",
+            "geometry": json.loads(parcelle.geojson_geom),
+            "properties": proprietes,
         })
 
     return JsonResponse({"type": "FeatureCollection", "features": features})
@@ -524,12 +533,13 @@ def api_parcelles_geojson_admin(request):
 
 @login_required
 @user_passes_test(_est_agent)
+@role_requis("technique")
 def api_parcelles_toutes_geojson_admin(request):
-    """Équivalent admin de api_parcelles_toutes_geojson : toutes les
-    parcelles, géométrie fortement simplifiée, avec les infos fiscales en
-    plus (pour la coloration par statut sur la vue d'ensemble). Mis en
-    cache séparément (CACHE_KEY_ADMIN)."""
-    data_json = cache.get(CACHE_KEY_ADMIN)
+    """GéoJSON cadastral pour les agents techniques; le superviseur voit
+    aussi les champs fiscaux. Les variantes sont mises en cache séparément."""
+    peut_fiscal = a_role(request.user, "fiscal")
+    cache_key = CACHE_KEY_ADMIN if peut_fiscal else CACHE_KEY_ADMIN_CADASTRE
+    data_json = cache.get(cache_key)
     if data_json is None:
         qs = (
             Parcelle.objects
@@ -541,7 +551,7 @@ def api_parcelles_toutes_geojson_admin(request):
                 "id", "nicad", "superficie", "adresse_parcelle",
                 "montant_taxe_annuelle", "valeur_locative", "statut_fiscal",
                 "type_document", "reference_arrete", "section_cadastrale", "numero_parcelle", "numero_lot", "numero_titre_foncier", "occupation_sol", "simulation_fiscale",
-                "zone__nom", "proprietaire__nom", "proprietaire__prenom",
+                "zone__nom", "proprietaire__nom", "proprietaire__prenom", "proprietaire__ni_cni",
             )
             .order_by("id")
         )
@@ -560,37 +570,43 @@ def api_parcelles_toutes_geojson_admin(request):
                 "details": infra.details,
             })
 
-        features = [
-            {
-                "type": "Feature",
-                "geometry": json.loads(parcelle.geojson_geom),
-                "properties": {
-                    "id": parcelle.id,
-                    "nicad": parcelle.nicad,
-                    "num_lot": parcelle.nicad,
-                    "superficie": parcelle.superficie,
-                    "adresse_parcelle": parcelle.adresse_parcelle,
-                    "montant_taxe_annuelle": float(parcelle.montant_taxe_annuelle),
-                    "valeur_locative": float(parcelle.valeur_locative),
-                    "statut_fiscal": parcelle.statut_fiscal,
-                    "type_document": parcelle.type_document,
-                    "reference_arrete": parcelle.reference_arrete,
+        features = []
+        for parcelle in qs.iterator():
+            proprietes = {
+                "id": parcelle.id,
+                "nicad": parcelle.nicad,
+                "num_lot": parcelle.nicad,
+                "superficie": parcelle.superficie,
+                "adresse_parcelle": parcelle.adresse_parcelle,
+                "type_document": parcelle.type_document,
+                "reference_arrete": parcelle.reference_arrete,
                 "section_cadastrale": parcelle.section_cadastrale,
                 "numero_parcelle": parcelle.numero_parcelle,
                 "numero_lot": parcelle.numero_lot,
                 "numero_titre_foncier": parcelle.numero_titre_foncier,
-                    "occupation_sol": parcelle.occupation_sol,
-                    "infrastructures": infra_par_parcelle_admin.get(parcelle.id, []),
-                    "simulation_fiscale": parcelle.simulation_fiscale,
-                    "zone_nom": parcelle.zone.nom if parcelle.zone_id else None,
-                    "proprietaire": (
-                        f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
-                        if parcelle.proprietaire_id else None
-                    ),
-                },
+                "occupation_sol": parcelle.occupation_sol,
+                "infrastructures": infra_par_parcelle_admin.get(parcelle.id, []),
+                "zone_nom": parcelle.zone.nom if parcelle.zone_id else None,
+                "proprietaire": (
+                    f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
+                    if parcelle.proprietaire_id else None
+                ),
+                "proprietaire_nom": parcelle.proprietaire.nom if parcelle.proprietaire_id else None,
+                "proprietaire_prenom": parcelle.proprietaire.prenom if parcelle.proprietaire_id else None,
+                "proprietaire_cni": parcelle.proprietaire.ni_cni if parcelle.proprietaire_id else None,
             }
-            for parcelle in qs.iterator()
-        ]
+            if peut_fiscal:
+                proprietes.update({
+                    "montant_taxe_annuelle": float(parcelle.montant_taxe_annuelle),
+                    "valeur_locative": float(parcelle.valeur_locative),
+                    "statut_fiscal": parcelle.statut_fiscal,
+                    "simulation_fiscale": parcelle.simulation_fiscale,
+                })
+            features.append({
+                "type": "Feature",
+                "geometry": json.loads(parcelle.geojson_geom),
+                "properties": proprietes,
+            })
         infra_sans_parcelle_admin = [
             {
                 "id": infra.id,
@@ -608,7 +624,7 @@ def api_parcelles_toutes_geojson_admin(request):
 
         data = {"type": "FeatureCollection", "features": features, "infrastructures_hors_parcelle": infra_sans_parcelle_admin}
         data_json = json.dumps(data)
-        cache.set(CACHE_KEY_ADMIN, data_json, None)
+        cache.set(cache_key, data_json, None)
 
     return HttpResponse(data_json, content_type="application/json")
 
@@ -638,9 +654,12 @@ def parcelle_update_fiscal(request, parcelle_id):
     CHAMPS_CADASTRAUX = {
         "nicad", "adresse_parcelle", "type_document", "occupation_sol",
         "reference_arrete", "section_cadastrale", "numero_parcelle",
-        "numero_lot", "numero_titre_foncier", "proprietaire_cni",
+        "numero_lot", "numero_titre_foncier", "proprietaire_nom",
+        "proprietaire_prenom", "proprietaire_cni",
     }
-    CHAMPS_FISCAUX = {"statut_fiscal", "montant_taxe_annuelle", "valeur_locative"}
+    CHAMPS_FISCAUX = {
+        "statut_fiscal", "montant_taxe_annuelle", "valeur_locative", "simulation_fiscale",
+    }
 
     champs_soumis = set(request.POST.keys())
     if (champs_soumis & CHAMPS_CADASTRAUX) and not a_role(request.user, 'technique'):
@@ -748,50 +767,77 @@ def parcelle_update_fiscal(request, parcelle_id):
         parcelle.numero_titre_foncier = numero_titre_foncier.strip()
         champs_modifies.append("numero_titre_foncier")
 
-    # Propriétaire : recherché par numéro CNI. Champ vide = pas de changement.
-    # "RETIRER" = détache le propriétaire actuel.
-    cni = request.POST.get("proprietaire_cni")
-    if cni and cni.strip():
-        if cni.strip().upper() == "RETIRER":
-            parcelle.proprietaire = None
-            champs_modifies.append("proprietaire")
-        else:
-            try:
-                proprietaire = Propriétaire.objects.get(ni_cni=cni.strip())
-                parcelle.proprietaire = proprietaire
-                champs_modifies.append("proprietaire")
-            except Propriétaire.DoesNotExist:
+    # Un propriétaire peut être créé ou complété directement depuis la fiche.
+    champs_proprietaire = ("proprietaire_nom", "proprietaire_prenom", "proprietaire_cni")
+    if any(champ in request.POST for champ in champs_proprietaire):
+        nom = request.POST.get("proprietaire_nom", "").strip()
+        prenom = request.POST.get("proprietaire_prenom", "").strip()
+        cni = request.POST.get("proprietaire_cni", "").strip()
+        if cni.upper() == "RETIRER":
+            if nom or prenom:
                 return JsonResponse({
                     "ok": False,
-                    "error": f"Aucun propriétaire avec la CNI {cni.strip()}. "
-                             f"Crée-le d'abord dans l'admin Django (Propriétaires)."
+                    "error": "Laissez le nom et le prénom vides pour retirer le propriétaire."
                 }, status=400)
+            parcelle.proprietaire = None
+            champs_modifies.append("proprietaire")
+        elif nom or prenom or cni:
+            if not (nom and prenom and cni):
+                return JsonResponse({
+                    "ok": False,
+                    "error": "Renseignez le nom, le prénom et la CNI du propriétaire."
+                }, status=400)
+            if len(nom) > 100 or len(prenom) > 100 or len(cni) > 20:
+                return JsonResponse({
+                    "ok": False,
+                    "error": "Le nom, le prénom ou la CNI dépasse la longueur autorisée."
+                }, status=400)
+            proprietaire = Propriétaire.objects.filter(ni_cni=cni).first()
+            if proprietaire is None:
+                proprietaire = Propriétaire.objects.create(
+                    nom=nom,
+                    prenom=prenom,
+                    ni_cni=cni,
+                )
+            elif proprietaire.nom != nom or proprietaire.prenom != prenom:
+                proprietaire.nom = nom
+                proprietaire.prenom = prenom
+                proprietaire.save(update_fields=["nom", "prenom"])
+            parcelle.proprietaire = proprietaire
+            champs_modifies.append("proprietaire")
 
     if champs_modifies:
         parcelle.save(update_fields=champs_modifies)
 
-    return JsonResponse({
-        "ok": True,
-        "id": parcelle.id,
-        "nicad": parcelle.nicad,
-        "superficie": parcelle.superficie,
-        "statut_fiscal": parcelle.statut_fiscal,
-        "montant_taxe_annuelle": float(parcelle.montant_taxe_annuelle),
-        "valeur_locative": float(parcelle.valeur_locative),
-        "adresse_parcelle": parcelle.adresse_parcelle,
-        "type_document": parcelle.type_document,
-        "occupation_sol": parcelle.occupation_sol,
-        "simulation_fiscale": parcelle.simulation_fiscale,
-        "reference_arrete": parcelle.reference_arrete,
-                "section_cadastrale": parcelle.section_cadastrale,
-                "numero_parcelle": parcelle.numero_parcelle,
-                "numero_lot": parcelle.numero_lot,
-                "numero_titre_foncier": parcelle.numero_titre_foncier,
-        "proprietaire": (
-            f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
-            if parcelle.proprietaire_id else None
-        ),
-    })
+    resultat = {"ok": True, "id": parcelle.id}
+    if a_role(request.user, "technique"):
+        resultat.update({
+            "nicad": parcelle.nicad,
+            "superficie": parcelle.superficie,
+            "adresse_parcelle": parcelle.adresse_parcelle,
+            "type_document": parcelle.type_document,
+            "occupation_sol": parcelle.occupation_sol,
+            "reference_arrete": parcelle.reference_arrete,
+            "section_cadastrale": parcelle.section_cadastrale,
+            "numero_parcelle": parcelle.numero_parcelle,
+            "numero_lot": parcelle.numero_lot,
+            "numero_titre_foncier": parcelle.numero_titre_foncier,
+            "proprietaire": (
+                f"{parcelle.proprietaire.prenom} {parcelle.proprietaire.nom}"
+                if parcelle.proprietaire_id else None
+            ),
+            "proprietaire_nom": parcelle.proprietaire.nom if parcelle.proprietaire_id else None,
+            "proprietaire_prenom": parcelle.proprietaire.prenom if parcelle.proprietaire_id else None,
+            "proprietaire_cni": parcelle.proprietaire.ni_cni if parcelle.proprietaire_id else None,
+        })
+    if a_role(request.user, "fiscal"):
+        resultat.update({
+            "statut_fiscal": parcelle.statut_fiscal,
+            "montant_taxe_annuelle": float(parcelle.montant_taxe_annuelle),
+            "valeur_locative": float(parcelle.valeur_locative),
+            "simulation_fiscale": parcelle.simulation_fiscale,
+        })
+    return JsonResponse(resultat)
 
 
 # ============================================================
@@ -1527,6 +1573,7 @@ from django.dispatch import receiver
 def _invalider_cache_parcelles(sender, **kwargs):
     cache.delete(CACHE_KEY_PUBLIC)
     cache.delete(CACHE_KEY_ADMIN)
+    cache.delete(CACHE_KEY_ADMIN_CADASTRE)
 
 
 from foncier.models import QuartierOfficiel, SectionCadastrale, LimiteAdministrative

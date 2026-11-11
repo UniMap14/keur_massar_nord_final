@@ -80,6 +80,8 @@ class ParcelleUpdateFiscalRoleSeparationTests(BasePermissionsTestCase):
         response = self.client.post(self._url(), {"statut_fiscal": "EXONERE"})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["ok"])
+        self.assertIn("statut_fiscal", response.json())
+        self.assertNotIn("nicad", response.json())
         self.parcelle.refresh_from_db()
         self.assertEqual(self.parcelle.statut_fiscal, "EXONERE")
 
@@ -95,6 +97,9 @@ class ParcelleUpdateFiscalRoleSeparationTests(BasePermissionsTestCase):
         response = self.client.post(self._url(), {"nicad": "NOUVEAU-NICAD"})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["ok"])
+        self.assertIn("nicad", response.json())
+        self.assertNotIn("statut_fiscal", response.json())
+        self.assertNotIn("montant_taxe_annuelle", response.json())
         self.parcelle.refresh_from_db()
         self.assertEqual(self.parcelle.nicad, "NOUVEAU-NICAD")
 
@@ -215,6 +220,7 @@ class DashboardHomeRoleContextTests(BasePermissionsTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["peut_fiscal"])
         self.assertFalse(response.context["peut_technique"])
+        self.assertNotContains(response, "Geoportail SIG")
 
     def test_gestionnaire_technique_ne_voit_que_le_service_technique(self):
         self.client.login(username="test_gestionnaire_technique", password="test1234")
@@ -222,6 +228,9 @@ class DashboardHomeRoleContextTests(BasePermissionsTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["peut_fiscal"])
         self.assertTrue(response.context["peut_technique"])
+        self.assertEqual(response.context["chart_mois_valeurs"], "[]")
+        self.assertEqual(response.context["total_recouvre_fmt"], "")
+        self.assertNotContains(response, "Statut fiscal")
 
     def test_staff_sans_groupe_voit_les_deux_services(self):
         self.client.login(username="test_staff_sans_groupe", password="test1234")

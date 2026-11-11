@@ -47,6 +47,49 @@
             .trim();
     }
 
+    function limitText(text, maxLength) {
+        const cleaned = cleanText(text);
+        if (cleaned.length <= maxLength) return cleaned;
+
+        const excerpt = cleaned.slice(0, maxLength);
+        const lastSpace = excerpt.lastIndexOf(' ');
+        return excerpt.slice(0, lastSpace > 0 ? lastSpace : maxLength).trim() + '…';
+    }
+
+    function summarizeElement(element) {
+        if (!element) return '';
+
+        const statItems = element.querySelectorAll('.km-page2-stat');
+        if (statItems.length) {
+            return Array.from(statItems).map(function (item) {
+                const value = item.querySelector('strong');
+                const label = item.querySelector('span');
+                return cleanText((value ? value.innerText : '') + ' ' + (label ? label.innerText : ''));
+            }).filter(Boolean).join(', ');
+        }
+
+        const serviceNames = element.querySelectorAll('.km-bento-small h4');
+        if (serviceNames.length) {
+            return 'Les services proposés comprennent : ' +
+                Array.from(serviceNames).slice(0, 6)
+                    .map(function (heading) { return cleanText(heading.innerText); })
+                    .filter(Boolean)
+                    .join(', ') + '.';
+        }
+
+        const heading = element.querySelector('h1, h2, h3');
+        const paragraph = element.querySelector('p');
+        const parts = [];
+
+        if (heading) parts.push(cleanText(heading.innerText));
+        if (paragraph) {
+            const paragraphText = cleanText(paragraph.innerText);
+            if (paragraphText && paragraphText !== parts[0]) parts.push(paragraphText);
+        }
+
+        return limitText(parts.join('. '), 280);
+    }
+
     function updateButton(state) {
         if (!btn || !icon || !tooltip) return;
 
@@ -89,24 +132,42 @@
         sections = [];
 
         /*
-         * Jeux de selecteurs par page. "accueil" couvre la page d'accueil,
-         * les autres cles couvrent des pages dont on connait les classes
-         * CSS. "defaut" sert de filet de securite generique pour TOUTE
-         * autre page du site, afin que le guide ne reste jamais muet.
+         * Guides courts par page. On ne lit pas le contenu complet des
+         * grands blocs : chaque étape ne garde que son résumé utile.
          */
         const cheminActuel = window.location.pathname;
 
         const jeuxDeSelecteurs = {
             accueil: [
-                { selector: '.km-hero', intro: 'Bienvenue sur le portail officiel de Keur Massar Nord.' },
-                { selector: '.km-quick-section', intro: 'Voici les informations essentielles sur la commune.' },
-                { selector: '.histoire-layout', intro: 'Découvrez maintenant l’histoire de Keur Massar Nord.' },
-                { selector: '.services-section', intro: 'Cette plateforme propose plusieurs services numériques.' },
-                { selector: '.km-dash-section', intro: 'Voici un aperçu des infrastructures, des signalements citoyens et des actualités.' },
-                { selector: '.security-section', intro: 'La plateforme présente également les garanties de sécurité et de fiabilité des données.' },
-                { selector: '.page-section', intro: 'Vous pouvez également explorer la commune depuis le géoportail.' },
-                { selector: '.mayor-section', intro: 'Voici le message du maire de Keur Massar Nord.' },
-                { selector: '.gallery-grid', intro: 'Enfin, découvrez la commune à travers sa galerie d’images.' }
+                {
+                    selector: '.km-hero',
+                    text: 'Dalal ak jàmm ci Keur Massar Nord.',
+                    language: 'wo-SN'
+                },
+                {
+                    selector: '.km-page2-stats-bar',
+                    intro: 'Bienvenue sur le portail officiel de Keur Massar Nord. Découvrez la commune en quelques chiffres.'
+                },
+                {
+                    selector: '.km-page2-maire-text',
+                    text: 'Le mot du maire présente les ambitions de modernisation de la commune et l’engagement pour une gestion foncière et fiscale plus transparente.'
+                },
+                {
+                    selector: '.km-bento-intro',
+                    text: 'Depuis la page d’accueil, accédez aux démarches en ligne, aux informations foncières et fiscales, aux actualités, aux statistiques et au signalement citoyen.'
+                },
+                {
+                    selector: '.km-bento-grid-small',
+                    intro: 'Les principaux services disponibles.'
+                },
+                {
+                    selector: '.main-section',
+                    intro: 'À propos de la commune.'
+                },
+                {
+                    selector: '.security-section',
+                    intro: 'La plateforme met l’accent sur la confiance et la protection des données.'
+                }
             ],
             galerie: [
                 { selector: '.gal-grid-section', intro: 'Voici la galerie de photos de la commune.' }
@@ -134,32 +195,34 @@
         if (cleJeu !== 'defaut' && jeuxDeSelecteurs[cleJeu]) {
             selectors = jeuxDeSelecteurs[cleJeu];
         } else {
-            /*
-             * Filet de securite generique : lit le titre principal puis
-             * chaque <section> visible de la page, quelle qu'elle soit.
-             */
             selectors = [];
-            if (document.querySelector('h1')) {
-                selectors.push({ selector: 'h1', intro: '' });
-            }
-            document.querySelectorAll('main section, .main-content section, section').forEach(function (sec, idx) {
-                sec.setAttribute('data-vg-idx', idx);
-                selectors.push({ selector: '[data-vg-idx="' + idx + '"]', intro: '' });
+            const pageSections = document.querySelectorAll('main section, .main-content section, section');
+            pageSections.forEach(function (section) {
+                if (!section.parentElement.closest('section')) {
+                    selectors.push({ element: section, intro: '' });
+                }
             });
+            if (!selectors.length && document.querySelector('h1')) {
+                selectors.push({ element: document.querySelector('h1'), intro: '' });
+            }
         }
 
+        const textesDejaAjoutes = new Set();
         selectors.forEach(function (item) {
-            const element = document.querySelector(item.selector);
+            const element = item.element || document.querySelector(item.selector);
 
             if (!element) return;
 
-            let text = cleanText(element.innerText);
+            const texteResume = item.text || summarizeElement(element);
+            const text = limitText([item.intro, texteResume].filter(Boolean).join(' '), 320);
 
-            if (!text) return;
+            if (!text || textesDejaAjoutes.has(text)) return;
+            textesDejaAjoutes.add(text);
 
             sections.push({
                 element: element,
-                text: item.intro + ' ' + text
+                text: text,
+                language: item.language || 'fr-FR'
             });
         });
 
@@ -195,14 +258,23 @@
 
         const utterance = new SpeechSynthesisUtterance(section.text);
 
-        utterance.lang = 'fr-FR';
+        utterance.lang = section.language;
         utterance.rate = 0.95;
         utterance.pitch = 1;
 
-        const voice = getFrenchVoice();
+        const voices = window.speechSynthesis.getVoices();
+        const voice = section.language.toLowerCase().startsWith('wo')
+            ? voices.find(function (candidate) {
+                return candidate.lang && candidate.lang.toLowerCase().startsWith('wo');
+            }) || getFrenchVoice()
+            : getFrenchVoice();
 
         if (voice) {
             utterance.voice = voice;
+            if (section.language.toLowerCase().startsWith('wo') &&
+                (!voice.lang || !voice.lang.toLowerCase().startsWith('wo'))) {
+                utterance.lang = voice.lang;
+            }
         }
 
         utterance.onstart = function () {
@@ -286,6 +358,12 @@
 
         currentIndex = 0;
         isReadingGuide = true;
+
+        if (window.location.pathname === '/' ||
+            window.location.pathname.indexOf('/accueil') !== -1) {
+            speakCurrentSection();
+            return;
+        }
 
         const annonce = new SpeechSynthesisUtterance(
             'Vous êtes sur ' + nomDeLaPageActuelle() + '.'

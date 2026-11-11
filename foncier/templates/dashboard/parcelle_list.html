@@ -183,12 +183,14 @@
         <i class="fa-solid fa-magnifying-glass"></i>
         <input type="text" name="q" value="{{ q }}" placeholder="Rechercher par NICAD, propriétaire, adresse…">
       </div>
+      {% if peut_fiscal %}
       <select name="statut_fiscal">
         <option value="">Tous les statuts</option>
         <option value="A_JOUR" {% if statut == "A_JOUR" %}selected{% endif %}>À jour</option>
         <option value="EN_RETARD" {% if statut == "EN_RETARD" %}selected{% endif %}>En retard</option>
         <option value="EXONERE" {% if statut == "EXONERE" %}selected{% endif %}>Exonéré</option>
       </select>
+      {% endif %}
       <button type="submit" class="btn btn-outline"><i class="fa-solid fa-filter"></i> Filtrer</button>
     </form>
   </div>
@@ -202,8 +204,10 @@
           <th>Propriétaire</th>
           <th>Zone</th>
           <th>Superficie</th>
+          {% if peut_fiscal %}
           <th>Statut fiscal</th>
           <th>Taxe annuelle</th>
+          {% endif %}
           <th></th>
         </tr>
       </thead>
@@ -214,6 +218,7 @@
           <td>{{ parcelle.proprietaire|default:"—" }}</td>
           <td>{{ parcelle.zone|default:"—" }}</td>
           <td>{{ parcelle.superficie|default:"—" }} m²</td>
+          {% if peut_fiscal %}
           <td>
             {% if parcelle.statut_fiscal == "A_JOUR" %}
               <span class="badge badge-ok"><i class="fa-solid fa-check"></i> À jour</span>
@@ -224,6 +229,7 @@
             {% endif %}
           </td>
           <td>{{ parcelle.montant_taxe_annuelle|floatformat:0 }} FCFA</td>
+          {% endif %}
           <td>
             <div class="row-actions">
               <a href="{% url 'dashboard_parcelle_update' parcelle.pk %}" class="btn btn-outline btn-sm"><i class="fa-solid fa-pen"></i> Modifier</a>

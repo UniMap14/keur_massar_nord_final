@@ -108,7 +108,11 @@
           <td>
             <div class="row-actions">
               <a href="{% url 'dashboard_demande_detail' d.pk %}" class="btn btn-outline btn-sm">
-                <i class="fa-solid fa-eye"></i> Traiter
+                {% if peut_attribuer and not peut_traiter %}
+                  <i class="fa-solid fa-user-check"></i> Attribuer
+                {% else %}
+                  <i class="fa-solid fa-eye"></i> Consulter
+                {% endif %}
               </a>
             </div>
           </td>

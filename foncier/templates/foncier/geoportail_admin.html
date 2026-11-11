@@ -894,6 +894,18 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ===== Contenu de la fiche popup (mode consultation) =====
+  function echapperHtml(valeur) {
+    return String(valeur == null ? '' : valeur).replace(/[&<>"']/g, function (caractere) {
+      return {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[caractere];
+    });
+  }
+
   function contenuFicheParcelle(feature) {
     const p = feature.properties;
 
@@ -908,7 +920,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (peutFiscal) {
       champsAdmin =
         '<div class="fp-row"><span class="fp-label">Statut fiscal</span><span class="fp-value"><span class="fp-status-badge ' + classeStatut(p.statut_fiscal) + '">' + libelleStatut(p.statut_fiscal) + '</span></span></div>' +
-        '<div class="fp-row"><span class="fp-label">Propriétaire</span><span class="fp-value">' + (p.proprietaire || 'Non renseigné') + '</span></div>' +
         '<div class="fp-row"><span class="fp-label">Taxe annuelle</span><span class="fp-value">' + fcfaOuTiret(p.montant_taxe_annuelle) + (p.simulation_fiscale ? '<span class="fp-badge-simu" title="Montant simulé à des fins académiques">🔬 Simu</span>' : '') + '</span></div>' +
         '<div class="fp-row"><span class="fp-label">Valeur locative</span><span class="fp-value">' + fcfaOuTiret(p.valeur_locative) + '</span></div>' +
         '<div class="fp-row"><span class="fp-label">Type de document</span><span class="fp-value">' + (LIBELLES_TYPE_DOC[p.type_document] || p.type_document || '—') + '</span></div>' +
@@ -927,7 +938,10 @@ document.addEventListener('DOMContentLoaded', function () {
       '<div class="fp-row"><span class="fp-label">Titre foncier</span><span class="fp-value">' + (p.numero_titre_foncier || '—') + '</span></div>' +
       (p.occupation_sol ? '<div class="fp-row"><span class="fp-label">Occupation du sol</span><span class="fp-value">' + p.occupation_sol + '</span></div>' : '') +
       (p.zone_nom ? '<div class="fp-row"><span class="fp-label">Zone</span><span class="fp-value">' + p.zone_nom + '</span></div>' : '') +
-      (p.adresse_parcelle ? '<div class="fp-row"><span class="fp-label">Secteur</span><span class="fp-value">' + p.adresse_parcelle + '</span></div>' : '') +
+      (p.adresse_parcelle ? '<div class="fp-row"><span class="fp-label">Secteur</span><span class="fp-value">' + echapperHtml(p.adresse_parcelle) + '</span></div>' : '') +
+      '<div class="fp-row"><span class="fp-label">Nom du propriétaire</span><span class="fp-value">' + echapperHtml(p.proprietaire_nom || '—') + '</span></div>' +
+      '<div class="fp-row"><span class="fp-label">Prénom du propriétaire</span><span class="fp-value">' + echapperHtml(p.proprietaire_prenom || '—') + '</span></div>' +
+      '<div class="fp-row"><span class="fp-label">N° CNI</span><span class="fp-value">' + echapperHtml(p.proprietaire_cni || '—') + '</span></div>' +
       (fpDistanceTexte ? '<div class="fp-row"><span class="fp-label">Distance (votre position)</span><span class="fp-value">' + fpDistanceTexte + '</span></div>' : '') +
       champsAdmin +
       ((p.infrastructures && p.infrastructures.length > 0) ?
@@ -951,7 +965,10 @@ document.addEventListener('DOMContentLoaded', function () {
     return '<div class="fp-card" id="fpCard">' +
       '<div class="fp-head"><h4>Modifier — ' + (p.nicad || '') + '</h4><button type="button" class="fp-close" id="fpCloseBtn">✕</button></div>' +
       '<div class="fp-edit-field"><label>Identifiant NICAD</label><input type="text" class="ep-nicad" value="' + (p.nicad || '') + '"><span class="fp-help">Doit rester unique.</span></div>' +
-      (peutFiscal ? (
+    '<div class="fp-edit-field"><label>Nom du propriétaire</label><input type="text" class="ep-proprietaire-nom" maxlength="100" value="' + echapperHtml(p.proprietaire_nom || '') + '"></div>' +
+    '<div class="fp-edit-field"><label>Prénom du propriétaire</label><input type="text" class="ep-proprietaire-prenom" maxlength="100" value="' + echapperHtml(p.proprietaire_prenom || '') + '"></div>' +
+    '<div class="fp-edit-field"><label>N° CNI du propriétaire</label><input type="text" class="ep-cni" maxlength="20" value="' + echapperHtml(p.proprietaire_cni || '') + '"><span class="fp-help">Renseignez les trois champs pour associer un propriétaire. Saisissez « RETIRER » dans la CNI pour le détacher.</span></div>' +
+    (peutFiscal ? (
         '<div class="fp-edit-field"><label>Statut fiscal</label><select class="ep-statut">' +
           '<option value="A_JOUR"' + (p.statut_fiscal === 'A_JOUR' ? ' selected' : '') + '>À jour</option>' +
           '<option value="EN_RETARD"' + (p.statut_fiscal === 'EN_RETARD' ? ' selected' : '') + '>En retard</option>' +
@@ -960,7 +977,7 @@ document.addEventListener('DOMContentLoaded', function () {
         '<div class="fp-edit-field"><label>Taxe annuelle (FCFA)</label><input type="number" class="ep-montant" value="' + (p.montant_taxe_annuelle || 0) + '"></div>' +
         '<div class="fp-edit-field"><label>Valeur locative (FCFA)</label><input type="number" class="ep-valeur-locative" value="' + (p.valeur_locative || 0) + '"></div>'
       ) : '') +
-      '<div class="fp-edit-field"><label>Adresse / secteur</label><input type="text" class="ep-adresse" value="' + (p.adresse_parcelle || '') + '"></div>' +
+      '<div class="fp-edit-field"><label>Adresse / secteur</label><input type="text" class="ep-adresse" value="' + echapperHtml(p.adresse_parcelle || '') + '"></div>' +
       '<div class="fp-edit-field"><label>Type de document</label><select class="ep-type-doc">' +
         '<option value="TF"' + (p.type_document === 'TF' ? ' selected' : '') + '>Titre Foncier</option>' +
         '<option value="BAIL"' + (p.type_document === 'BAIL' ? ' selected' : '') + '>Bail</option>' +
@@ -973,7 +990,6 @@ document.addEventListener('DOMContentLoaded', function () {
       '<div class="fp-edit-field"><label>N° parcelle</label><input type="text" class="ep-num-parcelle" value="' + (p.numero_parcelle || '') + '"></div>' +
       '<div class="fp-edit-field"><label>N° lot</label><input type="text" class="ep-num-lot" value="' + (p.numero_lot || '') + '"></div>' +
       '<div class="fp-edit-field"><label>N° titre foncier</label><input type="text" class="ep-num-titre-foncier" value="' + (p.numero_titre_foncier || '') + '"></div>' +
-      (peutFiscal ? '<div class="fp-edit-field"><label>Propriétaire (n° CNI)</label><input type="text" class="ep-cni" placeholder="Vide = ne pas changer"><span class="fp-help">Taper "RETIRER" pour détacher. La CNI doit déjà exister.</span></div>' : '') +
       '<button type="button" class="fp-save-btn" id="fpSaveBtn">Enregistrer</button>' +
       '<button type="button" class="fp-cancel-btn" id="fpCancelBtn">Annuler</button>' +
       '<div class="fp-edit-status" id="fpEditStatus"></div>' +
@@ -1024,11 +1040,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const formData = new FormData();
       formData.append('nicad', card.querySelector('.ep-nicad').value);
+      formData.append('proprietaire_nom', card.querySelector('.ep-proprietaire-nom').value);
+      formData.append('proprietaire_prenom', card.querySelector('.ep-proprietaire-prenom').value);
+      formData.append('proprietaire_cni', card.querySelector('.ep-cni').value);
       if (peutFiscal) {
         formData.append('statut_fiscal', card.querySelector('.ep-statut').value);
         formData.append('montant_taxe_annuelle', card.querySelector('.ep-montant').value);
         formData.append('valeur_locative', card.querySelector('.ep-valeur-locative').value);
-        formData.append('proprietaire_cni', card.querySelector('.ep-cni').value);
       }
       formData.append('adresse_parcelle', card.querySelector('.ep-adresse').value);
       formData.append('type_document', card.querySelector('.ep-type-doc').value);

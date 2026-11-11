@@ -38,7 +38,10 @@ class ApiParcellesPubliqueTest(TestCase):
         proprietes = contenu["features"][0]["properties"]
 
         # Champs qui NE DOIVENT JAMAIS apparaître côté public.
-        for champ_interdit in ("statut_fiscal", "montant_taxe_annuelle", "valeur_locative", "proprietaire"):
+        for champ_interdit in (
+            "statut_fiscal", "montant_taxe_annuelle", "valeur_locative",
+            "proprietaire", "proprietaire_nom", "proprietaire_prenom", "proprietaire_cni",
+        ):
             self.assertNotIn(
                 champ_interdit, proprietes,
                 f"FUITE DE DONNÉES : le champ '{champ_interdit}' ne doit jamais être exposé publiquement.",
@@ -65,6 +68,103 @@ class ApiParcellesPubliqueTest(TestCase):
         proprietes = contenu["features"][0]["properties"]
         self.assertIn("statut_fiscal", proprietes)
         self.assertIn("proprietaire", proprietes)
+        self.assertEqual(proprietes["proprietaire_nom"], self.proprietaire.nom)
+        self.assertEqual(proprietes["proprietaire_prenom"], self.proprietaire.prenom)
+        self.assertEqual(proprietes["proprietaire_cni"], self.proprietaire.ni_cni)
+
+    def test_geojson_admin_cadastre_ne_contient_aucune_donnee_fiscale(self):
+        agent = creer_agent(role="technique")
+        self.client.force_login(agent)
+
+        for route in ("api_parcelles_admin", "api_parcelles_toutes_admin"):
+            response = self.client.get(
+                reverse(route) + "?bbox=-17.32,14.78,-17.30,14.80"
+            )
+            self.assertEqual(response.status_code, 200)
+            properties = response.json()["features"][0]["properties"]
+            self.assertEqual(properties["proprietaire_nom"], self.proprietaire.nom)
+            self.assertEqual(properties["proprietaire_prenom"], self.proprietaire.prenom)
+            self.assertEqual(properties["proprietaire_cni"], self.proprietaire.ni_cni)
+            for champ_interdit in (
+                "statut_fiscal",
+                "montant_taxe_annuelle",
+                "valeur_locative",
+                "simulation_fiscale",
+            ):
+                self.assertNotIn(champ_interdit, properties)
+
+    def test_geoportail_admin_affiche_et_edite_les_champs_du_proprietaire(self):
+        agent = creer_agent(role="technique")
+        self.client.force_login(agent)
+
+        response = self.client.get(reverse("geoportail_admin"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nom du propriétaire")
+        self.assertContains(response, "Prénom du propriétaire")
+        self.assertContains(response, "N° CNI")
+        self.assertContains(response, "Adresse / secteur")
+        self.assertContains(response, "ep-adresse")
+        self.assertContains(response, "proprietaire_cni")
+        self.assertContains(response, "proprietaire_nom")
+        self.assertContains(response, "p.proprietaire_nom ||")
+        self.assertContains(response, "p.proprietaire_cni ||")
+
+    def test_agent_cadastre_peut_renseigner_le_proprietaire_depuis_la_carte(self):
+        agent = creer_agent(role="technique")
+        self.client.force_login(agent)
+
+        response = self.client.post(
+            reverse("parcelle_update_fiscal", kwargs={"parcelle_id": self.parcelle.pk}),
+            {
+                "proprietaire_nom": "Ndiaye",
+                "proprietaire_prenom": "Moussa",
+                "proprietaire_cni": "9876543210123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["proprietaire_nom"], "Ndiaye")
+        self.assertEqual(response.json()["proprietaire_prenom"], "Moussa")
+        self.assertEqual(response.json()["proprietaire_cni"], "9876543210123")
+        self.parcelle.refresh_from_db()
+        self.assertEqual(self.parcelle.proprietaire.nom, "Ndiaye")
+
+    def test_agent_cadastre_ne_peut_pas_soumettre_un_proprietaire_incomplet(self):
+        agent = creer_agent(role="technique")
+        self.client.force_login(agent)
+
+        response = self.client.post(
+            reverse("parcelle_update_fiscal", kwargs={"parcelle_id": self.parcelle.pk}),
+            {"proprietaire_nom": "Ndiaye", "proprietaire_prenom": "", "proprietaire_cni": ""},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Renseignez le nom", response.json()["error"])
+        self.parcelle.refresh_from_db()
+        self.assertEqual(self.parcelle.proprietaire, self.proprietaire)
+
+    def test_liste_cadastrale_ne_montre_pas_les_donnees_fiscales(self):
+        agent = creer_agent(role="technique")
+        self.client.force_login(agent)
+
+        response = self.client.get(reverse("dashboard_parcelle_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Statut fiscal")
+        self.assertNotContains(response, "Taxe annuelle")
+        self.assertNotContains(response, "En retard")
+
+    def test_agent_fiscal_ne_peut_pas_atteindre_les_endpoints_cadastraux(self):
+        agent = creer_agent(role="fiscal")
+        self.client.force_login(agent)
+
+        for route in (
+            "geoportail_admin",
+            "api_parcelles_admin",
+            "api_parcelles_toutes_admin",
+        ):
+            response = self.client.get(reverse(route))
+            self.assertEqual(response.status_code, 403)
 
 
 class SignalementConfidentialiteTest(TestCase):

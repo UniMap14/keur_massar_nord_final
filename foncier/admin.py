@@ -47,6 +47,19 @@ class FoncierAdminSite(UnfoldAdminSite):
     site_title = "KEUR MASSAR NORD Admin"
     index_title = "Tableau de Bord Analytique"
 
+    def has_permission(self, request):
+        if not super().has_permission(request):
+            return False
+
+        from .permissions import GROUPE_SUPERVISEUR, GROUPES_ROLES
+
+        groupes = set(request.user.groups.values_list("name", flat=True))
+        return (
+            request.user.is_superuser
+            or GROUPE_SUPERVISEUR in groupes
+            or not (groupes & set(GROUPES_ROLES))
+        )
+
     def index(self, request, extra_context=None):
         extra_context = extra_context or {}
 

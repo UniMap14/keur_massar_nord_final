@@ -96,7 +96,7 @@
     {% endif %}
     {% if demande.agent_traitant %}
     <div class="info-field">
-      <label><i class="fa-solid fa-user-tie"></i> Dernier agent à avoir traité ce dossier</label>
+      <label><i class="fa-solid fa-user-tie"></i> Agent chargé du dossier</label>
       <div class="val">{{ demande.agent_traitant.get_full_name|default:demande.agent_traitant.username }}</div>
     </div>
     {% endif %}
@@ -105,7 +105,7 @@
 
 <div class="panel">
   <div class="panel-header">
-    <h2><i class="fa-solid fa-pen-to-square"></i> Traiter ce dossier</h2>
+    <h2><i class="fa-solid fa-pen-to-square"></i>{% if peut_attribuer and not peut_traiter %} Attribuer ce dossier{% else %} Traiter ce dossier{% endif %}</h2>
   </div>
   <div class="panel-body">
     <form method="post">
@@ -115,6 +115,7 @@
           {{ form.non_field_errors }}
         </div>
       {% endif %}
+      {% if peut_traiter %}
       <div class="form-field">
         <label for="{{ form.statut.id_for_label }}"><i class="fa-solid fa-flag"></i> Statut du dossier</label>
         {{ form.statut }}
@@ -125,19 +126,24 @@
         {{ form.statut_paiement }}
         {{ form.statut_paiement.errors }}
       </div>
+      {% endif %}
+      {% if peut_attribuer %}
       <div class="form-field">
         <label for="{{ form.agent_traitant.id_for_label }}"><i class="fa-solid fa-user"></i> Agent assigné</label>
         {{ form.agent_traitant }}
         {{ form.agent_traitant.errors }}
       </div>
+      {% endif %}
+      {% if peut_traiter %}
       <div class="form-field">
         <label for="{{ form.commentaire_agent.id_for_label }}"><i class="fa-solid fa-comment"></i> Message pour le citoyen</label>
         {{ form.commentaire_agent }}
         {{ form.commentaire_agent.errors }}
       </div>
+      {% endif %}
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">
-          <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+          <i class="fa-solid fa-floppy-disk"></i>{% if peut_attribuer and not peut_traiter %} Confier à l'agent{% else %} Enregistrer{% endif %}
         </button>
         <a href="{% url 'dashboard_demande_list' %}" class="btn btn-outline">
           <i class="fa-solid fa-arrow-left"></i> Retour à la liste

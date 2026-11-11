@@ -789,6 +789,7 @@
 </div>
 
 <div class="dashboard-grid">
+{% if peut_technique %}
 <a href="{% url 'geoportail_admin' %}" class="geo-access-card cell-geo-banner">
   <div class="geo-access-left">
     <div class="geo-access-icon"><i class="fa-solid fa-map-location-dot"></i></div>
@@ -799,6 +800,7 @@
   </div>
   <span class="geo-access-btn">Acceder au Geoportail <i class="fa-solid fa-arrow-right"></i></span>
 </a>
+{% endif %}
 
 {% if peut_fiscal %}
 <!-- ============ TAUX DE RECOUVREMENT ============ -->
@@ -851,6 +853,7 @@
 </div>
 
 {% endif %}
+{% if peut_technique %}
 <!-- ============ MINI CARTE ============ -->
 <div class="panel cell-map">
   <div class="panel-header">
@@ -866,6 +869,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 <!-- ============ ACTIONS RAPIDES ============ -->
 <div class="panel quick-actions-panel cell-quick-actions">
@@ -883,9 +887,9 @@
     </a>
     {% endif %}
     {% if peut_fiscal %}
-    <a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="quick-action-tile">
+        <a href="{% url 'dashboard_taxation_list' %}" class="quick-action-tile">
       <div class="quick-action-icon tone-red"><i class="fa-solid fa-clock-rotate-left"></i></div>
-      <span>Voir les retardataires</span>
+          <span>Voir les taxations</span>
     </a>
     {% endif %}
     <a href="{% url 'dashboard_message_list' %}?statut=non_traite" class="quick-action-tile">
@@ -943,7 +947,7 @@
 <div class="panel cell-retardataires">
   <div class="panel-header">
     <h2><i class="fa-solid fa-scale-unbalanced"></i> Parcelles en retard — les plus élevées</h2>
-    <a href="{% url 'dashboard_parcelle_list' %}?statut_fiscal=EN_RETARD" class="btn btn-outline btn-sm">Voir tout</a>
+    <a href="{% url 'dashboard_taxation_list' %}" class="btn btn-outline btn-sm">Voir les taxations</a>
   </div>
   <div class="panel-body flush">
     {% if top_retardaires %}
@@ -965,7 +969,7 @@
           <td>{% if parcelle.zone and parcelle.zone != "None" %}{{ parcelle.zone }}{% else %}<span style="color:var(--ink-quiet, #7a7266);">&mdash;</span>{% endif %}</td>
           <td><span class="badge badge-danger">{{ parcelle.montant_taxe_annuelle|floatformat:0 }} FCFA</span></td>
           <td>
-            <a href="{% url 'dashboard_parcelle_update' parcelle.pk %}" class="btn btn-outline btn-sm"><i class="fa-solid fa-pen"></i>Modifier</a>
+            <a href="{% url 'dashboard_taxation_list' %}" class="btn btn-outline btn-sm"><i class="fa-solid fa-file-invoice-dollar"></i>Taxations</a>
           </td>
         </tr>
         {% endfor %}

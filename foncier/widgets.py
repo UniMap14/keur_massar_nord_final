@@ -16,6 +16,7 @@
 # ============================================================
 
 from django import forms
+from django.contrib.gis.geos import GEOSException, GEOSGeometry
 from django.urls import reverse_lazy
 
 
@@ -77,4 +78,13 @@ class LeafletPolygonWidget(forms.Textarea):
         context["widget"]["parcelles_url"] = str(self.parcelles_url)
         context["widget"]["zones_url"] = str(self.zones_url)
         context["widget"]["exclude_pk"] = self.exclude_pk if self.exclude_pk is not None else "null"
+        context["widget"]["initial_geojson"] = "null"
+        if value:
+            try:
+                geometry = value if hasattr(value, "geojson") else GEOSGeometry(value)
+            except (GEOSException, TypeError, ValueError):
+                pass
+            else:
+                if not geometry.empty:
+                    context["widget"]["initial_geojson"] = geometry.geojson
         return context

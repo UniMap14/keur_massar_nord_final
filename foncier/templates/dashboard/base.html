@@ -362,7 +362,7 @@
     </ul>
     {% endif %}
 
-    {% if peut_technique or peut_fiscal %}
+    {% if peut_technique %}
     <ul class="sidebar-nav">
       <li><a href="{% url 'geoportail_admin' %}" class="sidebar-link {% if active_section == 'geoportail' %}active{% endif %}">
         <i class="fa-solid fa-earth-africa nav-icon"></i> Géoportail

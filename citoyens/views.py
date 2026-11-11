@@ -454,9 +454,24 @@ def demandes_liste_view(request):
 
 @login_required
 def _envoyer_email_notif_agents_demande(request, demande):
-    """Notification interne à l'administration qu'une nouvelle démarche
-    citoyenne vient d'être déposée. Best-effort (n'empêche jamais le
-    reste du parcours citoyen de continuer en cas d'échec)."""
+    """Notifie uniquement le chef du service concerné par la démarche."""
+    from foncier.permissions import GROUPE_CHEF_FISCAL, GROUPE_CHEF_TECHNIQUE
+
+    groupe_chef = (
+        GROUPE_CHEF_FISCAL
+        if demande.type_demande.categorie == "FISCALITE"
+        else GROUPE_CHEF_TECHNIQUE
+    )
+    destinataires = list(
+        User.objects.filter(
+            is_staff=True,
+            is_active=True,
+            groups__name=groupe_chef,
+        )
+        .exclude(email="")
+        .values_list("email", flat=True)
+        .distinct()
+    )
     lien_dashboard = request.build_absolute_uri(
         reverse('dashboard_demande_detail', args=[demande.pk])
     )
@@ -471,7 +486,7 @@ def _envoyer_email_notif_agents_demande(request, demande):
             f"Voir et traiter cette démarche :\n{lien_dashboard}"
         ),
         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-        recipient_list=settings.NOTIF_AGENTS_EMAIL,
+        recipient_list=destinataires,
         fail_silently=True,
     )
 
@@ -556,8 +571,11 @@ def demande_piece_jointe_view(request, pk):
     """
     demande = get_object_or_404(DemandeService, pk=pk)
 
-    if demande.demandeur_id != request.user.id and not request.user.is_staff:
-        raise PermissionDenied("Vous n'avez pas accès à ce document.")
+    if demande.demandeur_id != request.user.id:
+        if not request.user.is_staff:
+            raise PermissionDenied("Vous n'avez pas accès à ce document.")
+        from foncier.dashboard_views import _verifier_acces_demande
+        _verifier_acces_demande(request.user, demande)
 
     if not demande.piece_jointe:
         raise Http404("Cette demande n'a pas de pièce jointe.")

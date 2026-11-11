@@ -16,6 +16,7 @@ from django.contrib.auth.models import User, Group
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db import transaction
 from django.db.models import Sum, Q, Count
 from django.db.models.functions import TruncMonth
 from django.urls import reverse_lazy, reverse
@@ -29,7 +30,7 @@ from .sms import envoyer_sms
 from .permissions import role_requis, a_role, libelle_role
 from .permissions import (
     GROUPE_SUPERVISEUR, GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE,
-    GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL, ROLE_VERS_GROUPE,
+    GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL, GROUPES_ROLES, ROLE_VERS_GROUPE,
 )
 from .models import (
     Parcelle,
@@ -357,32 +358,43 @@ def dashboard_password_reset_renvoyer(request):
 
 @staff_member_required(login_url='dashboard_login')
 def dashboard_home(request):
-    total_recouvre = Paiement.objects.aggregate(Sum("montant"))["montant__sum"] or 0
-    total_du = Taxation.objects.aggregate(Sum("montant_du"))["montant_du__sum"] or 0
-    parcelles_en_retard = Parcelle.objects.filter(statut_fiscal="EN_RETARD").count()
+    peut_fiscal = a_role(request.user, "fiscal")
+    peut_technique = a_role(request.user, "technique")
+    demandes_service = _filtrer_demandes_service(request.user, DemandeService.objects.all())
+    total_recouvre = (
+        Paiement.objects.aggregate(Sum("montant"))["montant__sum"] or 0
+        if peut_fiscal else 0
+    )
+    total_du = (
+        Taxation.objects.aggregate(Sum("montant_du"))["montant_du__sum"] or 0
+        if peut_fiscal else 0
+    )
+    parcelles_en_retard = (
+        Parcelle.objects.filter(statut_fiscal="EN_RETARD").count()
+        if peut_fiscal else 0
+    )
 
-    # Montant encaisse via les demarches en ligne (ex : extrait cadastral),
-    # hors fiscalite -- ce que le Chef/Gestionnaire Cadastre doit voir.
-    total_recouvre_demandes = DemandeService.objects.exclude(
-        type_demande__categorie="FISCALITE"
-    ).filter(
+    # Montant encaissé pour les démarches visibles par le service courant.
+    total_recouvre_demandes = demandes_service.filter(
         statut_paiement=DemandeService.STATUT_PAIEMENT_CONFIRME
     ).aggregate(t=Sum("montant_paye"))["t"] or 0
-    total_proprios = Propriétaire.objects.count()
+    total_proprios = Propriétaire.objects.count() if peut_technique else 0
 
     derniers_paiements = (
         Paiement.objects.select_related("taxation", "taxation__contribuable")
         .order_by("-date_paiement")[:3]
+        if peut_fiscal else []
     )
 
     top_retardaires = (
         Parcelle.objects.filter(statut_fiscal="EN_RETARD")
         .select_related("proprietaire", "zone")
         .order_by("-montant_taxe_annuelle")[:3]
+        if peut_fiscal else []
     )
 
     dernieres_demandes = (
-        DemandeService.objects.select_related("demandeur", "type_demande")
+        demandes_service.select_related("demandeur", "type_demande")
         .order_by("-date_demande")[:4]
     )
 
@@ -390,6 +402,7 @@ def dashboard_home(request):
         Parcelle.objects.select_related("proprietaire")
         .order_by("-pk")
         .first()
+        if peut_technique else None
     )
 
     taux_recouvrement = round((total_recouvre / total_du) * 100, 1) if total_du else 0
@@ -404,6 +417,7 @@ def dashboard_home(request):
         .values("mois")
         .annotate(total=Sum("montant"))
         .order_by("mois")
+        if peut_fiscal else []
     )
     totaux_par_mois = {p["mois"]: float(p["total"] or 0) for p in paiements_par_mois}
 
@@ -418,69 +432,74 @@ def dashboard_home(request):
 
     # --- Graphique 2 : recouvrement par zone ---
     zones_stats = []
-    for zone in Zone.objects.order_by("nom"):
-        parcelles_zone = Parcelle.objects.filter(zone=zone)
-        du_zone = Taxation.objects.filter(parcelle__in=parcelles_zone).aggregate(t=Sum("montant_du"))["t"] or 0
-        paye_zone = Paiement.objects.filter(taxation__parcelle__in=parcelles_zone).aggregate(t=Sum("montant"))["t"] or 0
-        if du_zone > 0:
-            zones_stats.append({
-                "nom": zone.nom,
-                "taux": round((float(paye_zone) / float(du_zone)) * 100, 1),
-            })
+    if peut_fiscal:
+        for zone in Zone.objects.order_by("nom"):
+            parcelles_zone = Parcelle.objects.filter(zone=zone)
+            du_zone = Taxation.objects.filter(parcelle__in=parcelles_zone).aggregate(t=Sum("montant_du"))["t"] or 0
+            paye_zone = Paiement.objects.filter(taxation__parcelle__in=parcelles_zone).aggregate(t=Sum("montant"))["t"] or 0
+            if du_zone > 0:
+                zones_stats.append({
+                    "nom": zone.nom,
+                    "taux": round((float(paye_zone) / float(du_zone)) * 100, 1),
+                })
     zones_stats.sort(key=lambda z: z["taux"])
     zones_stats = zones_stats[:10]
 
     # --- Graphique 3 : répartition des montants dus par type de taxe ---
-    nb_infra_dans_parcelle = Infrastructure.objects.filter(parcelle__isnull=False).count()
-
-    proprietaires_contribuables_ids = set(
-        Contribuable.objects.values_list("proprietaire_id", flat=True)
-    )
-    nb_parcelles_contribuables = Parcelle.objects.filter(
-        proprietaire_id__in=proprietaires_contribuables_ids
-    ).count()
-    nb_parcelles_non_contribuables = Parcelle.objects.count() - nb_parcelles_contribuables
-
-    labels_taxes = [
-        "Infrastructures dans une parcelle",
-        "Parcelles contribuables",
-        "Parcelles non contribuables",
-    ]
-    valeurs_taxes = [
-        nb_infra_dans_parcelle,
-        nb_parcelles_contribuables,
-        nb_parcelles_non_contribuables,
-    ]
+    if peut_fiscal:
+        nb_infra_dans_parcelle = Infrastructure.objects.filter(parcelle__isnull=False).count()
+        proprietaires_contribuables_ids = set(
+            Contribuable.objects.values_list("proprietaire_id", flat=True)
+        )
+        nb_parcelles_contribuables = Parcelle.objects.filter(
+            proprietaire_id__in=proprietaires_contribuables_ids
+        ).count()
+        nb_parcelles_non_contribuables = Parcelle.objects.count() - nb_parcelles_contribuables
+        labels_taxes = [
+            "Infrastructures dans une parcelle",
+            "Parcelles contribuables",
+            "Parcelles non contribuables",
+        ]
+        valeurs_taxes = [
+            nb_infra_dans_parcelle,
+            nb_parcelles_contribuables,
+            nb_parcelles_non_contribuables,
+        ]
+    else:
+        labels_taxes, valeurs_taxes = [], []
 
     # --- Nouveaux indicateurs KPI avec tendance reelle sur 12 mois ---
     _labels_demandes, valeurs_demandes = _serie_mensuelle(
-        DemandeService.objects.all(), "date_demande", debut_periode
+        demandes_service, "date_demande", debut_periode
     )
-    _labels_infra, valeurs_infra = _serie_mensuelle(
-        Infrastructure.objects.all(), "date_ajout", debut_periode
+    _labels_infra, valeurs_infra = (
+        _serie_mensuelle(Infrastructure.objects.all(), "date_ajout", debut_periode)
+        if peut_technique else ([], [])
     )
-    _labels_contribuables, valeurs_contribuables = _serie_mensuelle(
-        Contribuable.objects.all(), "date_creation", debut_periode
+    _labels_contribuables, valeurs_contribuables = (
+        _serie_mensuelle(Contribuable.objects.all(), "date_creation", debut_periode)
+        if peut_fiscal else ([], [])
     )
 
-    nb_demandes_en_cours = DemandeService.objects.filter(
+    nb_demandes_en_cours = demandes_service.filter(
         statut__in=[DemandeService.STATUT_RECUE, DemandeService.STATUT_EN_COURS]
     ).count()
-    nb_infrastructures = Infrastructure.objects.count()
-    nb_contribuables = Contribuable.objects.count()
+    nb_infrastructures = Infrastructure.objects.count() if peut_technique else 0
+    nb_contribuables = Contribuable.objects.count() if peut_fiscal else 0
 
     # --- Fil d'activite recente (evenements reels, tries par date) ---
     evenements = []
 
-    for p in Paiement.objects.select_related("taxation__contribuable").order_by("-date_paiement")[:5]:
-        evenements.append({
-            "date": p.date_paiement,
-            "titre": f"Paiement recu ({_fcfa(p.montant)})",
-            "icone": "fa-credit-card",
-            "tone": "green",
-        })
+    if peut_fiscal:
+        for p in Paiement.objects.select_related("taxation__contribuable").order_by("-date_paiement")[:5]:
+            evenements.append({
+                "date": p.date_paiement,
+                "titre": f"Paiement recu ({_fcfa(p.montant)})",
+                "icone": "fa-credit-card",
+                "tone": "green",
+            })
 
-    for d in DemandeService.objects.order_by("-date_demande")[:5]:
+    for d in demandes_service.order_by("-date_demande")[:5]:
         evenements.append({
             "date": d.date_demande,
             "titre": f"Nouvelle demande {d.numero_dossier}",
@@ -488,13 +507,14 @@ def dashboard_home(request):
             "tone": "gold",
         })
 
-    for s in Signalement.objects.order_by("-date_signalement")[:5]:
-        evenements.append({
-            "date": s.date_signalement,
-            "titre": f"Signalement : {s.titre}",
-            "icone": "fa-triangle-exclamation",
-            "tone": "red",
-        })
+    if peut_technique:
+        for s in Signalement.objects.order_by("-date_signalement")[:5]:
+            evenements.append({
+                "date": s.date_signalement,
+                "titre": f"Signalement : {s.titre}",
+                "icone": "fa-triangle-exclamation",
+                "tone": "red",
+            })
 
     for m in MessageContact.objects.order_by("-date_envoi")[:5]:
         evenements.append({
@@ -504,13 +524,14 @@ def dashboard_home(request):
             "tone": "blue",
         })
 
-    for i in Infrastructure.objects.order_by("-date_ajout")[:5]:
-        evenements.append({
-            "date": i.date_ajout,
-            "titre": f"Infrastructure recensee : {i.nom}",
-            "icone": "fa-road-bridge",
-            "tone": "purple",
-        })
+    if peut_technique:
+        for i in Infrastructure.objects.order_by("-date_ajout")[:5]:
+            evenements.append({
+                "date": i.date_ajout,
+                "titre": f"Infrastructure recensee : {i.nom}",
+                "icone": "fa-road-bridge",
+                "tone": "purple",
+            })
 
     evenements = [e for e in evenements if e["date"] is not None]
     evenements.sort(key=lambda e: e["date"].isoformat(), reverse=True)
@@ -519,19 +540,25 @@ def dashboard_home(request):
         _e["il_y_a"] = _il_y_a_francais(_e["date"])
 
     # --- Stats de la mini-carte de la commune (donnees reelles) ---
-    map_superficie_m2 = Parcelle.objects.aggregate(t=Sum("superficie"))["t"] or 0
+    map_superficie_m2 = (
+        Parcelle.objects.aggregate(t=Sum("superficie"))["t"] or 0
+        if peut_technique else 0
+    )
     map_superficie_km2 = round(float(map_superficie_m2) / 1000000, 1)
-    map_nb_zones = Zone.objects.count()
-    map_nb_parcelles_actives = Parcelle.objects.filter(parcelle_active=True).count()
+    map_nb_zones = Zone.objects.count() if peut_technique else 0
+    map_nb_parcelles_actives = (
+        Parcelle.objects.filter(parcelle_active=True).count()
+        if peut_technique else 0
+    )
 
     context = {
         "active_section": "home",
-        "peut_fiscal": a_role(request.user, 'fiscal'),
-        "peut_technique": a_role(request.user, 'technique'),
-        "nb_parcelles": Parcelle.objects.count(),
-        "total_recouvre_fmt": _fcfa(total_recouvre),
-        "reste_a_recouvrer_fmt": _fcfa(total_du - total_recouvre),
-        "taux_recouvrement": taux_recouvrement,
+        "peut_fiscal": peut_fiscal,
+        "peut_technique": peut_technique,
+        "nb_parcelles": Parcelle.objects.count() if peut_technique else 0,
+        "total_recouvre_fmt": _fcfa(total_recouvre) if peut_fiscal else "",
+        "reste_a_recouvrer_fmt": _fcfa(total_du - total_recouvre) if peut_fiscal else "",
+        "taux_recouvrement": taux_recouvrement if peut_fiscal else 0,
         "parcelles_en_retard": parcelles_en_retard,
         "total_proprios": total_proprios,
         "total_recouvre_demandes_fmt": _fcfa(total_recouvre_demandes),
@@ -540,15 +567,15 @@ def dashboard_home(request):
         "dernieres_demandes": dernieres_demandes,
         "parcelle_recente": parcelle_recente,
         "chart_mois_labels": json.dumps(labels_mois),
-        "chart_mois_valeurs": json.dumps(valeurs_mois),
-        "chart_zones_labels": json.dumps([z["nom"] for z in zones_stats]),
-        "chart_zones_valeurs": json.dumps([z["taux"] for z in zones_stats]),
+        "chart_mois_valeurs": json.dumps(valeurs_mois if peut_fiscal else []),
+        "chart_zones_labels": json.dumps([z["nom"] for z in zones_stats] if peut_fiscal else []),
+        "chart_zones_valeurs": json.dumps([z["taux"] for z in zones_stats] if peut_fiscal else []),
         "chart_zones_has_data": len(zones_stats) > 0,
         "chart_taxes_labels": json.dumps(labels_taxes),
         "chart_taxes_valeurs": json.dumps(valeurs_taxes),
         "chart_taxes_has_data": len(labels_taxes) > 0,
 
-        "delta_recouvrement": _delta_pct(valeurs_mois),
+        "delta_recouvrement": _delta_pct(valeurs_mois) if peut_fiscal else None,
 
         "nb_demandes_en_cours": nb_demandes_en_cours,
         "chart_demandes_valeurs": json.dumps(valeurs_demandes),
@@ -575,11 +602,48 @@ def dashboard_home(request):
 # ------------------------------------------------------------
 
 class ParcelleForm(forms.ModelForm):
+    proprietaire_nom = forms.CharField(
+        label="Nom du propriétaire", max_length=100, required=False
+    )
+    proprietaire_prenom = forms.CharField(
+        label="Prénom du propriétaire", max_length=100, required=False
+    )
+    proprietaire_ni_cni = forms.CharField(
+        label="Numéro de carte d'identité (CNI)", max_length=20, required=False
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.proprietaire_id:
+            proprietaire = self.instance.proprietaire
+            self.fields["proprietaire_nom"].initial = proprietaire.nom
+            self.fields["proprietaire_prenom"].initial = proprietaire.prenom
+            self.fields["proprietaire_ni_cni"].initial = proprietaire.ni_cni
+        if user is not None and not a_role(user, "fiscal"):
+            for field in ("statut_fiscal", "valeur_locative", "montant_taxe_annuelle"):
+                self.fields.pop(field, None)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        owner_fields = (
+            "proprietaire_nom",
+            "proprietaire_prenom",
+            "proprietaire_ni_cni",
+        )
+        owner_values = [cleaned_data.get(field, "").strip() for field in owner_fields]
+        if any(owner_values) and not all(owner_values):
+            for field, value in zip(owner_fields, owner_values):
+                if not value:
+                    self.add_error(field, "Renseignez ce champ pour enregistrer le propriétaire.")
+        return cleaned_data
+
     class Meta:
         model = Parcelle
         fields = [
             "nicad",
-            "proprietaire",
+            "proprietaire_nom",
+            "proprietaire_prenom",
+            "proprietaire_ni_cni",
             "zone",
             "superficie",
             "type_document",
@@ -592,6 +656,31 @@ class ParcelleForm(forms.ModelForm):
         widgets = {
             "geom": LeafletPolygonWidget(),
         }
+
+
+def _enregistrer_parcelle(form):
+    with transaction.atomic():
+        parcelle = form.save(commit=False)
+        nom = form.cleaned_data["proprietaire_nom"].strip()
+        prenom = form.cleaned_data["proprietaire_prenom"].strip()
+        ni_cni = form.cleaned_data["proprietaire_ni_cni"].strip()
+
+        if ni_cni:
+            proprietaire, cree = Propriétaire.objects.get_or_create(
+                ni_cni=ni_cni,
+                defaults={"nom": nom, "prenom": prenom},
+            )
+            if not cree and (proprietaire.nom != nom or proprietaire.prenom != prenom):
+                proprietaire.nom = nom
+                proprietaire.prenom = prenom
+                proprietaire.save(update_fields=["nom", "prenom"])
+            parcelle.proprietaire = proprietaire
+        else:
+            parcelle.proprietaire = None
+
+        parcelle.save()
+        form.save_m2m()
+    return parcelle
 
 
 # ------------------------------------------------------------
@@ -659,9 +748,12 @@ def dashboard_recherche_globale(request):
     return render(request, "dashboard/recherche_globale.html", context)
 
 
+@staff_member_required(login_url='dashboard_login')
+@role_requis('technique')
 def dashboard_parcelle_list(request):
+    peut_fiscal = a_role(request.user, "fiscal")
     q = request.GET.get("q", "").strip()
-    statut = request.GET.get("statut_fiscal", "").strip()
+    statut = request.GET.get("statut_fiscal", "").strip() if peut_fiscal else ""
 
     parcelles = Parcelle.objects.select_related("proprietaire", "zone").order_by("-id")
 
@@ -691,6 +783,7 @@ def dashboard_parcelle_list(request):
         "paginator": paginator,
         "q": q,
         "statut": statut,
+        "peut_fiscal": peut_fiscal,
     }
     return render(request, "dashboard/parcelle_list.html", context)
 
@@ -699,14 +792,14 @@ def dashboard_parcelle_list(request):
 @role_requis('gestionnaire_technique')
 def dashboard_parcelle_create(request):
     if request.method == "POST":
-        form = ParcelleForm(request.POST)
+        form = ParcelleForm(request.POST, user=request.user)
         if form.is_valid():
-            parcelle = form.save()
+            parcelle = _enregistrer_parcelle(form)
             messages.success(request, f"Parcelle « {parcelle.nicad} » créée avec succès.")
             return redirect("dashboard_parcelle_list")
         messages.error(request, "Le formulaire contient des erreurs. Merci de vérifier les champs.")
     else:
-        form = ParcelleForm()
+        form = ParcelleForm(user=request.user)
 
     context = {
         "active_section": "parcelles",
@@ -722,14 +815,14 @@ def dashboard_parcelle_update(request, pk):
     parcelle = get_object_or_404(Parcelle, pk=pk)
 
     if request.method == "POST":
-        form = ParcelleForm(request.POST, instance=parcelle)
+        form = ParcelleForm(request.POST, instance=parcelle, user=request.user)
         if form.is_valid():
-            form.save()
+            _enregistrer_parcelle(form)
             messages.success(request, f"Parcelle « {parcelle.nicad} » mise à jour.")
             return redirect("dashboard_parcelle_list")
         messages.error(request, "Le formulaire contient des erreurs. Merci de vérifier les champs.")
     else:
-        form = ParcelleForm(instance=parcelle)
+        form = ParcelleForm(instance=parcelle, user=request.user)
         form.fields["geom"].widget.exclude_pk = parcelle.pk
 
     context = {
@@ -1576,11 +1669,24 @@ def dashboard_actualite_delete(request, pk):
 
 class TraitementDemandeForm(forms.ModelForm):
     agent_traitant = forms.ModelChoiceField(
-        queryset=User.objects.filter(is_staff=True).order_by("username"),
-        required=False,
+        queryset=User.objects.none(),
         label="Agent assigné",
-        empty_label="— Non assigné —",
+        empty_label="— Choisir un agent —",
     )
+
+    def __init__(
+        self, *args, can_assign=True, can_process=True,
+        assignable_agents=None, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        if not can_assign:
+            self.fields.pop("agent_traitant", None)
+        elif assignable_agents is not None:
+            self.fields["agent_traitant"].queryset = assignable_agents
+
+        if not can_process:
+            for field in ("statut", "statut_paiement", "commentaire_agent"):
+                self.fields.pop(field, None)
 
     class Meta:
         model = DemandeService
@@ -1598,51 +1704,78 @@ class TraitementDemandeForm(forms.ModelForm):
         }
 
 
+def _noms_groupes_agent(user):
+    return set(user.groups.values_list("name", flat=True))
+
+
+def _est_agent_sans_role(user):
+    return not user.is_superuser and not (_noms_groupes_agent(user) & set(GROUPES_ROLES))
+
+
+def _categorie_demandes_accessibles(user):
+    noms = _noms_groupes_agent(user)
+    categories = []
+    if noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE}:
+        categories.extend(("CADASTRE", "ETAT_CIVIL", "URBANISME", "AUTRE"))
+    if noms & {GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL}:
+        categories.append("FISCALITE")
+    return categories
+
+
 def _filtrer_demandes_service(user, queryset):
     """Restreint un queryset de DemandeService au service (cadastre ou
-    fiscal) de l'utilisateur. Superviseur, superuser et comptes sans
-    role assigne (retrocompatibilite) voient tout."""
-    from .permissions import (
-        GROUPE_SUPERVISEUR, GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE,
-        GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL, GROUPES_ROLES,
-    )
-    if user.is_superuser:
+    fiscal) de l'utilisateur. Un gestionnaire ne voit que les dossiers
+    qui lui ont été attribués. Les chefs voient tous ceux de leur service."""
+    noms = _noms_groupes_agent(user)
+    if user.is_superuser or GROUPE_SUPERVISEUR in noms:
         return queryset
-    noms = set(user.groups.values_list("name", flat=True))
-    if GROUPE_SUPERVISEUR in noms:
+    if _est_agent_sans_role(user):
         return queryset
-    if not (noms & set(GROUPES_ROLES)):
-        return queryset
-    if noms & {GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL}:
-        return queryset.filter(type_demande__categorie="FISCALITE")
-    if noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE}:
-        return queryset.exclude(type_demande__categorie="FISCALITE")
+    categories = _categorie_demandes_accessibles(user)
+    if not categories:
+        return queryset.none()
+
+    queryset = queryset.filter(type_demande__categorie__in=categories)
+    est_chef = bool(noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL})
+    est_gestionnaire = bool(noms & {GROUPE_GESTIONNAIRE_TECHNIQUE, GROUPE_GESTIONNAIRE_FISCAL})
+    if est_gestionnaire and not est_chef:
+        queryset = queryset.filter(agent_traitant=user)
     return queryset
 
 
 def _verifier_acces_demande(user, demande):
-    """Leve PermissionDenied si l'utilisateur n'a pas le droit de voir/
-    traiter cette demande au vu de son service (cadastre ou fiscal)."""
-    from .permissions import (
-        GROUPE_SUPERVISEUR, GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE,
-        GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL, GROUPES_ROLES,
+    """Interdit l'accès direct hors du service ou sans attribution."""
+    if not _filtrer_demandes_service(
+        user, DemandeService.objects.filter(pk=demande.pk)
+    ).exists():
+        raise PermissionDenied("Vous n'avez pas accès à ce dossier.")
+
+
+def _peut_attribuer_demande(user):
+    noms = _noms_groupes_agent(user)
+    if user.is_superuser or GROUPE_SUPERVISEUR in noms or _est_agent_sans_role(user):
+        return True
+    return bool(noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL})
+
+
+def _peut_traiter_demande(user):
+    noms = _noms_groupes_agent(user)
+    if user.is_superuser or GROUPE_SUPERVISEUR in noms or _est_agent_sans_role(user):
+        return True
+    est_chef = bool(noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL})
+    est_agent = bool(noms & {GROUPE_GESTIONNAIRE_TECHNIQUE, GROUPE_GESTIONNAIRE_FISCAL})
+    return est_agent and not est_chef
+
+
+def _agents_du_service(categorie):
+    groupe_agent = (
+        GROUPE_GESTIONNAIRE_FISCAL
+        if categorie == "FISCALITE"
+        else GROUPE_GESTIONNAIRE_TECHNIQUE
     )
-    if user.is_superuser:
-        return
-    noms = set(user.groups.values_list("name", flat=True))
-    if GROUPE_SUPERVISEUR in noms:
-        return
-    if not (noms & set(GROUPES_ROLES)):
-        return
-    categorie = demande.type_demande.categorie
-    if (noms & {GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL}) and categorie != "FISCALITE":
-        raise PermissionDenied(
-            "Cette demande relève du service Cadastre, pas du service Fiscalité."
-        )
-    if (noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE}) and categorie == "FISCALITE":
-        raise PermissionDenied(
-            "Cette demande relève du service Fiscalité, pas du service Cadastre."
-        )
+    return User.objects.filter(
+        is_staff=True, is_active=True, groups__name=groupe_agent
+    ).order_by("username")
 
 
 @staff_member_required(login_url='dashboard_login')
@@ -1665,6 +1798,8 @@ def dashboard_demande_list(request):
         "demandes": demandes,
         "filtre": filtre,
         "mes_dossiers": mes_dossiers,
+        "peut_attribuer": _peut_attribuer_demande(request.user),
+        "peut_traiter": _peut_traiter_demande(request.user),
         "statut_choices": DemandeService.STATUT_CHOICES,
         "nb_a_traiter": _filtrer_demandes_service(
             request.user, DemandeService.objects.all()
@@ -1726,10 +1861,19 @@ def dashboard_demande_detail(request, pk):
         pk=pk,
     )
     _verifier_acces_demande(request.user, demande)
+    peut_attribuer = _peut_attribuer_demande(request.user)
+    peut_traiter = _peut_traiter_demande(request.user)
+    agents_du_service = _agents_du_service(demande.type_demande.categorie)
 
     if request.method == "POST":
         statut_avant = demande.statut
-        form = TraitementDemandeForm(request.POST, instance=demande)
+        form = TraitementDemandeForm(
+            request.POST,
+            instance=demande,
+            can_assign=peut_attribuer,
+            can_process=peut_traiter,
+            assignable_agents=agents_du_service,
+        )
         if form.is_valid():
             demande = form.save()
 
@@ -1753,15 +1897,19 @@ def dashboard_demande_detail(request, pk):
 
             return redirect("dashboard_demande_list")
     else:
-        initial = {}
-        if not demande.agent_traitant_id:
-            initial["agent_traitant"] = request.user
-        form = TraitementDemandeForm(instance=demande, initial=initial)
+        form = TraitementDemandeForm(
+            instance=demande,
+            can_assign=peut_attribuer,
+            can_process=peut_traiter,
+            assignable_agents=agents_du_service,
+        )
 
     context = {
         "active_section": "demandes",
         "demande": demande,
         "form": form,
+        "peut_attribuer": peut_attribuer,
+        "peut_traiter": peut_traiter,
     }
     return render(request, "dashboard/demande_detail.html", context)
 

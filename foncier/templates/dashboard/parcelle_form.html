@@ -239,17 +239,30 @@
           </div>
 
           <div class="form-field" style="animation-delay:.05s;">
-            <label for="{{ form.proprietaire.id_for_label }}"><i class="fa-solid fa-user"></i> Propriétaire</label>
-            {{ form.proprietaire }}
-            {{ form.proprietaire.errors }}
+            <label for="{{ form.proprietaire_nom.id_for_label }}"><i class="fa-solid fa-user"></i> Nom du propriétaire</label>
+            {{ form.proprietaire_nom }}
+            {{ form.proprietaire_nom.errors }}
           </div>
 
           <div class="form-field" style="animation-delay:.08s;">
+            <label for="{{ form.proprietaire_prenom.id_for_label }}"><i class="fa-solid fa-user"></i> Prénom du propriétaire</label>
+            {{ form.proprietaire_prenom }}
+            {{ form.proprietaire_prenom.errors }}
+          </div>
+
+          <div class="form-field" style="animation-delay:.11s;">
+            <label for="{{ form.proprietaire_ni_cni.id_for_label }}"><i class="fa-solid fa-id-card"></i> Numéro de carte d'identité (CNI)</label>
+            {{ form.proprietaire_ni_cni }}
+            {{ form.proprietaire_ni_cni.errors }}
+          </div>
+
+          <div class="form-field" style="animation-delay:.14s;">
             <label for="{{ form.type_document.id_for_label }}"><i class="fa-solid fa-file-lines"></i> Type de document</label>
             {{ form.type_document }}
             {{ form.type_document.errors }}
           </div>
         </div>
+        <p class="map-hint"><i class="fa-solid fa-circle-info"></i> Les trois champs du propriétaire sont facultatifs, mais doivent être renseignés ensemble.</p>
       </div>
 
       <!-- ===== SECTION LOCALISATION ===== -->
@@ -282,6 +295,7 @@
         </div>
       </div>
 
+      {% if peut_fiscal %}
       <!-- ===== SECTION FISCALITÉ ===== -->
       <div class="form-section">
         <div class="form-section-head">
@@ -311,6 +325,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
 
       <!-- ===== SECTION CARTE ===== -->
       <div class="form-section">

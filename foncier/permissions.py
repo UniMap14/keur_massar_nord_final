@@ -28,10 +28,10 @@
 #       -> réservé aux CHEFS uniquement (suppression, validation,
 #          signature, traitement des demandes).
 #
-# Sections communes à tous les agents (aucune restriction de rôle) :
-# tableau de bord, messages de contact, démarches en ligne, inscriptions
-# citoyens — ce sont des tâches d'accueil général, pas propres à un
-# service.
+# Sections partagées (aucune restriction de rôle) : tableau de bord,
+# messages de contact, inscriptions citoyens. Les démarches en ligne
+# sont filtrées par service; les chefs les attribuent aux gestionnaires
+# de leur service, qui ne voient et ne traitent que leurs dossiers.
 #
 # RÉTROCOMPATIBILITÉ : un compte staff qui n'a encore été assigné à
 # AUCUN des 5 groupes ci-dessous garde un accès complet (comme avant
