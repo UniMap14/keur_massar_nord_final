@@ -99,6 +99,25 @@ def _noms_groupes(user):
     return set(user.groups.values_list("name", flat=True))
 
 
+def est_maire(user):
+    """True uniquement pour le rôle Maire/Superviseur (hors superutilisateur)."""
+    return (
+        user.is_authenticated
+        and not user.is_superuser
+        and GROUPE_SUPERVISEUR in _noms_groupes(user)
+    )
+
+
+def refuser_modification_maire(vue):
+    """Garde les écrans d'édition hors d'accès au rôle Maire."""
+    @wraps(vue)
+    def wrapper(request, *args, **kwargs):
+        if est_maire(request.user):
+            raise PermissionDenied("Le maire dispose d'un accès en lecture seule à cette section.")
+        return vue(request, *args, **kwargs)
+    return wrapper
+
+
 def a_role(user, *roles):
     """True si l'utilisateur a accès à une section nécessitant l'un des
     rôles donnés (ex: a_role(user, 'fiscal'), a_role(user, 'chef_technique'))."""

@@ -5,7 +5,9 @@
 {% block header_subtitle %}<div class="topbar-subtitle">{{ nb_parcelles }} parcelle(s) enregistrée(s)</div>{% endblock %}
 
 {% block topbar_extra %}
+{% if not est_maire %}
 <a href="{% url 'dashboard_parcelle_create' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Nouvelle parcelle</a>
+{% endif %}
 {% endblock %}
 
 {% block extra_head %}
@@ -231,10 +233,12 @@
           <td>{{ parcelle.montant_taxe_annuelle|floatformat:0 }} FCFA</td>
           {% endif %}
           <td>
+            {% if not est_maire %}
             <div class="row-actions">
               <a href="{% url 'dashboard_parcelle_update' parcelle.pk %}" class="btn btn-outline btn-sm"><i class="fa-solid fa-pen"></i> Modifier</a>
               <a href="{% url 'dashboard_parcelle_delete' parcelle.pk %}" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash"></i> Supprimer</a>
             </div>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

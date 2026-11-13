@@ -8,8 +8,8 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from foncier.models import DemandeService, TypeDemande
-from foncier.tests.fixtures import creer_agent, creer_citoyen
+from foncier.models import DemandeService, MessageInterneMaire, TypeDemande
+from foncier.tests.fixtures import creer_agent, creer_citoyen, creer_parcelle
 
 
 class RolesAccesDashboardTest(TestCase):
@@ -46,6 +46,99 @@ class RolesAccesDashboardTest(TestCase):
         self.assertEqual(self.client.get(reverse("dashboard_contribuable_list")).status_code, 200)
         self.assertEqual(self.client.get(reverse("dashboard_signalement_list")).status_code, 200)
 
+    def test_maire_consulte_le_geoportail_sans_acceder_aux_modifications(self):
+        maire = creer_agent(role="superviseur")
+        self._login(maire)
+
+        response = self.client.get(reverse("geoportail_admin"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "filter-statut")
+        self.assertContains(response, "const peutFiscal = true")
+        self.assertContains(response, "const peutModifierCadastre = false")
+        self.assertNotContains(response, "parcelle_update_fiscal")
+        self.assertNotContains(response, "contenuFormulaireEdition")
+        self.assertNotEqual(self.client.get(reverse("admin:index")).status_code, 200)
+
+    def test_maire_ne_peut_pas_creer_ou_modifier_une_parcelle(self):
+        maire = creer_agent(role="superviseur")
+        parcelle = creer_parcelle()
+        self._login(maire)
+
+        response = self.client.get(reverse("dashboard_parcelle_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Statut fiscal")
+        self.assertNotContains(response, "Modifier</a>")
+
+        self.assertEqual(
+            self.client.get(reverse("dashboard_parcelle_create")).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("dashboard_parcelle_update", args=[parcelle.pk])
+            ).status_code,
+            403,
+        )
+        response = self.client.post(
+            reverse("parcelle_update_fiscal", args=[parcelle.pk]),
+            {"statut_fiscal": "EN_RETARD"},
+        )
+        self.assertEqual(response.status_code, 403)
+        parcelle.refresh_from_db()
+        self.assertNotEqual(parcelle.statut_fiscal, "EN_RETARD")
+
+    def test_maire_consulte_la_fiscalite_en_lecture_seule_et_peut_signaler(self):
+        maire = creer_agent(role="superviseur")
+        self._login(maire)
+
+        response = self.client.get(reverse("dashboard_contribuable_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Signaler une correction aux chefs")
+        self.assertNotContains(response, reverse("dashboard_contribuable_create"))
+        self.assertNotContains(response, reverse("dashboard_contribuable_update", args=[1]))
+        self.assertNotContains(response, reverse("dashboard_contribuable_delete", args=[1]))
+
+        response = self.client.get(reverse("dashboard_taxation_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, reverse("dashboard_taxation_create"))
+
+        response = self.client.get(
+            reverse("dashboard_recherche_globale"), {"q": "contribuable"}
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_maire_ne_peut_pas_creer_modifier_ou_supprimer_les_donnees_fiscales(self):
+        maire = creer_agent(role="superviseur")
+        self._login(maire)
+
+        routes_creation = (
+            "dashboard_contribuable_create",
+            "dashboard_taxation_create",
+            "dashboard_paiement_create",
+            "dashboard_typetaxe_create",
+        )
+        for route in routes_creation:
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get(reverse(route)).status_code, 403)
+
+        routes_par_pk = (
+            "dashboard_contribuable_update",
+            "dashboard_contribuable_delete",
+            "dashboard_taxation_update",
+            "dashboard_taxation_delete",
+            "dashboard_paiement_update",
+            "dashboard_paiement_delete",
+            "dashboard_typetaxe_update",
+            "dashboard_typetaxe_delete",
+        )
+        for route in routes_par_pk:
+            with self.subTest(route=route):
+                self.assertEqual(
+                    self.client.get(reverse(route, args=[1])).status_code,
+                    403,
+                )
+
     def test_compte_sans_role_garde_acces_complet(self):
         """Rétrocompatibilité : un compte staff jamais assigné à un rôle
         ne doit jamais se retrouver bloqué (voir foncier/permissions.py)."""
@@ -66,18 +159,107 @@ class RolesAccesDashboardTest(TestCase):
         response = self.client.get(reverse("dashboard_journal_audit_list"))
         self.assertEqual(response.status_code, 403)
 
-    def test_agent_fiscal_bloque_sur_les_parcelles_et_le_geoportail_cadastral(self):
+    def test_agent_fiscal_a_un_geoportail_en_lecture_seule_sans_liste_cadastrale(self):
         agent = creer_agent(role="fiscal")
         self._login(agent)
         self.assertEqual(
             self.client.get(reverse("dashboard_parcelle_list")).status_code, 403
         )
-        self.assertEqual(self.client.get(reverse("geoportail_admin")).status_code, 403)
+        response = self.client.get(reverse("geoportail_admin"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Referrer-Policy"), "strict-origin-when-cross-origin")
+        self.assertContains(response, "map-admin")
+        self.assertContains(response, "filter-statut")
+        self.assertNotContains(response, "parcelle_update_fiscal")
+        self.assertNotContains(response, "extrait_cadastral_pdf")
+        self.assertNotContains(response, "btnInfraSante")
+        self.assertNotContains(response, "btnInfraEducation")
+        self.assertContains(response, "Type d'infrastructure")
+        self.assertContains(response, "groupeInfraPourCategorie")
+        self.assertContains(response, "filter-infra-soustype")
+        self.assertContains(response, "mettreAJourVisibiliteReinitialisation")
+        self.assertContains(response, "Type de structure de santé")
+        self.assertContains(response, "Type d'établissement scolaire")
+        self.assertContains(response, "aria-expanded")
+        self.assertContains(response, "occupationInfo.aide")
+
+    def test_geoportail_public_propose_les_filtres_infrastructures_et_une_interface_accessible(self):
+        response = self.client.get(reverse("geoportail"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Referrer-Policy"), "strict-origin-when-cross-origin")
+        self.assertNotContains(response, "btnInfraSante")
+        self.assertNotContains(response, "btnInfraEducation")
+        self.assertContains(response, "Type d'infrastructure")
+        self.assertContains(response, "groupeInfraPourCategorie")
+        self.assertContains(response, "filter-infra-soustype")
+        self.assertContains(response, "mettreAJourVisibiliteReinitialisation")
+        self.assertContains(response, "Type de structure de santé")
+        self.assertContains(response, "Type d'établissement scolaire")
+        self.assertContains(response, "aria-pressed")
+        self.assertContains(response, "geo-panel-body")
+        self.assertContains(response, "fp-stat-help")
 
     def test_agent_de_service_ne_peut_pas_utiliser_admin_django(self):
         agent = creer_agent(role="technique")
         self._login(agent)
         self.assertNotEqual(self.client.get(reverse("admin:index")).status_code, 200)
+
+
+class MessagerieMaireTest(TestCase):
+    def test_maire_et_chef_peuvent_ouvrir_liste_et_conversation(self):
+        maire = creer_agent(username="maire_messagerie_test", role="superviseur")
+        chef = creer_agent(username="chef_messagerie_test", role="chef_technique")
+        message = MessageInterneMaire.objects.create(
+            expediteur=maire,
+            destinataire=chef,
+            sujet="Suivi du dossier",
+            contenu="Merci de faire le point.",
+        )
+
+        self.client.force_login(maire)
+        response = self.client.get(reverse("dashboard_messages_maire"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Suivi du dossier")
+        self.assertTemplateUsed(response, "dashboard/messages_maire.html")
+        response = self.client.get(
+            reverse("dashboard_message_maire_detail", args=[message.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Merci de faire le point.")
+        self.assertTemplateUsed(response, "dashboard/message_maire_detail.html")
+
+        self.client.force_login(chef)
+        response = self.client.get(reverse("dashboard_messages_maire"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Suivi du dossier")
+
+    def test_une_reponse_est_rattachee_a_la_conversation(self):
+        maire = creer_agent(username="maire_reponse_test", role="superviseur")
+        chef = creer_agent(username="chef_reponse_test", role="chef_technique")
+        message = MessageInterneMaire.objects.create(
+            expediteur=maire,
+            destinataire=chef,
+            sujet="Question cadastrale",
+            contenu="Quel est l'avancement ?",
+        )
+        self.client.force_login(chef)
+
+        response = self.client.post(
+            reverse("dashboard_message_maire_detail", args=[message.pk]),
+            {
+                "destinataire": maire.pk,
+                "sujet": "Re: Question cadastrale",
+                "contenu": "Le dossier est en cours de traitement.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("dashboard_message_maire_detail", args=[message.pk]),
+        )
+        reponse = MessageInterneMaire.objects.get(parent=message)
+        self.assertEqual(reponse.expediteur, chef)
+        self.assertEqual(reponse.destinataire, maire)
 
 
 class AttributionDemandesTest(TestCase):

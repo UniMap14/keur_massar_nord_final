@@ -38,7 +38,7 @@ from django.conf import settings
 import json
 from decimal import Decimal, ROUND_HALF_UP
 
-from .permissions import a_role, role_requis
+from .permissions import a_role, est_maire, role_requis
 from .models import Signalement
 from .forms import SignalementForm
 
@@ -200,9 +200,11 @@ def carte_geoportail(request):
         if features:
             mes_parcelles_geojson = json.dumps({"type": "FeatureCollection", "features": features})
 
-    return render(request, "foncier/geoportail.html", {
+    response = render(request, "foncier/geoportail.html", {
         "mes_parcelles_geojson": mes_parcelles_geojson,
     })
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 # ============================================================
@@ -211,13 +213,23 @@ def carte_geoportail(request):
 
 @login_required
 @user_passes_test(_est_agent)
-@role_requis("technique")
+@role_requis("technique", "fiscal")
 def carte_geoportail_admin(request):
     """
-    Affiche la carte du géoportail réservée aux agents (is_staff) : statut
-    fiscal, montants, propriétaire et édition depuis un panneau latéral.
+    Affiche le même géoportail à tous les agents autorisés, avec les
+    informations et outils filtrés selon leur service.
     """
-    return render(request, "foncier/geoportail_admin.html", {"active_section": "geoportail"})
+    context = {
+        "active_section": "geoportail",
+        "peut_technique": a_role(request.user, "technique"),
+        "peut_fiscal": a_role(request.user, "fiscal"),
+        "peut_modifier_cadastre": (
+            a_role(request.user, "technique") and not est_maire(request.user)
+        ),
+    }
+    response = render(request, "foncier/geoportail_admin.html", context)
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 # ============================================================
@@ -290,8 +302,9 @@ TOLERANCE_SIMPLIFICATION = 0.00002
 TOLERANCE_SIMPLIFICATION_TOUTES = 0.00003  # formes reconnaissables meme pour les petites parcelles
 
 CACHE_KEY_PUBLIC = "geojson_parcelles_public"
-CACHE_KEY_ADMIN = "geojson_parcelles_admin_fiscal_v3"
-CACHE_KEY_ADMIN_CADASTRE = "geojson_parcelles_admin_cadastre_v3"
+CACHE_KEY_ADMIN = "geojson_parcelles_admin_fiscal_v4"
+CACHE_KEY_ADMIN_CADASTRE = "geojson_parcelles_admin_cadastre_v4"
+CACHE_KEY_ADMIN_FISCAL = "geojson_parcelles_admin_fiscal_view_v3"
 CACHE_TTL_SECONDES = 120  # invalidé de toute façon dès qu'une parcelle est modifiée
 CACHE_KEY_ZONES = "geojson_zones"
 CACHE_KEY_SECTIONS = "geojson_sections"
@@ -322,6 +335,26 @@ def _bbox_depuis_requete(request):
         return Polygon.from_bbox((west, south, east, north))
     except (ValueError, TypeError):
         return None
+
+
+def _proprietes_infrastructure_geojson(infra, peut_technique):
+    details = infra.details or {}
+    if not peut_technique:
+        details = {key: value for key, value in details.items() if key != "Nombre d'employés"}
+
+    proprietes = {
+        "nom": infra.nom,
+        "categorie": infra.categorie.label,
+        "icone": infra.categorie.icone,
+        "couleur": infra.categorie.couleur,
+        "latitude": infra.latitude,
+        "longitude": infra.longitude,
+        "sous_type": infra.sous_type,
+        "details": details,
+    }
+    if peut_technique:
+        proprietes["id"] = infra.id
+    return proprietes
 
 
 def api_parcelles_geojson(request):
@@ -457,19 +490,20 @@ def api_parcelles_toutes_geojson(request):
 
 
 # ============================================================
-# API GEOJSON PARCELLES — VERSION AGENT
-# Réservée au service Cadastre. Les données fiscales ne sont incluses
-# que pour un superviseur autorisé aux deux services.
+# API GEOJSON PARCELLES — VERSION ADMIN
+# Le Cadastre reçoit les données cadastrales, la Fiscalité les données
+# fiscales et les infrastructures publiques, et le superviseur les deux.
 # ============================================================
 
 @login_required
 @user_passes_test(_est_agent)
-@role_requis("technique")
+@role_requis("technique", "fiscal")
 def api_parcelles_geojson_admin(request):
     """
-    GeoJSON réservé au Cadastre. Les données fiscales ne sont présentes
-    que pour un superviseur autorisé aux deux services.
+    GeoJSON admin filtré selon le service : la Fiscalité reçoit les valeurs
+    fiscales et les infrastructures, sans données nominatives cadastrales.
     """
+    peut_technique = a_role(request.user, "technique")
     peut_fiscal = a_role(request.user, "fiscal")
     bbox_poly = _bbox_depuis_requete(request)
     if bbox_poly is None:
@@ -481,18 +515,50 @@ def api_parcelles_geojson_admin(request):
         Parcelle.objects
         .exclude(geom__isnull=True)
         .filter(geom__bboverlaps=bbox_poly)
-        .select_related("zone", "proprietaire")
         .annotate(geojson_geom=AsGeoJSON(SimplifyPreserveTopology("geom", TOLERANCE_SIMPLIFICATION)))
-        .only(
+        .order_by("id")
+    )
+    if not peut_technique:
+        qs = qs.filter(parcelle_active=True)
+    qs = qs[:PARCELLES_MAX_PAR_REQUETE]
+    if peut_technique:
+        qs = qs.select_related("zone", "proprietaire").only(
             "id", "nicad", "superficie", "adresse_parcelle",
             "montant_taxe_annuelle", "valeur_locative", "statut_fiscal",
             "type_document", "reference_arrete", "section_cadastrale", "numero_parcelle", "numero_lot", "numero_titre_foncier", "occupation_sol", "simulation_fiscale",
             "zone__nom", "proprietaire__nom", "proprietaire__prenom", "proprietaire__ni_cni",
         )
-        .order_by("id")[:PARCELLES_MAX_PAR_REQUETE]
-    )
+    else:
+        qs = qs.only(
+            "id", "montant_taxe_annuelle", "valeur_locative",
+            "statut_fiscal", "simulation_fiscale",
+        )
+
+    infra_par_parcelle_admin = {}
+    if not peut_technique:
+        parcelle_ids = list(qs.values_list("id", flat=True))
+        for infra in Infrastructure.objects.filter(parcelle_id__in=parcelle_ids).select_related("categorie"):
+            infra_par_parcelle_admin.setdefault(infra.parcelle_id, []).append(
+                _proprietes_infrastructure_geojson(infra, peut_technique)
+            )
 
     for parcelle in qs.iterator():
+        if not peut_technique:
+            proprietes = {
+                "id": parcelle.id,
+                "montant_taxe_annuelle": float(parcelle.montant_taxe_annuelle),
+                "valeur_locative": float(parcelle.valeur_locative),
+                "statut_fiscal": parcelle.statut_fiscal,
+                "simulation_fiscale": parcelle.simulation_fiscale,
+                "infrastructures": infra_par_parcelle_admin.get(parcelle.id, []),
+            }
+            features.append({
+                "type": "Feature",
+                "geometry": json.loads(parcelle.geojson_geom),
+                "properties": proprietes,
+            })
+            continue
+
         proprietes = {
             "id": parcelle.id,
             "nicad": parcelle.nicad,
@@ -533,45 +599,63 @@ def api_parcelles_geojson_admin(request):
 
 @login_required
 @user_passes_test(_est_agent)
-@role_requis("technique")
+@role_requis("technique", "fiscal")
 def api_parcelles_toutes_geojson_admin(request):
-    """GéoJSON cadastral pour les agents techniques; le superviseur voit
-    aussi les champs fiscaux. Les variantes sont mises en cache séparément."""
+    """GéoJSON admin : toutes les parcelles actives, avec les données
+    autorisées au service concerné et les infrastructures publiques."""
+    peut_technique = a_role(request.user, "technique")
     peut_fiscal = a_role(request.user, "fiscal")
-    cache_key = CACHE_KEY_ADMIN if peut_fiscal else CACHE_KEY_ADMIN_CADASTRE
+    if peut_technique and peut_fiscal:
+        cache_key = CACHE_KEY_ADMIN
+    elif peut_technique:
+        cache_key = CACHE_KEY_ADMIN_CADASTRE
+    else:
+        cache_key = CACHE_KEY_ADMIN_FISCAL
     data_json = cache.get(cache_key)
     if data_json is None:
         qs = (
             Parcelle.objects
             .exclude(geom__isnull=True)
             .filter(parcelle_active=True)
-            .select_related("zone", "proprietaire")
             .annotate(geojson_geom=AsGeoJSON(SimplifyPreserveTopology("geom", TOLERANCE_SIMPLIFICATION_TOUTES)))
-            .only(
+            .order_by("id")
+        )
+        if peut_technique:
+            qs = qs.select_related("zone", "proprietaire").only(
                 "id", "nicad", "superficie", "adresse_parcelle",
                 "montant_taxe_annuelle", "valeur_locative", "statut_fiscal",
                 "type_document", "reference_arrete", "section_cadastrale", "numero_parcelle", "numero_lot", "numero_titre_foncier", "occupation_sol", "simulation_fiscale",
                 "zone__nom", "proprietaire__nom", "proprietaire__prenom", "proprietaire__ni_cni",
             )
-            .order_by("id")
-        )
+        else:
+            qs = qs.only(
+                "id", "montant_taxe_annuelle", "valeur_locative",
+                "statut_fiscal", "simulation_fiscale",
+            )
 
         infra_par_parcelle_admin = {}
         for infra in Infrastructure.objects.filter(parcelle_id__isnull=False).select_related("categorie"):
-            infra_par_parcelle_admin.setdefault(infra.parcelle_id, []).append({
-                "id": infra.id,
-                "nom": infra.nom,
-                "categorie": infra.categorie.label,
-                "icone": infra.categorie.icone,
-                "couleur": infra.categorie.couleur,
-                "latitude": infra.latitude,
-                "longitude": infra.longitude,
-                "sous_type": infra.sous_type,
-                "details": infra.details,
-            })
+            infra_par_parcelle_admin.setdefault(infra.parcelle_id, []).append(
+                _proprietes_infrastructure_geojson(infra, peut_technique)
+            )
 
         features = []
         for parcelle in qs.iterator():
+            if not peut_technique:
+                features.append({
+                    "type": "Feature",
+                    "geometry": json.loads(parcelle.geojson_geom),
+                    "properties": {
+                        "id": parcelle.id,
+                        "montant_taxe_annuelle": float(parcelle.montant_taxe_annuelle),
+                        "valeur_locative": float(parcelle.valeur_locative),
+                        "statut_fiscal": parcelle.statut_fiscal,
+                        "simulation_fiscale": parcelle.simulation_fiscale,
+                        "infrastructures": infra_par_parcelle_admin.get(parcelle.id, []),
+                    },
+                })
+                continue
+
             proprietes = {
                 "id": parcelle.id,
                 "nicad": parcelle.nicad,
@@ -608,21 +692,13 @@ def api_parcelles_toutes_geojson_admin(request):
                 "properties": proprietes,
             })
         infra_sans_parcelle_admin = [
-            {
-                "id": infra.id,
-                "nom": infra.nom,
-                "categorie": infra.categorie.label,
-                "icone": infra.categorie.icone,
-                "couleur": infra.categorie.couleur,
-                "latitude": infra.latitude,
-                "longitude": infra.longitude,
-                "sous_type": infra.sous_type,
-                "details": infra.details,
-            }
+            _proprietes_infrastructure_geojson(infra, peut_technique)
             for infra in Infrastructure.objects.filter(parcelle_id__isnull=True).select_related("categorie")
         ]
 
-        data = {"type": "FeatureCollection", "features": features, "infrastructures_hors_parcelle": infra_sans_parcelle_admin}
+        data = {"type": "FeatureCollection", "features": features}
+        if peut_technique:
+            data["infrastructures_hors_parcelle"] = infra_sans_parcelle_admin
         data_json = json.dumps(data)
         cache.set(cache_key, data_json, None)
 
@@ -639,6 +715,12 @@ def parcelle_update_fiscal(request, parcelle_id):
     adresse, type de document, occupation du sol, référence d'arrêté, et
     propriétaire (recherché par numéro CNI). Réservé aux agents (is_staff).
     """
+    if est_maire(request.user):
+        return JsonResponse({
+            "ok": False,
+            "error": "Le maire peut consulter les parcelles, mais pas modifier leurs données."
+        }, status=403)
+
     try:
         parcelle = Parcelle.objects.get(pk=parcelle_id)
     except Parcelle.DoesNotExist:
@@ -1574,6 +1656,21 @@ def _invalider_cache_parcelles(sender, **kwargs):
     cache.delete(CACHE_KEY_PUBLIC)
     cache.delete(CACHE_KEY_ADMIN)
     cache.delete(CACHE_KEY_ADMIN_CADASTRE)
+    cache.delete(CACHE_KEY_ADMIN_FISCAL)
+
+
+@receiver([post_save, post_delete], sender=Taxation)
+def _invalider_cache_parcelles_fiscales(sender, **kwargs):
+    cache.delete(CACHE_KEY_ADMIN_FISCAL)
+
+
+@receiver([post_save, post_delete], sender=Infrastructure)
+@receiver([post_save, post_delete], sender=CategorieInfrastructure)
+def _invalider_cache_infrastructures(sender, **kwargs):
+    cache.delete(CACHE_KEY_PUBLIC)
+    cache.delete(CACHE_KEY_ADMIN)
+    cache.delete(CACHE_KEY_ADMIN_CADASTRE)
+    cache.delete(CACHE_KEY_ADMIN_FISCAL)
 
 
 from foncier.models import QuartierOfficiel, SectionCadastrale, LimiteAdministrative

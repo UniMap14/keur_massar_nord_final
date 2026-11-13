@@ -56,13 +56,23 @@
         <div class="rg-section">
             <h2><i class="fa-solid fa-map-location-dot"></i> Parcelles {% if parcelles %}<span class="rg-count-badge">{{ parcelles|length }}</span>{% endif %}</h2>
             {% for p in parcelles %}
+            {% if est_maire %}
+            <div class="rg-card">
+            {% else %}
             <a href="{% url 'dashboard_parcelle_update' p.pk %}" class="rg-card">
+            {% endif %}
                 <div>
                     <div class="rg-main">{{ p.nicad }}</div>
                     <div class="rg-sub">{{ p.adresse_parcelle|default:"Adresse non renseignee" }}{% if p.proprietaire %} &middot; {{ p.proprietaire }}{% endif %}</div>
                 </div>
+                {% if not est_maire %}
                 <i class="fa-solid fa-chevron-right rg-chevron"></i>
+                {% endif %}
+            {% if est_maire %}
+            </div>
+            {% else %}
             </a>
+            {% endif %}
             {% empty %}
             <p class="rg-sub">Aucune parcelle correspondante.</p>
             {% endfor %}
@@ -71,13 +81,23 @@
         <div class="rg-section">
             <h2><i class="fa-solid fa-id-card"></i> Proprietaires {% if proprietaires %}<span class="rg-count-badge">{{ proprietaires|length }}</span>{% endif %}</h2>
             {% for prop in proprietaires %}
+            {% if est_maire %}
+            <div class="rg-card">
+            {% else %}
             <a href="{% url 'dashboard_proprietaire_update' prop.pk %}" class="rg-card">
+            {% endif %}
                 <div>
                     <div class="rg-main">{{ prop.nom }} {{ prop.prenom }}</div>
                     <div class="rg-sub">CNI {{ prop.ni_cni }}{% if prop.telephone %} &middot; {{ prop.telephone }}{% endif %}</div>
                 </div>
+                {% if not est_maire %}
                 <i class="fa-solid fa-chevron-right rg-chevron"></i>
+                {% endif %}
+            {% if est_maire %}
+            </div>
+            {% else %}
             </a>
+            {% endif %}
             {% empty %}
             <p class="rg-sub">Aucun proprietaire correspondant.</p>
             {% endfor %}
@@ -88,13 +108,23 @@
         <div class="rg-section">
             <h2><i class="fa-solid fa-coins"></i> Contribuables {% if contribuables %}<span class="rg-count-badge">{{ contribuables|length }}</span>{% endif %}</h2>
             {% for c in contribuables %}
+            {% if est_maire %}
+            <div class="rg-card">
+            {% else %}
             <a href="{% url 'dashboard_contribuable_update' c.pk %}" class="rg-card">
+            {% endif %}
                 <div>
                     <div class="rg-main">{{ c.nom }} {{ c.prenom }}</div>
                     <div class="rg-sub">N&deg; fiscal {{ c.numero_fiscal }}{% if c.quartier %} &middot; {{ c.quartier }}{% endif %}</div>
                 </div>
+                {% if not est_maire %}
                 <i class="fa-solid fa-chevron-right rg-chevron"></i>
+                {% endif %}
+            {% if est_maire %}
+            </div>
+            {% else %}
             </a>
+            {% endif %}
             {% empty %}
             <p class="rg-sub">Aucun contribuable correspondant.</p>
             {% endfor %}

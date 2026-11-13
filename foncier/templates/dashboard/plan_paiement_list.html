@@ -62,9 +62,11 @@
             {% endif %}
           </td>
           <td>
+            {% if not est_maire %}
             <a href="{% url 'dashboard_plan_paiement_traiter' p.pk %}" class="btn btn-outline btn-sm">
               <i class="fa-solid fa-eye"></i> {% if p.statut == 'SOUMIS' or p.statut == 'EN_EXAMEN' %}Traiter{% else %}Voir{% endif %}
             </a>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

@@ -736,6 +736,7 @@
     <div class="delta">Citoyens dans la base SIG</div>
   </div>
 
+  {% if peut_voir_demandes %}
   <div class="kpi-card tone-green">
     <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
     <span class="kpi-corner-icon"><i class="fa-solid fa-sack-dollar"></i></span>
@@ -743,6 +744,7 @@
     <div class="value">{{ total_recouvre_demandes_fmt }}</div>
     <div class="delta">Extraits cadastraux et autres démarches payées</div>
   </div>
+  {% endif %}
 
 {% endif %}
 {% if peut_fiscal %}
@@ -757,6 +759,7 @@
   </a>
 
 {% endif %}
+  {% if peut_voir_demandes %}
   <a href="{% url 'dashboard_demande_list' %}" class="kpi-card tone-gold" style="text-decoration:none; color:inherit; display:block;">
     <div class="kpi-icon"><i class="fa-solid fa-folder-open"></i></div>
     <span class="kpi-corner-icon"><i class="fa-solid fa-folder-open"></i></span>
@@ -766,6 +769,7 @@
     {% if delta_demandes is not None %}<div class="kpi-delta-row"><span class="kpi-delta-badge {% if delta_demandes >= 0 %}up{% else %}down{% endif %}"><i class="fa-solid fa-arrow-{% if delta_demandes >= 0 %}up{% else %}down{% endif %}"></i> {{ delta_demandes }}%</span></div>{% endif %}
     <div class="kpi-sparkline-wrap"><canvas id="kpiSparkDemandes"></canvas></div>
   </a>
+  {% endif %}
 
 {% if peut_technique %}
   <div class="kpi-card tone-blue">
@@ -789,16 +793,25 @@
 </div>
 
 <div class="dashboard-grid">
-{% if peut_technique %}
+{% if peut_technique or peut_fiscal %}
 <a href="{% url 'geoportail_admin' %}" class="geo-access-card cell-geo-banner">
   <div class="geo-access-left">
     <div class="geo-access-icon"><i class="fa-solid fa-map-location-dot"></i></div>
     <div class="geo-access-text">
-      <h3>Geoportail SIG</h3>
-      <p>Carte cadastrale complete, outils SIG et edition des parcelles en plein ecran.</p>
-    </div>
-  </div>
-  <span class="geo-access-btn">Acceder au Geoportail <i class="fa-solid fa-arrow-right"></i></span>
+     {% if peut_technique %}
+     <h3>Géoportail SIG</h3>
+     {% if est_maire %}
+     <p>Consultez les parcelles, leurs informations cadastrales et leur situation fiscale.</p>
+     {% else %}
+     <p>Carte cadastrale complète, outils SIG et édition des parcelles en plein écran.</p>
+     {% endif %}
+     {% else %}
+     <h3>Géoportail fiscal</h3>
+     <p>Consultez les parcelles et leur situation fiscale sur la carte.</p>
+     {% endif %}
+   </div>
+ </div>
+ <span class="geo-access-btn">Accéder au géoportail <i class="fa-solid fa-arrow-right"></i></span>
 </a>
 {% endif %}
 
@@ -853,7 +866,7 @@
 </div>
 
 {% endif %}
-{% if peut_technique %}
+{% if peut_technique and not est_maire %}
 <!-- ============ MINI CARTE ============ -->
 <div class="panel cell-map">
   <div class="panel-header">
@@ -880,7 +893,7 @@
     </div>
   </div>
   <div class="quick-actions-grid">
-    {% if peut_technique %}
+    {% if peut_technique and not est_maire %}
     <a href="{% url 'dashboard_parcelle_create' %}" class="quick-action-tile">
       <div class="quick-action-icon tone-green"><i class="fa-solid fa-plus"></i></div>
       <span>Nouvelle parcelle</span>
@@ -896,10 +909,18 @@
       <div class="quick-action-icon tone-gold"><i class="fa-solid fa-envelope"></i></div>
       <span>Traiter les messages</span>
     </a>
+    {% if est_maire %}
+    <a href="{% url 'dashboard_messages_maire' %}" class="quick-action-tile">
+      <div class="quick-action-icon tone-blue"><i class="fa-solid fa-flag"></i></div>
+      <span>Signaler une correction aux chefs</span>
+    </a>
+    {% endif %}
+    {% if peut_voir_demandes %}
     <a href="{% url 'dashboard_demande_list' %}" class="quick-action-tile">
       <div class="quick-action-icon tone-blue"><i class="fa-solid fa-folder-open"></i></div>
       <span>Démarches en ligne</span>
     </a>
+    {% endif %}
   </div>
 </div>
 

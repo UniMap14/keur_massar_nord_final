@@ -1,0 +1,66 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Messages avec les chefs{% endblock %}
+{% block header_title %}Messages avec les chefs{% endblock %}
+{% block header_subtitle %}
+<div class="topbar-subtitle">Messagerie interne réservée au maire et aux chefs de service.</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .messages-layout { display: grid; grid-template-columns: minmax(280px, 0.8fr) minmax(320px, 1.2fr); gap: 20px; align-items: start; }
+  .message-card { border: 1px solid var(--line-strong, #e6e0d4); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+  .message-card h3 { margin: 0 0 6px; font-size: 15px; }
+  .message-card p { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .message-meta { color: var(--ink-quiet, #7a7266); font-size: 12px; }
+  .form-field { margin-bottom: 16px; }
+  .form-field label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; }
+  .form-field input, .form-field select, .form-field textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--line-strong, #e6e0d4); border-radius: 8px; padding: 10px 12px; font: inherit; }
+  .form-field textarea { resize: vertical; }
+  .form-field .errorlist { color: var(--danger, #b3261e); margin: 6px 0 0; padding-left: 18px; font-size: 12px; }
+  .empty-state { padding: 28px 16px; color: var(--ink-quiet, #7a7266); text-align: center; }
+  @media (max-width: 800px) { .messages-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="messages-layout">
+  <section class="panel">
+    <div class="panel-header"><h2><i class="fa-solid fa-inbox"></i> Conversations</h2></div>
+    <div class="panel-body">
+      {% for message in messages_internes %}
+      <article class="message-card">
+        <h3><a href="{% url 'dashboard_message_maire_detail' message.pk %}">{{ message.sujet }}</a></h3>
+        <div class="message-meta">
+          {% if message.expediteur_id == request.user.pk %}À {{ message.destinataire.get_full_name|default:message.destinataire.username }}{% else %}De {{ message.expediteur.get_full_name|default:message.expediteur.username }}{% endif %}
+          · {{ message.date_envoi|date:"d/m/Y à H:i" }}
+          {% if message.destinataire_id == request.user.pk and not message.lu %} · <strong>Nouveau</strong>{% endif %}
+        </div>
+        <p>{{ message.contenu|truncatechars:180 }}</p>
+        <a class="btn btn-outline btn-sm" href="{% url 'dashboard_message_maire_detail' message.pk %}">Ouvrir la conversation</a>
+      </article>
+      {% empty %}
+      <div class="empty-state">Aucun message pour le moment.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header"><h2><i class="fa-solid fa-paper-plane"></i> Nouveau message</h2></div>
+    <div class="panel-body">
+      <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+        {% for field in form %}
+        <div class="form-field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+          {{ field }}
+          {{ field.errors }}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Envoyer</button>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

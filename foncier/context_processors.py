@@ -11,8 +11,11 @@
 #   "foncier.context_processors.dashboard_counts",
 # ============================================================
 
-from .models import MessageContact, DemandeService, Signalement
-from .permissions import a_role, libelle_role
+from .models import MessageContact, MessageInterneMaire, DemandeService, Signalement
+from .permissions import (
+    GROUPE_CHEF_FISCAL, GROUPE_CHEF_TECHNIQUE,
+    a_role, est_maire, libelle_role,
+)
 
 
 def dashboard_counts(request):
@@ -58,6 +61,18 @@ def dashboard_counts(request):
         nb_signalements_en_cours = 0
 
     peut_technique = a_role(request.user, "technique")
+    est_le_maire = est_maire(request.user)
+    peut_echanger_avec_maire = (
+        request.user.is_superuser
+        or est_le_maire
+        or request.user.groups.filter(
+            name__in=[GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL]
+        ).exists()
+    )
+    nb_messages_maire_non_lus = (
+        MessageInterneMaire.objects.filter(destinataire=request.user, lu=False).count()
+        if peut_echanger_avec_maire else 0
+    )
 
     nb_notifications_total = (
         nb_messages_non_traites
@@ -71,6 +86,7 @@ def dashboard_counts(request):
         "nb_demandes_a_traiter": nb_demandes_a_traiter,
         "nb_inscriptions_en_attente": nb_inscriptions_en_attente,
         "nb_signalements_en_cours": nb_signalements_en_cours,
+        "nb_messages_maire_non_lus": nb_messages_maire_non_lus,
         "nb_notifications_total": nb_notifications_total,
         "libelle_role_utilisateur": libelle_role(request.user),
         "peut_fiscal": a_role(request.user, "fiscal"),
@@ -79,6 +95,9 @@ def dashboard_counts(request):
             request.user.is_superuser
             or request.user.groups.filter(name="Superviseur").exists()
         ),
+        "est_maire": est_le_maire,
+        "peut_voir_demandes": not est_le_maire or request.user.is_superuser,
+        "peut_echanger_avec_maire": peut_echanger_avec_maire,
     }
 
 def profil_agent_connecte(request):

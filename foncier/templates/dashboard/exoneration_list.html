@@ -55,9 +55,11 @@
             {% endif %}
           </td>
           <td>
+            {% if not est_maire %}
             <a href="{% url 'dashboard_exoneration_traiter' d.pk %}" class="btn btn-outline btn-sm">
               <i class="fa-solid fa-eye"></i> {% if d.statut == 'SOUMISE' or d.statut == 'EN_EXAMEN' %}Traiter{% else %}Voir{% endif %}
             </a>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

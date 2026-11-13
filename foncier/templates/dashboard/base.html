@@ -362,10 +362,10 @@
     </ul>
     {% endif %}
 
-    {% if peut_technique %}
+    {% if peut_technique or peut_fiscal %}
     <ul class="sidebar-nav">
       <li><a href="{% url 'geoportail_admin' %}" class="sidebar-link {% if active_section == 'geoportail' %}active{% endif %}">
-        <i class="fa-solid fa-earth-africa nav-icon"></i> Géoportail
+        <i class="fa-solid fa-earth-africa nav-icon"></i> {% if peut_technique %}Géoportail SIG{% else %}Géoportail fiscal{% endif %}
       </a></li>
     </ul>
     {% endif %}
@@ -434,20 +434,35 @@
         <i class="fa-solid fa-envelope nav-icon"></i> Messages de contact
         {% if nb_messages_non_traites %}<span class="count count-alert">{{ nb_messages_non_traites }}</span>{% endif %}
       </a></li>
+      {% if peut_voir_demandes %}
       <li><a href="{% url 'dashboard_demande_list' %}" class="sidebar-link {% if active_section == 'demandes' %}active{% endif %}">
         <i class="fa-solid fa-folder-open nav-icon"></i> Démarches en ligne
         {% if nb_demandes_a_traiter %}<span class="count count-alert">{{ nb_demandes_a_traiter }}</span>{% endif %}
       </a></li>
+      {% endif %}
       {% if peut_technique %}
       <li><a href="{% url 'dashboard_signalement_list' %}" class="sidebar-link {% if active_section == 'signalements' %}active{% endif %}">
         <i class="fa-solid fa-triangle-exclamation nav-icon"></i> Signalements citoyens
         {% if nb_signalements_en_cours %}<span class="count count-alert">{{ nb_signalements_en_cours }}</span>{% endif %}
       </a></li>
       {% endif %}
+      {% if est_superviseur %}
       <li><a href="{% url 'dashboard_jeunesse_list' %}" class="sidebar-link {% if active_section == 'jeunesse' %}active{% endif %}">
         <i class="fa-solid fa-seedling nav-icon"></i> Espace Jeunes
       </a></li>
+      {% endif %}
     </ul>
+
+    {% if peut_echanger_avec_maire %}
+    <div class="sidebar-section-label">Échanges avec les chefs</div>
+    <ul class="sidebar-nav">
+      <li><a href="{% url 'dashboard_messages_maire' %}" class="sidebar-link {% if active_section == 'messages_maire' %}active{% endif %}">
+        <i class="fa-solid fa-comments nav-icon"></i>
+        {% if est_maire or request.user.is_superuser %}Messages aux chefs{% else %}Messages du maire{% endif %}
+        {% if nb_messages_maire_non_lus %}<span class="count count-alert">{{ nb_messages_maire_non_lus }}</span>{% endif %}
+      </a></li>
+    </ul>
+    {% endif %}
 
     {% if peut_technique %}
     <div class="sidebar-section-label">Contenu public</div>
@@ -553,7 +568,7 @@
             <span>Messages non traites</span><span class="count">{{ nb_messages_non_traites }}</span>
           </a>
           {% endif %}
-          {% if nb_demandes_a_traiter %}
+          {% if peut_voir_demandes and nb_demandes_a_traiter %}
           <a href="{% url 'dashboard_demande_list' %}" class="topbar-notif-item">
             <span>Demarches a traiter</span><span class="count">{{ nb_demandes_a_traiter }}</span>
           </a>

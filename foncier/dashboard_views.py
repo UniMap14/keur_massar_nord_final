@@ -27,7 +27,9 @@ import calendar
 import json
 from .widgets import LeafletPolygonWidget
 from .sms import envoyer_sms
-from .permissions import role_requis, a_role, libelle_role
+from .permissions import (
+    role_requis, a_role, libelle_role, est_maire, refuser_modification_maire,
+)
 from .permissions import (
     GROUPE_SUPERVISEUR, GROUPE_CHEF_TECHNIQUE, GROUPE_GESTIONNAIRE_TECHNIQUE,
     GROUPE_CHEF_FISCAL, GROUPE_GESTIONNAIRE_FISCAL, GROUPES_ROLES, ROLE_VERS_GROUPE,
@@ -42,6 +44,7 @@ from .models import (
     Paiement,
     ProfilCitoyen,
     MessageContact,
+    MessageInterneMaire,
     CategorieInfrastructure,
     Infrastructure,
     Actualite,
@@ -360,7 +363,12 @@ def dashboard_password_reset_renvoyer(request):
 def dashboard_home(request):
     peut_fiscal = a_role(request.user, "fiscal")
     peut_technique = a_role(request.user, "technique")
-    demandes_service = _filtrer_demandes_service(request.user, DemandeService.objects.all())
+    peut_voir_demandes = not est_maire(request.user)
+    demandes_service = (
+        _filtrer_demandes_service(request.user, DemandeService.objects.all())
+        if peut_voir_demandes
+        else DemandeService.objects.none()
+    )
     total_recouvre = (
         Paiement.objects.aggregate(Sum("montant"))["montant__sum"] or 0
         if peut_fiscal else 0
@@ -555,6 +563,7 @@ def dashboard_home(request):
         "active_section": "home",
         "peut_fiscal": peut_fiscal,
         "peut_technique": peut_technique,
+        "peut_voir_demandes": peut_voir_demandes,
         "nb_parcelles": Parcelle.objects.count() if peut_technique else 0,
         "total_recouvre_fmt": _fcfa(total_recouvre) if peut_fiscal else "",
         "reste_a_recouvrer_fmt": _fcfa(total_du - total_recouvre) if peut_fiscal else "",
@@ -790,6 +799,7 @@ def dashboard_parcelle_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('gestionnaire_technique')
+@refuser_modification_maire
 def dashboard_parcelle_create(request):
     if request.method == "POST":
         form = ParcelleForm(request.POST, user=request.user)
@@ -811,6 +821,7 @@ def dashboard_parcelle_create(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('technique')
+@refuser_modification_maire
 def dashboard_parcelle_update(request, pk):
     parcelle = get_object_or_404(Parcelle, pk=pk)
 
@@ -836,6 +847,7 @@ def dashboard_parcelle_update(request, pk):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_technique')
+@refuser_modification_maire
 def dashboard_parcelle_delete(request, pk):
     parcelle = get_object_or_404(Parcelle, pk=pk)
 
@@ -930,6 +942,134 @@ def dashboard_message_detail(request, pk):
         "form": form,
     }
     return render(request, "dashboard/message_detail.html", context)
+
+
+def _peut_echanger_avec_maire(user):
+    noms = _noms_groupes_agent(user)
+    groupes_chefs = {GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL}
+    return user.is_superuser or est_maire(user) or bool(noms & groupes_chefs)
+
+
+def _destinataires_message_maire(user):
+    noms = _noms_groupes_agent(user)
+    if user.is_superuser or est_maire(user):
+        groupes = {GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL}
+    elif noms & {GROUPE_CHEF_TECHNIQUE, GROUPE_CHEF_FISCAL}:
+        groupes = {GROUPE_SUPERVISEUR}
+    else:
+        groupes = set()
+    return User.objects.filter(
+        is_staff=True, is_active=True, groups__name__in=groupes
+    ).distinct().order_by("first_name", "last_name", "username")
+
+
+class MessageInterneMaireForm(forms.Form):
+    destinataire = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        label="Destinataire",
+        empty_label="— Choisir un destinataire —",
+    )
+    sujet = forms.CharField(label="Objet", max_length=200)
+    contenu = forms.CharField(
+        label="Message",
+        max_length=10000,
+        widget=forms.Textarea(attrs={"rows": 6}),
+    )
+
+    def __init__(self, *args, user, destinataire_attendu=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        destinataires = _destinataires_message_maire(user)
+        if destinataire_attendu is not None:
+            destinataires = destinataires.filter(pk=destinataire_attendu.pk)
+            self.fields["destinataire"].initial = destinataire_attendu
+        self.fields["destinataire"].queryset = destinataires
+
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_messages_maire(request):
+    if not _peut_echanger_avec_maire(request.user):
+        raise PermissionDenied("Cette messagerie est réservée au maire et aux chefs de service.")
+
+    if request.method == "POST":
+        form = MessageInterneMaireForm(request.POST, user=request.user)
+        if form.is_valid():
+            MessageInterneMaire.objects.create(
+                expediteur=request.user,
+                destinataire=form.cleaned_data["destinataire"],
+                sujet=form.cleaned_data["sujet"],
+                contenu=form.cleaned_data["contenu"],
+            )
+            messages.success(request, "Votre message a été envoyé.")
+            return redirect("dashboard_messages_maire")
+    else:
+        form = MessageInterneMaireForm(user=request.user)
+
+    messages_internes = MessageInterneMaire.objects.filter(
+        Q(expediteur=request.user) | Q(destinataire=request.user)
+    ).select_related("expediteur", "destinataire").order_by("-date_envoi")
+
+    return render(request, "dashboard/messages_maire.html", {
+        "active_section": "messages_maire",
+        "form": form,
+        "messages_internes": messages_internes,
+        "est_maire": est_maire(request.user) or request.user.is_superuser,
+    })
+
+
+@staff_member_required(login_url='dashboard_login')
+def dashboard_message_maire_detail(request, pk):
+    if not _peut_echanger_avec_maire(request.user):
+        raise PermissionDenied("Cette messagerie est réservée au maire et aux chefs de service.")
+
+    message_interne = get_object_or_404(
+        MessageInterneMaire.objects.select_related("expediteur", "destinataire"),
+        Q(pk=pk) & (Q(expediteur=request.user) | Q(destinataire=request.user)),
+    )
+    racine = message_interne.parent or message_interne
+    destinataire_attendu = (
+        message_interne.expediteur
+        if message_interne.destinataire_id == request.user.pk
+        else message_interne.destinataire
+    )
+
+    if request.method == "POST":
+        form = MessageInterneMaireForm(
+            request.POST,
+            user=request.user,
+            destinataire_attendu=destinataire_attendu,
+        )
+        if form.is_valid():
+            MessageInterneMaire.objects.create(
+                expediteur=request.user,
+                destinataire=form.cleaned_data["destinataire"],
+                parent=racine,
+                sujet=form.cleaned_data["sujet"],
+                contenu=form.cleaned_data["contenu"],
+            )
+            messages.success(request, "Votre réponse a été envoyée.")
+            return redirect("dashboard_message_maire_detail", pk=racine.pk)
+    else:
+        form = MessageInterneMaireForm(
+            user=request.user,
+            destinataire_attendu=destinataire_attendu,
+            initial={"sujet": f"Re: {racine.sujet}"},
+        )
+
+    MessageInterneMaire.objects.filter(
+        Q(pk=racine.pk) | Q(parent=racine),
+        destinataire=request.user,
+        lu=False,
+    ).update(lu=True)
+    conversation = MessageInterneMaire.objects.filter(
+        Q(pk=racine.pk) | Q(parent=racine)
+    ).select_related("expediteur", "destinataire").order_by("date_envoi")
+
+    return render(request, "dashboard/message_maire_detail.html", {
+        "active_section": "messages_maire",
+        "racine": racine,
+        "conversation": conversation,
+        "form": form,
+    })
 
 
 # ------------------------------------------------------------
@@ -1140,6 +1280,8 @@ def dashboard_paiement_list(request):
         if p.statut_paiement == "CONFIRME":
             return format_html('<span class="badge" style="background:rgba(47,122,79,0.10); color:#2f7a4f;">Confirmé</span>')
         elif p.statut_paiement == "EN_ATTENTE":
+            if est_maire(request.user):
+                return format_html('<span class="badge" style="background:rgba(185,116,11,0.10); color:#b9740b;">En attente</span>')
             return format_html(
                 '<span class="badge" style="background:rgba(185,116,11,0.10); color:#b9740b;">En attente</span> '
                 '<a href="{}" style="margin-left:8px; color:var(--green); font-weight:700; font-size:12px; text-decoration:none;">'
@@ -1352,6 +1494,10 @@ def _crud_views(model, form_class, list_url_name, titre, str_field="pk", roles=(
     if roles_suppression:
         delete_view = role_requis(*roles_suppression)(delete_view)
 
+    create_view = refuser_modification_maire(create_view)
+    update_view = refuser_modification_maire(update_view)
+    delete_view = refuser_modification_maire(delete_view)
+
     return create_view, update_view, delete_view
 
 
@@ -1449,6 +1595,7 @@ def dashboard_categorie_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('technique')
+@refuser_modification_maire
 def dashboard_categorie_create(request):
     if request.method == "POST":
         form = CategorieInfrastructureForm(request.POST)
@@ -1466,6 +1613,7 @@ def dashboard_categorie_create(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('technique')
+@refuser_modification_maire
 def dashboard_categorie_update(request, pk):
     categorie = get_object_or_404(CategorieInfrastructure, pk=pk)
 
@@ -1485,6 +1633,7 @@ def dashboard_categorie_update(request, pk):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_technique')
+@refuser_modification_maire
 def dashboard_categorie_delete(request, pk):
     categorie = get_object_or_404(CategorieInfrastructure, pk=pk)
 
@@ -1534,6 +1683,7 @@ def dashboard_infrastructure_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('technique')
+@refuser_modification_maire
 def dashboard_infrastructure_create(request):
     if request.method == "POST":
         form = InfrastructureForm(request.POST)
@@ -1551,6 +1701,7 @@ def dashboard_infrastructure_create(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('technique')
+@refuser_modification_maire
 def dashboard_infrastructure_update(request, pk):
     infra = get_object_or_404(Infrastructure, pk=pk)
 
@@ -1570,6 +1721,7 @@ def dashboard_infrastructure_update(request, pk):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_technique')
+@refuser_modification_maire
 def dashboard_infrastructure_delete(request, pk):
     infra = get_object_or_404(Infrastructure, pk=pk)
 
@@ -1727,6 +1879,8 @@ def _filtrer_demandes_service(user, queryset):
     fiscal) de l'utilisateur. Un gestionnaire ne voit que les dossiers
     qui lui ont été attribués. Les chefs voient tous ceux de leur service."""
     noms = _noms_groupes_agent(user)
+    if est_maire(user):
+        return queryset.none()
     if user.is_superuser or GROUPE_SUPERVISEUR in noms:
         return queryset
     if _est_agent_sans_role(user):
@@ -1779,6 +1933,7 @@ def _agents_du_service(categorie):
 
 
 @staff_member_required(login_url='dashboard_login')
+@refuser_modification_maire
 def dashboard_demande_list(request):
     filtre = request.GET.get("statut", "").strip()
     mes_dossiers = request.GET.get("mes_dossiers") == "1"
@@ -1855,6 +2010,7 @@ def _envoyer_sms_demande_statut_maj(demande):
 
 
 @staff_member_required(login_url='dashboard_login')
+@refuser_modification_maire
 def dashboard_demande_detail(request, pk):
     demande = get_object_or_404(
         DemandeService.objects.select_related("type_demande", "demandeur", "parcelle", "agent_traitant"),
@@ -2295,6 +2451,7 @@ def dashboard_declaration_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_fiscal')
+@refuser_modification_maire
 def dashboard_declaration_traiter(request, pk):
     """Examen d'une declaration : validation (calcule et emet la
     taxation correspondante) ou rejet (avec motif)."""
@@ -2374,6 +2531,7 @@ def dashboard_recours_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_fiscal')
+@refuser_modification_maire
 def dashboard_recours_traiter(request, pk):
     """Examen d'un recours/redressement : acceptation (corrige le
     montant de la taxation) ou rejet (avec explication)."""
@@ -2430,6 +2588,7 @@ def dashboard_recours_traiter(request, pk):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_fiscal')
+@refuser_modification_maire
 def dashboard_paiement_valider(request, pk):
     """Valide un paiement encore 'En attente' (typiquement issu du
     backend de demonstration 'manuel') : le passe a 'Confirme', ce qui
@@ -2508,6 +2667,7 @@ def dashboard_immatriculation_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_fiscal')
+@refuser_modification_maire
 def dashboard_immatriculation_traiter(request, pk):
     """Examen d'une demande d'immatriculation : validation (cree le
     proprietaire, rattache la parcelle, cree le contribuable avec un
@@ -2615,6 +2775,7 @@ def dashboard_exoneration_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_fiscal')
+@refuser_modification_maire
 def dashboard_exoneration_traiter(request, pk):
     """Examen d'une demande d'exoneration : validation (passe la
     parcelle au statut fiscal EXONERE) ou rejet (avec motif)."""
@@ -2684,6 +2845,7 @@ def dashboard_plan_paiement_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_fiscal')
+@refuser_modification_maire
 def dashboard_plan_paiement_traiter(request, pk):
     """Examen d'une demande de plan de paiement : validation (genere
     les echeances, montants egaux, une par mois) ou rejet (avec motif)."""
@@ -2776,6 +2938,7 @@ def dashboard_mutation_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_fiscal')
+@refuser_modification_maire
 def dashboard_mutation_traiter(request, pk):
     """
     Examen d'une demande de mutation : validation (cree le nouveau
@@ -2901,6 +3064,7 @@ def dashboard_morcellement_fusion_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 @role_requis('chef_technique')
+@refuser_modification_maire
 def dashboard_morcellement_fusion_traiter(request, pk):
     """
     Examen d'une demande de morcellement/fusion :
@@ -3002,6 +3166,9 @@ def dashboard_morcellement_fusion_traiter(request, pk):
 
 @staff_member_required(login_url='dashboard_login')
 def dashboard_jeunesse_list(request):
+    if not (request.user.is_superuser or est_maire(request.user)):
+        raise PermissionDenied("La gestion de l'espace jeune est réservée au maire.")
+
     from jeunesse.models import ProjetJeune
 
     statut_filtre = request.GET.get("statut", "").strip()
@@ -3038,6 +3205,9 @@ def dashboard_jeunesse_list(request):
 
 @staff_member_required(login_url='dashboard_login')
 def dashboard_jeunesse_detail(request, pk):
+    if not (request.user.is_superuser or est_maire(request.user)):
+        raise PermissionDenied("La gestion de l'espace jeune est réservée au maire.")
+
     from jeunesse.models import ProjetJeune, MessageProjet
 
     projet = get_object_or_404(ProjetJeune, pk=pk)

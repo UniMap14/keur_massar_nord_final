@@ -129,6 +129,8 @@ urlpatterns = [
 
     path("messages/", views.dashboard_message_list, name="dashboard_message_list"),
     path("messages/<int:pk>/", views.dashboard_message_detail, name="dashboard_message_detail"),
+    path("messages-chefs/", views.dashboard_messages_maire, name="dashboard_messages_maire"),
+    path("messages-chefs/<int:pk>/", views.dashboard_message_maire_detail, name="dashboard_message_maire_detail"),
 
     # --- Démarches en ligne (nouveau) ---
     path("demandes/", views.dashboard_demande_list, name="dashboard_demande_list"),

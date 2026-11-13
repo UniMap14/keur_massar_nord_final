@@ -1,6 +1,7 @@
 ﻿from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
@@ -79,6 +80,11 @@ def ressources_jeunes(request):
 @login_required
 @user_passes_test(_est_agent)
 def gestion_projets_jeunes(request):
+    from foncier.permissions import est_maire
+
+    if not (request.user.is_superuser or est_maire(request.user)):
+        raise PermissionDenied("La gestion des projets jeunes est réservée au maire.")
+
     if request.method == "POST":
         projet_id = request.POST.get("projet_id")
         action = request.POST.get("action")

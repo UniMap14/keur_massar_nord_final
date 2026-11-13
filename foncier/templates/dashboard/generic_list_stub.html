@@ -172,7 +172,7 @@
     </form>
     {% endif %}
 
-    {% if create_url_name %}
+    {% if create_url_name and not est_maire %}
       <a href="{% url create_url_name %}" class="btn btn-primary btn-sm">
         <i class="fa-solid fa-plus"></i> {{ create_label|default:"Ajouter" }}
       </a>
@@ -195,7 +195,7 @@
           {% else %}
             <th>Aperçu</th>
           {% endif %}
-          {% if update_url_name or delete_url_name %}<th></th>{% endif %}
+          {% if not est_maire and update_url_name or not est_maire and delete_url_name %}<th></th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -208,7 +208,7 @@
           {% else %}
             <td>{{ ligne }}</td>
           {% endif %}
-          {% if update_url_name or delete_url_name %}
+          {% if not est_maire and update_url_name or not est_maire and delete_url_name %}
           <td>
             <div class="row-actions">
               {% if update_url_name %}
@@ -242,6 +242,17 @@
     {% endif %}
   </div>
 </div>
+
+{% if est_maire and peut_echanger_avec_maire %}
+<div class="panel" style="margin-top:16px;">
+  <div class="panel-body" style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+    <span>Vous consultez ces informations en lecture seule. Pour demander une correction, signalez-la aux chefs de service.</span>
+    <a href="{% url 'dashboard_messages_maire' %}" class="btn btn-outline btn-sm">
+      <i class="fa-solid fa-flag"></i> Signaler une correction aux chefs
+    </a>
+  </div>
+</div>
+{% endif %}
 
 {% if not colonnes %}
 <div class="panel dev-note-panel">

@@ -494,6 +494,40 @@ class Signalement(models.Model):
         return self.titre
 
 
+class MessageInterneMaire(models.Model):
+    """Message privé échangé entre le maire et les chefs de service."""
+
+    expediteur = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="messages_internes_envoyes",
+    )
+    destinataire = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="messages_internes_recus",
+    )
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reponses",
+    )
+    sujet = models.CharField(max_length=200)
+    contenu = models.TextField()
+    date_envoi = models.DateTimeField(auto_now_add=True)
+    lu = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-date_envoi"]
+        verbose_name = "Message maire-chef"
+        verbose_name_plural = "Messages maire-chefs"
+
+    def __str__(self):
+        return self.sujet
+
+
 # Optionnel : si tu veux gérer les catégories d'infrastructures depuis l'admin
 # plutôt qu'en dur dans la vue (voir views_additions.py), décommente ceci :
 #

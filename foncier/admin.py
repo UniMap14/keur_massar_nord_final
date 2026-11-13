@@ -51,12 +51,11 @@ class FoncierAdminSite(UnfoldAdminSite):
         if not super().has_permission(request):
             return False
 
-        from .permissions import GROUPE_SUPERVISEUR, GROUPES_ROLES
+        from .permissions import GROUPES_ROLES
 
         groupes = set(request.user.groups.values_list("name", flat=True))
         return (
             request.user.is_superuser
-            or GROUPE_SUPERVISEUR in groupes
             or not (groupes & set(GROUPES_ROLES))
         )
 
