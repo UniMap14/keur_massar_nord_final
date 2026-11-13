@@ -9,7 +9,9 @@ from django.test import TestCase
 from django.urls import reverse
 
 from foncier.models import DemandeService, MessageInterneMaire, TypeDemande
-from foncier.tests.fixtures import creer_agent, creer_citoyen, creer_parcelle
+from foncier.tests.fixtures import (
+    creer_agent, creer_citoyen, creer_contribuable, creer_parcelle, creer_taxation,
+)
 
 
 class RolesAccesDashboardTest(TestCase):
@@ -21,6 +23,35 @@ class RolesAccesDashboardTest(TestCase):
         self._login(agent)
         response = self.client.get(reverse("dashboard_contribuable_list"))
         self.assertEqual(response.status_code, 200)
+
+    def test_taxations_sont_paginees_et_recherchables(self):
+        agent = creer_agent(role="fiscal")
+        for numero in range(55):
+            contribuable = creer_contribuable(
+                numero_fiscal=f"CTB-PAGE-{numero:03d}",
+                nom=f"Contribuable{numero:03d}",
+            )
+            creer_taxation(contribuable)
+
+        self._login(agent)
+        url = reverse("dashboard_taxation_list")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["nombre_total"], 55)
+        self.assertEqual(len(response.context["objets"]), 50)
+        self.assertContains(response, "Page 1 sur 2")
+        self.assertContains(response, "Contribuable054")
+        self.assertNotContains(response, "Contribuable000")
+
+        response = self.client.get(url, {"page": 2})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["objets"]), 5)
+        self.assertContains(response, "Contribuable000")
+
+        response = self.client.get(url, {"q": "CTB-PAGE-054"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["nombre_total"], 1)
+        self.assertContains(response, "Contribuable054")
 
     def test_agent_fiscal_bloque_sur_section_technique(self):
         agent = creer_agent(role="fiscal")
@@ -58,6 +89,12 @@ class RolesAccesDashboardTest(TestCase):
         self.assertContains(response, "const peutModifierCadastre = false")
         self.assertNotContains(response, "parcelle_update_fiscal")
         self.assertNotContains(response, "contenuFormulaireEdition")
+        self.assertContains(response, 'id="rayonTitle"')
+        self.assertContains(response, 'id="rayon-slider"')
+        self.assertContains(response, 'id="btnDessinPolygone"')
+        self.assertNotContains(response, 'id="selectionTitle"')
+        self.assertContains(response, 'id="btnReinitialiserAnalyses"')
+        self.assertContains(response, 'id="btnReinitialiserQuartiers"')
         self.assertNotEqual(self.client.get(reverse("admin:index")).status_code, 200)
 
     def test_maire_ne_peut_pas_creer_ou_modifier_une_parcelle(self):
@@ -198,6 +235,12 @@ class RolesAccesDashboardTest(TestCase):
         self.assertContains(response, "aria-pressed")
         self.assertContains(response, "geo-panel-body")
         self.assertContains(response, "fp-stat-help")
+        self.assertContains(response, 'id="rayonTitle"')
+        self.assertContains(response, 'id="rayon-slider"')
+        self.assertContains(response, 'id="btnDessinPolygone"')
+        self.assertNotContains(response, 'id="selectionTitle"')
+        self.assertContains(response, 'id="btnReinitialiserAnalyses"')
+        self.assertContains(response, 'id="btnReinitialiserQuartiers"')
 
     def test_agent_de_service_ne_peut_pas_utiliser_admin_django(self):
         agent = creer_agent(role="technique")

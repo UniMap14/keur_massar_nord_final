@@ -1241,8 +1241,23 @@ def dashboard_paiement_export_csv(request):
 @staff_member_required(login_url='dashboard_login')
 @role_requis('fiscal')
 def dashboard_taxation_list(request):
-    taxations = Taxation.objects.select_related("contribuable", "type_taxe").order_by("-annee_fiscale")
+    recherche = request.GET.get("q", "").strip()
+    taxations = Taxation.objects.select_related(
+        "contribuable", "type_taxe"
+    ).order_by("-annee_fiscale", "-pk")
 
+    if recherche:
+        filtres = (
+            Q(contribuable__numero_fiscal__icontains=recherche)
+            | Q(contribuable__nom__icontains=recherche)
+            | Q(contribuable__prenom__icontains=recherche)
+            | Q(type_taxe__libelle__icontains=recherche)
+        )
+        if recherche.isdecimal():
+            filtres |= Q(annee_fiscale=int(recherche))
+        taxations = taxations.filter(filtres)
+
+    page_obj = Paginator(taxations, 50).get_page(request.GET.get("page"))
     lignes = [
         {
             "pk": t.pk,
@@ -1253,7 +1268,7 @@ def dashboard_taxation_list(request):
                 _fcfa(t.montant_du),
             ]
         }
-        for t in taxations
+        for t in page_obj.object_list
     ]
 
     return render(request, "dashboard/generic_list_stub.html", {
@@ -1261,6 +1276,10 @@ def dashboard_taxation_list(request):
         "titre": "Taxations",
         "colonnes": ["Contribuable", "Type de taxe", "Année fiscale", "Montant dû"],
         "objets": lignes,
+        "nombre_total": page_obj.paginator.count,
+        "page_obj": page_obj,
+        "recherche_active": True,
+        "q": recherche,
         "create_url_name": "dashboard_taxation_create",
         "create_label": "Nouvelle taxation",
         "update_url_name": "dashboard_taxation_update",

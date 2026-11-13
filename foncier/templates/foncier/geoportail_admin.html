@@ -159,6 +159,9 @@
   .geo-analysis-help { margin: 6px 0 8px; padding: 8px 10px; border-left: 3px solid var(--geo-or); border-radius: 6px; background: #faf6ec; color: var(--geo-texte-mute); font-size: 11.5px; line-height: 1.45; }
   .geo-analysis-summary { margin-top: 8px; padding: 9px 10px; border-radius: 8px; background: #faf6ec; color: var(--geo-brun-fonce); line-height: 1.5; }
   .geo-analysis-caption { margin-top: 7px; color: var(--geo-texte-mute); font-size: 11.5px; line-height: 1.45; }
+  .geo-tool-divider { margin: 14px 0 10px; border-top: 1px solid var(--geo-bordure); }
+  .geo-tool-subtitle { margin: 0 0 4px; color: var(--geo-brun-fonce); font-size: 13px; font-weight: 700; }
+  .geo-tool-subtitle i { margin-right: 5px; color: var(--geo-or); }
 
   .geo-stat-card { padding: 10px 0; border-bottom: 1px solid #f0ebe0; }
   .geo-stat-card:last-child { border-bottom: none; }
@@ -407,21 +410,6 @@
       </div>
 
       <div class="geo-panel">
-        <button type="button" class="geo-panel-title" id="rayonTitle" data-collapsed="true"><i class="fa-solid fa-circle-dot"></i> Rayon de couverture</button>
-        <label class="geo-field-label" for="rayon-infra-select">Centrer sur une infrastructure</label>
-        <select id="rayon-infra-select" class="geo-field-select">
-          <option value="">Choisir une infrastructure...</option>
-        </select>
-        <button type="button" id="btnRayonPointLibre" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px; margin-bottom:8px;">
-          <i class="fa-solid fa-map-pin"></i> Choisir un point sur la carte
-        </button>
-        <label class="geo-field-label">Rayon</label>
-        <input type="range" id="rayon-slider" min="100" max="3000" step="100" value="500" class="geo-field-range">
-        <div class="geo-radius-value"><span id="rayon-value">500</span> m</div>
-        <div id="rayon-result" class="geo-tool-result"></div>
-      </div>
-
-      <div class="geo-panel">
         <button type="button" class="geo-panel-title" id="sousDesservisTitle" data-collapsed="true"><i class="fa-solid fa-triangle-exclamation"></i> Zones sous-desservies</button>
         <p class="geo-analysis-help">Repère les secteurs éloignés des infrastructures affichées (ou de la catégorie filtrée). Les zones rouges indiquent où approfondir l’analyse, pas une absence certaine de service.</p>
         <label class="geo-field-label">Distance seuil</label>
@@ -434,6 +422,9 @@
           <i class="fa-solid fa-magnifying-glass-chart"></i> Analyser
         </button>
         <div id="sousDesservisResult" class="geo-tool-result" aria-live="polite"></div>
+        <button type="button" id="btnReinitialiserAnalyses" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px;">
+          <i class="fa-solid fa-rotate-left"></i> Réinitialiser les analyses
+        </button>
       </div>
 
       <!-- ===== NOUVEAU : Statistiques par quartier ===== -->
@@ -453,6 +444,9 @@
           <input type="checkbox" id="toggle-choropleth">
           <span>Carte de pression foncière (densité de parcelles)</span>
         </label>
+        <button type="button" id="btnReinitialiserQuartiers" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:10px;">
+          <i class="fa-solid fa-rotate-left"></i> Réinitialiser les quartiers
+        </button>
       </div>
 
       <!-- ===== NOUVEAU : Pression fonciere (admin uniquement) ===== -->
@@ -586,7 +580,22 @@
       </div>
 
       <div class="geo-panel">
-        <button type="button" class="geo-panel-title" id="selectionTitle" data-collapsed="true"><i class="fa-solid fa-draw-polygon"></i> Sélection spatiale</button>
+        <button type="button" class="geo-panel-title" id="rayonTitle" data-collapsed="true"><i class="fa-solid fa-circle-dot"></i> Rayon de couverture</button>
+        <p class="geo-analysis-help">Choisissez une infrastructure ou un point sur la carte pour définir le centre. La zone calculée affiche aussi les parcelles et infrastructures concernées.</p>
+        <label class="geo-field-label" for="rayon-infra-select">Centre du rayon</label>
+        <select id="rayon-infra-select" class="geo-field-select">
+          <option value="">Choisir une infrastructure...</option>
+        </select>
+        <button type="button" id="btnRayonPointLibre" class="geo-btn geo-btn-ghost geo-btn-block" style="margin-top:8px; margin-bottom:8px;">
+          <i class="fa-solid fa-map-pin"></i> Choisir un point sur la carte
+        </button>
+        <label class="geo-field-label" for="rayon-slider">Distance du rayon</label>
+        <input type="range" id="rayon-slider" min="100" max="3000" step="100" value="500" class="geo-field-range">
+        <div class="geo-radius-value"><span id="rayon-value">500</span> m</div>
+        <div id="rayon-result" class="geo-tool-result" aria-live="polite"></div>
+        <div class="geo-tool-divider" role="separator"></div>
+        <h4 class="geo-tool-subtitle"><i class="fa-solid fa-draw-polygon"></i> Sélection spatiale</h4>
+        <p class="geo-analysis-help">Ou dessinez une zone personnalisée pour compter et examiner les parcelles et infrastructures qu’elle contient.</p>
         <div class="geo-measure-group" style="margin-top:0;">
           <button type="button" class="geo-measure-btn" id="btnDessinPolygone"><i class="fa-solid fa-draw-polygon"></i> Polygone</button>
           <button type="button" class="geo-measure-btn" id="btnDessinRectangle"><i class="fa-regular fa-square"></i> Rectangle</button>
@@ -753,7 +762,7 @@ document.addEventListener('DOMContentLoaded', function () {
       conteneur: '.geo-sidebar-left',
       barre: 'tabsGauche',
       groupes: [
-        { id: 'recherche', label: 'Recherche', aide: 'Rechercher des parcelles et infrastructures, filtrer la carte ou mesurer un rayon.', titres: ['rechercheTitle', 'filtresTitle', 'rayonTitle'] },
+        { id: 'recherche', label: 'Recherche', aide: 'Rechercher des parcelles et infrastructures et filtrer la carte.', titres: ['rechercheTitle', 'filtresTitle'] },
         { id: 'analyse', label: 'Analyse', aide: 'Repérer les zones éloignées des infrastructures et consulter les analyses foncières.', titres: ['sousDesservisTitle', 'pressionTitle', 'voronoiTitle'] },
         { id: 'quartiers', label: 'Quartiers', aide: 'Consulter et comparer les statistiques des quartiers.', titres: ['quartierTitle', 'comparaisonTitle'] },
       ],
@@ -763,7 +772,7 @@ document.addEventListener('DOMContentLoaded', function () {
       barre: 'tabsDroite',
       groupes: [
         { id: 'vue', label: 'Vue', aide: 'Afficher les statistiques et choisir les couches visibles sur la carte.', titres: ['statistiquesTitle', 'couchesTitle'] },
-        { id: 'outils', label: 'Outils', aide: 'Sélectionner une zone, mesurer ou préparer un itinéraire.', titres: ['selectionTitle', 'itineraireTitle'] },
+        { id: 'outils', label: 'Outils', aide: 'Calculer un rayon de couverture, dessiner une sélection ou préparer un itinéraire.', titres: ['rayonTitle', 'itineraireTitle'] },
         { id: 'export', label: 'Export', aide: 'Télécharger les données affichées ou sélectionnées.', titres: ['exportTitle'] },
       ],
     },
@@ -771,7 +780,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const aides = {
     rechercheTitle: 'Afficher ou replier les outils de recherche des parcelles et infrastructures.',
     filtresTitle: 'Afficher ou replier les filtres de la carte.',
-    rayonTitle: 'Afficher ou replier le calcul du rayon de couverture.',
+    rayonTitle: 'Afficher ou replier le rayon de couverture et la sélection spatiale.',
     sousDesservisTitle: 'Afficher ou replier l’analyse des zones sous-desservies.',
     quartierTitle: 'Afficher ou replier les statistiques du quartier.',
     pressionTitle: 'Afficher ou replier l’analyse de la pression foncière.',
@@ -780,7 +789,6 @@ document.addEventListener('DOMContentLoaded', function () {
     voronoiTitle: 'Afficher ou replier les zones de desserte.',
     statistiquesTitle: 'Afficher ou replier les statistiques de la carte.',
     couchesTitle: 'Afficher ou replier la liste des couches cartographiques.',
-    selectionTitle: 'Afficher ou replier les outils de sélection spatiale.',
     itineraireTitle: 'Afficher ou replier les outils d’itinéraire et de mesure.',
     btnMesureDistance: 'Mesurer une distance entre plusieurs points de la carte.',
     btnMesureSurface: 'Mesurer la surface d’une zone dessinée sur la carte.',
@@ -801,6 +809,8 @@ document.addEventListener('DOMContentLoaded', function () {
     'rayon-slider': 'Ajuster la distance du rayon de couverture.',
     'seuil-desserte': 'Choisir la distance minimale considérée comme desservie.',
     btnAnalyserDesserte: 'Calculer les zones qui dépassent la distance choisie.',
+    btnReinitialiserAnalyses: 'Effacer les résultats et couches des analyses.',
+    btnReinitialiserQuartiers: 'Effacer le quartier sélectionné et réinitialiser la carte de densité.',
     btnAnalyserBati: 'Calculer la part des parcelles bâties dans chaque quartier.',
     'seuil-non-bati': 'Choisir la distance autour des infrastructures.',
     btnAnalyserNonBati: 'Repérer les terrains non bâtis proches des infrastructures.',
@@ -953,17 +963,33 @@ document.addEventListener('DOMContentLoaded', function () {
   let allParcelles = { type: 'FeatureCollection', features: [] };
   let filteredParcelles = [];
   let selectedFeature = null;
+  let coucheParcelleSelectionnee = null;
   let userLatLng = null;
   let popupActif = null;
   const renduCanvas = L.canvas({ padding: 0.5 });
+
+  function effacerSurlignageParcelle() {
+    selectedFeature = null;
+    if (coucheParcelleSelectionnee) map.removeLayer(coucheParcelleSelectionnee);
+    coucheParcelleSelectionnee = null;
+  }
+
+  function surlignerParcelle(feature) {
+    if (coucheParcelleSelectionnee) map.removeLayer(coucheParcelleSelectionnee);
+    coucheParcelleSelectionnee = L.geoJSON(feature, {
+      renderer: L.svg(),
+      interactive: false,
+      style: { color: '#2f7a4f', weight: 3, fillColor: '#2f7a4f', fillOpacity: 0.18 },
+    }).addTo(map);
+    coucheParcelleSelectionnee.bringToFront();
+  }
 
   function fermerPopup() {
     if (popupActif) { map.closePopup(popupActif); popupActif = null; }
   }
   function fermerFicheParcelle() {
     fermerPopup();
-    selectedFeature = null;
-    redessinerCouches();
+    effacerSurlignageParcelle();
   }
   function idDeFeature(feature) {
     return feature && feature.properties ? feature.properties.id : null;
@@ -1238,14 +1264,14 @@ document.addEventListener('DOMContentLoaded', function () {
       onEachFeature: function (feature, layer) {
         layer.on('click', function (e) {
           if (modeDessinActif) return;
-          selectedFeature = feature;
           fermerPopup();
+          selectedFeature = feature;
+          surlignerParcelle(feature);
           popupActif = L.popup({ className: 'fiche-parcelle', closeButton: false, maxWidth: 320 })
             .setLatLng(e.latlng)
             .setContent(contenuFicheParcelle(feature))
             .openOn(map);
           attacherEvenementsFiche(feature);
-          redessinerCouches();
         });
       }
     });
@@ -1519,7 +1545,7 @@ let modeChoixDestination = false;
       if (coucheFormeSelection) { map.removeLayer(coucheFormeSelection); coucheFormeSelection = null; }
       calculerSelection(forme);
       if (result) {
-        result.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-circle-check"></i> Zone de ' + rayon + ' m calculée. Voir le détail dans le panneau « Sélection spatiale » ci-dessous.</span>';
+        result.innerHTML = '<span style="color:#2f7a4f;"><i class="fa-solid fa-circle-check"></i> Zone de ' + rayon + ' m calculée. Le détail des parcelles et infrastructures apparaît dans ce panneau.</span>';
       }
     } else if (result) {
       result.innerHTML = '<span style="color:#b23b2e;">Turf.js indisponible.</span>';
@@ -1786,6 +1812,19 @@ let modeChoixDestination = false;
     }
   }
 
+  function reinitialiserAnalyses() {
+    if (coucheSousDesservis) { map.removeLayer(coucheSousDesservis); coucheSousDesservis = null; }
+    if (coucheVoronoi) { map.removeLayer(coucheVoronoi); coucheVoronoi = null; }
+    document.getElementById('seuil-desserte').value = '500';
+    document.getElementById('toggle-voronoi').checked = false;
+    document.getElementById('sousDesservisResult').textContent = '';
+    document.getElementById('voronoiResult').textContent = '';
+    document.getElementById('batiResult').textContent = '';
+    document.getElementById('seuil-non-bati').value = '500';
+    document.getElementById('nonBatiResult').textContent = '';
+    document.getElementById('sansTitreResult').textContent = '';
+  }
+
   // ===== NOUVEAU : Statistiques par quartier =====
   let statsParQuartier = [];
   let parcellesParZone = {};
@@ -2011,6 +2050,22 @@ let modeChoixDestination = false;
   function basculerChoropleth(active) {
     modeChoroplethActif = active;
     redessinerCouches();
+  }
+
+  function reinitialiserQuartiers() {
+    document.getElementById('quartier-select').value = '';
+    quartierSelectionne = null;
+    filteredParcelles = [];
+    document.getElementById('quartier-fiche').style.display = 'none';
+    document.getElementById('toggle-choropleth').checked = false;
+    modeChoroplethActif = false;
+    comparaisonDeployee = false;
+    construireBarChartQuartiers();
+    redessinerCouches();
+    if (coucheParcelles && coucheParcelles.getBounds().isValid()) {
+      map.fitBounds(coucheParcelles.getBounds(), { padding: [20, 20] });
+    }
+    mettreAJourVisibiliteReinitialisation();
   }
 
   function construireBarChartQuartiers() {
@@ -2428,6 +2483,12 @@ let modeChoixDestination = false;
     basemaps.plan.addTo(map);
     ajouterControlesCarte();
     initialiserDessin();
+
+    map.on('popupclose', function (e) {
+      if (e.popup !== popupActif) return;
+      popupActif = null;
+      effacerSurlignageParcelle();
+    });
 
     map.on('popupopen', function (e) {
       const source = e.popup._source;
@@ -3261,9 +3322,11 @@ let modeChoixDestination = false;
     onEvent('rayon-infra-select', 'change', mettreAJourRayon);
     onEvent('rayon-slider', 'input', function (e) { document.getElementById('rayon-value').textContent = e.target.value; mettreAJourRayon(); });
     onEvent('btnAnalyserDesserte', 'click', analyserZonesSousDesservies);
+    onEvent('btnReinitialiserAnalyses', 'click', reinitialiserAnalyses);
     onEvent('toggle-voronoi', 'change', function (e) { basculerVoronoi(e.target.checked); });
     onEvent('quartier-select', 'change', function (e) { selectionnerQuartier(e.target.value); });
     onEvent('toggle-choropleth', 'change', function (e) { basculerChoropleth(e.target.checked); });
+    onEvent('btnReinitialiserQuartiers', 'click', reinitialiserQuartiers);
     onEvent('btnAnalyserBati', 'click', analyserTauxBati);
     onEvent('btnAnalyserNonBati', 'click', analyserNonBatiProches);
     onEvent('btnAnalyserSansTitre', 'click', analyserSansTitre);

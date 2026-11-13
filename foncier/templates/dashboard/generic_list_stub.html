@@ -2,7 +2,7 @@
 
 {% block page_title %}{{ titre }}{% endblock %}
 {% block header_title %}{{ titre }}{% endblock %}
-{% block header_subtitle %}<div class="topbar-subtitle">{{ objets|length }} enregistrement(s)</div>{% endblock %}
+{% block header_subtitle %}<div class="topbar-subtitle">{{ nombre_total|default:objets|length }} enregistrement(s)</div>{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -83,6 +83,14 @@
         from { opacity: 0; transform: translateY(4px); }
         to   { opacity: 1; transform: translateY(0); }
     }
+    .list-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 16px;
+    }
+    .list-pagination-info { color: var(--ink-quiet, #7a7266); font-size: 13px; }
 
     /* ===== ÉTAT VIDE ===== */
     .empty-state {
@@ -241,6 +249,21 @@
     </div>
     {% endif %}
   </div>
+  {% if page_obj and page_obj.paginator.num_pages > 1 %}
+  <nav class="list-pagination" aria-label="Pagination des résultats">
+    {% if page_obj.has_previous %}
+      <a class="btn btn-outline btn-sm" href="?page={{ page_obj.previous_page_number }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}">
+        <i class="fa-solid fa-chevron-left"></i> Précédent
+      </a>
+    {% endif %}
+    <span class="list-pagination-info">Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn btn-outline btn-sm" href="?page={{ page_obj.next_page_number }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}">
+        Suivant <i class="fa-solid fa-chevron-right"></i>
+      </a>
+    {% endif %}
+  </nav>
+  {% endif %}
 </div>
 
 {% if est_maire and peut_echanger_avec_maire %}
